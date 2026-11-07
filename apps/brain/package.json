@@ -1,0 +1,12 @@
+{
+  "name": "@coach/brain",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "dependencies": {
+    "@coach/protocol": "workspace:*",
+    "@google/genai": "3.0.0",
+    "nanoid": "5.1.6",
+    "zod": "4.6.6"
+  }
+}

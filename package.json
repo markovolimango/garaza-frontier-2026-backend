@@ -1,0 +1,15 @@
+{
+  "name": "coach",
+  "private": true,
+  "type": "module",
+  "packageManager": "pnpm@10.18.0",
+  "scripts": {
+    "test": "vitest run",
+    "typecheck": "tsc -b packages/protocol apps/brain"
+  },
+  "devDependencies": {
+    "@types/node": "22.18.0",
+    "typescript": "5.9.3",
+    "vitest": "5.1.0"
+  }
+}
