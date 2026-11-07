@@ -5,10 +5,13 @@
   "packageManager": "pnpm@10.18.0",
   "scripts": {
     "test": "vitest run",
-    "typecheck": "tsc -b packages/protocol apps/brain"
+    "typecheck": "tsc -b packages/protocol apps/brain",
+    "jj:playground": "tsx apps/brain/src/jj/playground/server.ts",
+    "jj:smoke": "tsx apps/brain/src/jj/playground/smoke.ts"
   },
   "devDependencies": {
     "@types/node": "22.18.0",
+    "tsx": "4.20.6",
     "typescript": "5.9.3",
     "vitest": "5.1.0"
   }
