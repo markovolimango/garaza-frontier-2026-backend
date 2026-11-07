@@ -6,12 +6,12 @@
 import { z } from "zod";
 import {
   ToolArgs, ToolName,
-  type JudgeDef, type JudgeId, type Result, type RunId, type SceneOp, type ToolArgsOf, type ToolResult,
+  type JudgeDef, type ToolCatalogue, type JudgeId, type Result, type RunId, type SceneOp, type ToolArgsOf, type ToolResult,
 } from "@coach/protocol";
-import type { ToolDeclaration } from "./jj/voice-agent.ts";
+import type { ToolDeclaration } from "./voice-agent.ts";
 import type {
   CalibrationPort, ContextPort, HubPort, Logger, ReportsPort, SessionActionLike, SessionPort,
-} from "./jj/ports.ts";
+} from "./ports.ts";
 
 export type ToolCaller = "jj" | "stage" | "operator" | "replay";
 
@@ -26,7 +26,6 @@ export interface ToolSpec<A> {
 }
 
 export interface ToolInvocation { name: string; args: unknown; caller: ToolCaller; result: ToolResult; durationMs: number }
-export interface ToolCatalogueEntry { name: ToolName; description: string; behavior: ToolSpec<unknown>["behavior"]; schema: Record<string, unknown> }
 
 export function jsonSchemaOf(schema: z.ZodType): Record<string, unknown> {
   const { $schema: _drop, ...rest } = z.toJSONSchema(schema, { io: "input" }) as Record<string, unknown>;
@@ -55,9 +54,9 @@ export class ToolRegistry {
     }));
   }
 
-  /** For GET /api/tools; the operator panel builds its forms from `schema`. */
-  catalogue(): ToolCatalogueEntry[] {
-    return [...this.specs.values()].map((s) => ({ name: s.name, description: s.description, behavior: s.behavior, schema: jsonSchemaOf(s.args) }));
+  /** GET /api/tools; the operator panel builds its forms from argsSchema. */
+  catalogue(): ToolCatalogue {
+    return { tools: [...this.specs.values()].map((s) => ({ name: s.name, description: s.description, behavior: s.behavior, argsSchema: jsonSchemaOf(s.args) })) };
   }
 
   onInvoked(fn: (i: ToolInvocation) => void): () => void {

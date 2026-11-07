@@ -10,7 +10,7 @@ simulated session (`apps/brain/src/jj/playground/sim.ts`).
 ```bash
 cp .env.example .env          # set GEMINI_API_KEY, optionally JJ_VOICE (e.g. Puck)
 corepack pnpm install
-corepack pnpm test            # 56 tests, must be green
+corepack pnpm test            # must be green
 ```
 
 `GEMINI_LIVE_MODEL` defaults to `gemini-3.8-live` (from the spec). If connect fails with a
@@ -19,7 +19,7 @@ model error, set it to whatever Live model the key has access to.
 ## 1. Smoke test (headless, ~3 min)
 
 ```bash
-corepack pnpm jj:smoke
+corepack pnpm --filter @coach/brain jj:smoke
 ```
 
 It drives the loop with **scripted text turns** in place of speech, then prints one line per step:
@@ -42,8 +42,8 @@ Outputs in `data/jj-smoke/<timestamp>/`: `transcript.txt`, `jj.wav` (listen to i
 ## 2. Playground: full duplex by voice (~15 min)
 
 ```bash
-corepack pnpm jj:playground          # http://localhost:8790 (Chrome, headphones)
-corepack pnpm jj:playground --fake   # no key needed: checks the page and wiring only
+corepack pnpm --filter @coach/brain jj:playground          # http://localhost:8790 (Chrome, headphones)
+corepack pnpm --filter @coach/brain jj:playground --fake   # no key needed: checks the page and wiring only
 ```
 
 Press **Enable audio**, then **Start session**. The right side is the live event log: your

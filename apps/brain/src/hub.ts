@@ -131,7 +131,7 @@ export class WsHub implements Hub {
   }
 
   private sendError(ws: WebSocket, code: ErrorCode, message: string, refId?: string): void {
-    this.write(ws, { type: "error", payload: { code, message, ...(refId ? { refId } : {}) } });
+    this.write(ws, { type: "error", ...(refId ? { replyTo: refId } : {}), payload: { code, message, ...(refId ? { refId } : {}) } });
   }
 
   private onControl(ws: WebSocket): void {

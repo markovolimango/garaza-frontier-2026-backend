@@ -13,7 +13,7 @@
  * Spec sections: "JJ adapter and tools", "Speech pipeline" (wake sequence).
  */
 import { AUDIO_FLAG, AUDIO_SOURCE, type JJState, type RunId, type SceneOp, type SessionState } from "@coach/protocol";
-import type { ToolRegistry } from "../tools.ts";
+import type { ToolRegistry } from "./tools.ts";
 import type { VoiceAgent } from "./voice-agent.ts";
 import type { HubPort, JJClock, Logger, MicPort, ReportsPort, SessionActionLike, SessionPort } from "./ports.ts";
 import { buildContextText, runAbortedNote, runEndedMessage, sessionStartNote, uiActionNote, wakeNote } from "./messages.ts";

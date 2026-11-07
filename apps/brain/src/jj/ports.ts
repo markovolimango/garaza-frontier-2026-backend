@@ -4,7 +4,7 @@
  * satisfy them structurally and tests can fake them.
  */
 import type {
-  ClientRole, JudgeDef, PresentationBrief, Result, RunId, SceneOp, SessionState,
+  ClientRole, Downlink, JudgeDef, PresentationBrief, Result, RunId, SceneOp, SessionState,
 } from "@coach/protocol";
 
 export type { LogLevel, Logger } from "../log.ts";
@@ -22,13 +22,8 @@ export interface SessionPort {
   subscribe(fn: (s: SessionState, cause: SessionActionLike | SceneOp[]) => void): () => void;
 }
 
-/** Downlink messages the JJ engine emits. Matches the spec's message catalogue payloads. */
-export type JJDownlink =
-  | { type: "jj.state"; payload: { connected: boolean; listening: boolean; speaking: boolean } }
-  | { type: "actor.say"; payload: { actorId: "jj"; utteranceId: string; source: 0; text: string } }
-  | { type: "audio.stop"; payload: { source: number; utteranceId?: string } }
-  | { type: "report.focus"; payload: { kind: string | null } }
-  | { type: "hud.toast"; payload: { text: string; level: "info" | "warn" } };
+/** Downlink messages the JJ engine and the coach tools emit. */
+export type JJDownlink = Downlink<"jj.state" | "actor.say" | "audio.stop" | "report.focus" | "hud.toast">;
 
 /** Spec `Hub` (brain core). The hub wraps payloads in the envelope. */
 export interface HubPort {

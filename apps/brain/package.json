@@ -11,7 +11,14 @@
     "zod": "4.6.6"
   },
   "devDependencies": {
+    "@coach/web": "workspace:*",
     "@types/ws": "8.18.1",
-    "@coach/web": "workspace:*"
+    "tsx": "4.20.6"
+  },
+  "scripts": {
+    "dev": "tsx watch src/server.ts",
+    "start": "tsx src/server.ts",
+    "jj:playground": "tsx src/jj/playground/server.ts",
+    "jj:smoke": "tsx src/jj/playground/smoke.ts"
   }
 }

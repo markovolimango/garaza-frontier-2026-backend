@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 import { AUDIO_FLAG } from "@coach/protocol";
 import { JJEngine } from "../../src/jj/engine.ts";
 import { FakeVoiceAgent } from "../../src/jj/fake-agent.ts";
-import { ToolRegistry, createCoachTools } from "../../src/tools.ts";
+import { ToolRegistry, createCoachTools } from "../../src/jj/tools.ts";
 import { FakeContext, FakeHub, FakeMic, FakeReports, FakeSession, VirtualClock, flush, silent, voiced } from "../helpers.ts";
 
 function setup() {

@@ -6,9 +6,8 @@
   "scripts": {
     "test": "vitest run",
     "typecheck": "tsc -b packages/protocol apps/web apps/brain",
-    "jj:playground": "tsx apps/brain/src/jj/playground/server.ts",
-    "jj:smoke": "tsx apps/brain/src/jj/playground/smoke.ts",
-    "gen:fixtures": "tsx packages/protocol/scripts/gen-fixtures.ts"
+    "gen:fixtures": "tsx packages/protocol/scripts/gen-fixtures.ts",
+    "dev:brain": "pnpm --filter @coach/brain dev"
   },
   "devDependencies": {
     "@types/node": "22.18.0",

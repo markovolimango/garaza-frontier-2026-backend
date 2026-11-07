@@ -2,7 +2,7 @@
  * Live smoke test: drives the real JJ engine + Gemini Live through the core loop with
  * scripted user turns (sent as text, so no mic is needed) and checks the tool calls.
  *
- *   pnpm jj:smoke               # needs GEMINI_API_KEY
+  *   pnpm --filter @coach/brain jj:smoke            # needs GEMINI_API_KEY
  *
  * Writes the transcript, every event and JJ's audio (WAV) to data/jj-smoke/<timestamp>/.
  * Exit code 0 when no step FAILs (WARN = the model did something reasonable but unexpected).
@@ -12,7 +12,7 @@ import { dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { createJJ, readJJConfig } from "../index.ts";
 import type { HubPort, JJClock, Logger } from "../ports.ts";
-import type { ToolInvocation } from "../../tools.ts";
+import type { ToolInvocation } from "../tools.ts";
 import { SimContext, SimMic, SimReports, SimSession } from "./sim.ts";
 
 const REPO = resolve(dirname(fileURLToPath(import.meta.url)), "../../../../..");

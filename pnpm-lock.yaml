@@ -45,6 +45,9 @@ importers:
       '@types/ws':
         specifier: 8.18.1
         version: 8.18.1
+      tsx:
+        specifier: 4.20.6
+        version: 4.20.6
 
   apps/web:
     dependencies:

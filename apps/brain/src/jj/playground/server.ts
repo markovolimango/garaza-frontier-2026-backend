@@ -2,8 +2,8 @@
  * JJ playground: talk to the real JJ engine (full duplex, real Gemini Live) from a browser,
  * over a simulated session, and watch every tool call, transcript, note and downlink.
  *
- *   pnpm jj:playground            # needs GEMINI_API_KEY (in .env or the environment)
- *   pnpm jj:playground --fake     # no key: FakeVoiceAgent, to check the page and wiring
+ *   pnpm --filter @coach/brain jj:playground            # needs GEMINI_API_KEY (in .env or the environment)
+ *   pnpm --filter @coach/brain jj:playground --fake     # no key: FakeVoiceAgent, to check the page and wiring
  *
  * Open http://localhost:8790 in Chrome, use headphones, press "Enable audio".
  * Every event is also appended to data/jj-playground/<timestamp>.jsonl.

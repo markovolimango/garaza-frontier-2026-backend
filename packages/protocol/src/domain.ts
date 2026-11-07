@@ -143,6 +143,8 @@ export const CoachState = z.object({
   trainingRuns: z.number().int(),
 });
 export type CoachState = z.infer<typeof CoachState>;
+export type Recommendation = z.infer<typeof Recommendation>;
+export type TargetProgress = z.infer<typeof TargetProgress>;
 
 // ---- session ----
 export const GazeCalibration = z.object({

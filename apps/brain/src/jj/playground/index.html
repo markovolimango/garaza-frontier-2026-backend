@@ -257,12 +257,12 @@ document.addEventListener("keydown", (e) => {
   if (e.key === "ArrowLeft") slideBy(-1);
 });
 
-fetch("/api/tools").then((r) => r.json()).then((list) => {
-  tools = list;
+fetch("/api/tools").then((r) => r.json()).then((cat) => {
+  const list = cat.tools; tools = list;
   $("#s-tool").innerHTML = list.map((t) => `<option>${t.name}</option>`).join("");
   const show = () => {
     const t = tools.find((x) => x.name === $("#s-tool").value);
-    $("#tool-desc").textContent = `${t.behavior} · ${t.description} · args: ${JSON.stringify(t.schema.properties ?? {})}`;
+    $("#tool-desc").textContent = `${t.behavior} · ${t.description} · args: ${JSON.stringify(t.argsSchema.properties ?? {})}`;
   };
   $("#s-tool").onchange = show; show();
 });

@@ -8,7 +8,7 @@
  */
 import { readFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
-import { ToolRegistry, createCoachTools, type CoachToolDeps } from "../tools.ts";
+import { ToolRegistry, createCoachTools, type CoachToolDeps } from "./tools.ts";
 import { JJEngine, type WakeTuning } from "./engine.ts";
 import { GeminiLiveAgent } from "./gemini-live.ts";
 import type { JJConfig } from "./config.ts";

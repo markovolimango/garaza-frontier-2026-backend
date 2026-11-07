@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { ToolName } from "@coach/protocol";
-import { ToolRegistry, createCoachTools, resolveJudge, toughnessSpread } from "../../src/tools.ts";
+import { ToolRegistry, createCoachTools, resolveJudge, toughnessSpread } from "../../src/jj/tools.ts";
 import { FakeContext, FakeHub, FakeReports, FakeSession, VirtualClock, judge } from "../helpers.ts";
 
 function setup() {
