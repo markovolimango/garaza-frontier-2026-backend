@@ -14,6 +14,10 @@ export interface Channels {
   jjMoodSampled: number;
   /** Explicit debug request to reload JJ with a selected mood. */
   jjReload: number;
+  /** brain integration: the brain asks the presenter to show this slide. */
+  slideCommand: number;
+  /** brain integration: the PDF the presenter loaded (uploaded to the brain). */
+  deckFile: File;
 }
 
 export type Channel = keyof Channels;
@@ -26,6 +30,8 @@ const listeners: { [C in Channel]: Set<Listener<C>> } = {
   jjMood: new Set(),
   jjMoodSampled: new Set(),
   jjReload: new Set(),
+  slideCommand: new Set(),
+  deckFile: new Set(),
 };
 const last: Partial<Channels> = {};
 

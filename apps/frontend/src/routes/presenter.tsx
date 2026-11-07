@@ -1,7 +1,7 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useCallback, useEffect, useRef, useState } from "react";
 import type { PDFDocumentProxy } from "pdfjs-dist";
-import { publish } from "@/signals";
+import { getLast, publish, subscribe } from "@/signals";
 import { loadPdf } from "@/lib/pdf";
 import { readPptxTimings } from "@/lib/pptxTimings";
 import { PdfPage } from "@/components/presenter/PdfPage";
@@ -40,6 +40,16 @@ function Presenter() {
   // publish slide index
   useEffect(() => publish("slide", slide), [slide]);
 
+  // brain integration: the brain sets the slide (run start, go_to_slide) …
+  const goRef = useRef<(n: number) => void>(() => {});
+  useEffect(() => subscribe("slideCommand", (n) => goRef.current(n)), []);
+  // … and the deck survives leaving this screen
+  useEffect(() => {
+    const f = getLast("deckFile");
+    if (f && !doc) void onPdf(f, true);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
   // persist timings
   useEffect(() => {
     if (doc && timings.length === count) localStorage.setItem(storageKey(pdfName, count), JSON.stringify(timings));
@@ -60,6 +70,7 @@ function Presenter() {
     },
     [count, slide, rehearse],
   );
+  goRef.current = go;
 
   // keyboard arrows
   useEffect(() => {
@@ -82,7 +93,7 @@ function Presenter() {
     return () => clearInterval(id);
   }, [auto, rehearse, timings, slide, count, go]);
 
-  async function onPdf(file: File) {
+  async function onPdf(file: File, restoring = false) {
     setStatus("Loading PDF…");
     const d = await loadPdf(file);
     const saved = localStorage.getItem(storageKey(file.name, d.numPages));
@@ -92,6 +103,7 @@ function Presenter() {
     setSlide(0);
     slideStart.current = performance.now();
     setStatus(saved ? "Loaded saved timings" : "");
+    if (!restoring) publish("deckFile", file); // brain integration
   }
 
   async function onPptx(file: File) {

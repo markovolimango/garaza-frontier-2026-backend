@@ -138,7 +138,7 @@ export function createCoachTools(deps: CoachToolDeps, registry: ToolRegistry): T
 
   const buildPanel = (
     personas: Awaited<ReturnType<ContextPort["generatePersonas"]>>["judges"],
-    overrides: { toughness?: number; style?: JudgeDef["style"]; spread: boolean },
+    overrides: { toughness?: number | undefined; style?: JudgeDef["style"] | undefined; spread: boolean },
   ): JudgeDef[] => {
     const spread = toughnessSpread(personas.length);
     return personas.map((p, i) => ({

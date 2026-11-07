@@ -14,6 +14,7 @@ import { startSignals } from "../signals";
 import { Vignette } from "../components/Vignette";
 import { DebugPanel } from "../components/DebugPanel";
 import { SCREENS } from "../components/NextButton";
+import { BrainBridge } from "../brain/BrainBridge";
 
 import appCss from "../styles.css?url";
 import { reportLovableError } from "../lib/lovable-error-reporting";
@@ -147,6 +148,7 @@ function RootComponent() {
       <Outlet />
       <Vignette active={pathname === "/presenter" || pathname === "/judges"} />
       <DebugPanel />
+      <BrainBridge />
     </QueryClientProvider>
   );
 }

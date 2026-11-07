@@ -18,7 +18,7 @@ try { config = readConfig(); } catch (e) { console.error(e instanceof Error ? e.
 const log = consoleLogger(config.brain.LOG_LEVEL);
 
 const brain = createBrain({
-  jj: config.jj, log,
+  jj: config.jj, log, sessionDir: resolve(REPO, config.brain.SESSION_DIR), corsOrigins: config.brain.CORS_ORIGINS,
   ...(config.brain.JJ_FAKE === "1" ? { agent: new FakeVoiceAgent() } : {}),
 });
 const port = await brain.listen(config.brain.BRAIN_PORT, config.brain.BRAIN_HOST);
