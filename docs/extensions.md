@@ -19,6 +19,36 @@ Lanes: `lead` (protocol), `brain`, `sensing`, `agents`, `stage`, `report`.
 
 ---
 
+### 2026-11-07T23:23+01:00 · stage · Lovable frontend integrated (subtree + brain layer)
+- **Where:** `apps/frontend` (git subtree of the frontend repo), `apps/frontend/src/brain/*`, tagged edits in `bus.ts`, `signals/index.ts`, `__root.tsx`, `presenter.tsx`
+- **What:** `BrainSource` (real `SignalSource`) and `BrainBridge`; new bus channels `slideCommand` and `deckFile`; `VITE_SIGNAL_SOURCE=brain` + `VITE_BRAIN_URL` select the brain; brain views map to Lovable's four routes; forward Next/keys 1–4 become `start_run` / `presentation.done` / `end_run`; brain-driven navigation waits ~300 ms after mount for hydration; overlay renders client-only.
+- **Why:** the Lovable app had only a mock bus and a placeholder WebSocket with an invented format.
+- **Impact:** Lovable side: keep the bus contract and zod 4 (docs/integration.md §14).
+
+### 2026-11-07T23:23+01:00 · lead · One zod (4.6.6) across the repo
+- **Where:** `apps/frontend/package.json`
+- **What:** the frontend moved from zod 3.25 to 4.6.6.
+- **Why:** the SSR (nitro) bundle collapsed `zod` to the frontend's copy, so `@coach/protocol` ran on zod 3 and crashed server renders.
+- **Impact:** Lovable must not downgrade zod.
+
+### 2026-11-07T23:23+01:00 · agents · Upload endpoints and CORS
+- **Where:** `apps/brain/src/context/uploads.ts`, `brain.ts`, `config.ts` (`CORS_ORIGINS`)
+- **What:** `POST /api/uploads/deck` (multipart: `manifest` + `slide_<n>.png`, PNG magic checked, indexes 0..n-1, ≤ 60 slides), `POST /api/uploads/docs` (≤ 10 docs, 50k/150k chars), `GET /api/decks/:deckId/:n.png`; files under `SESSION_DIR/<sessionId>/uploads/`; refused with 409 `wrong_phase` during a run. CORS allows localhost/127.0.0.1 on any port plus `CORS_ORIGINS`.
+- **Why:** the frontend dev server is on another origin; session.start needs a deck.
+- **Impact:** setup UIs post here.
+
+### 2026-11-07T23:23+01:00 · brain · `SessionAction` is inferred from its schema
+- **Where:** `apps/brain/src/session.ts`
+- **What:** `export type SessionAction = z.infer<typeof ActionSchema>`; brain code also compiles under `exactOptionalPropertyTypes` (the frontend's setting).
+- **Why:** spec rule "types are z.infer of the schema"; the frontend's typecheck follows the integration test into brain sources.
+- **Impact:** none.
+
+### 2026-11-07T23:23+01:00 · lead · Spec gap: no protocol path for "reset"
+- **Where:** spec "Operator panel" lists a reset button; neither `ToolName` nor `operator.override` can reset.
+- **What:** open, not implemented. Proposal: `operator.override {action: "reset"}`.
+- **Why:** found while writing the e2e (it needs a fresh session; today: restart the brain).
+- **Impact:** operator panel.
+
 ### 2026-11-07T21:53+01:00 · brain · Repo layout: JJ code lives only under `apps/brain/src/jj/`
 - **Where:** `apps/brain/src/jj/tools.ts` (was `apps/brain/src/tools.ts`), `apps/brain/src/jj/VERIFY.md` (was `docs/jj-verification.md`), JJ scripts moved from the root `package.json` to `@coach/brain` (`pnpm --filter @coach/brain jj:playground | jj:smoke`)
 - **What:** nothing JJ-specific at the repo root or the brain root any more.

@@ -11,6 +11,9 @@ importers:
       '@types/node':
         specifier: 22.18.0
         version: 22.18.0
+      playwright-core:
+        specifier: 1.56.1
+        version: 1.56.1
       tsx:
         specifier: 4.20.6
         version: 4.20.6
@@ -20,6 +23,9 @@ importers:
       vitest:
         specifier: 5.1.0
         version: 5.1.0(@types/node@22.18.0)(jsdom@20.0.3)(vite@8.3.6(@types/node@22.18.0)(jiti@2.7.0)(tsx@4.20.6))
+      ws:
+        specifier: 8.18.3
+        version: 8.18.3
 
   apps/brain:
     dependencies:
@@ -3358,6 +3364,11 @@ packages:
   picomatch@4.0.7:
     resolution: {integrity: sha512-qcJu88Q2IWqJsDD529JKMdwGm/dvInW4HvQnRwiH9JtihJvzGOscDtHE3x1pBKeUOTysQ8kVmLnJ2kJu7yhcGA==}
     engines: {node: '>=12'}
+
+  playwright-core@1.56.1:
+    resolution: {integrity: sha512-hutraynyn31F+Bifme+Ps9Vq59hKuUCz7H1kDOcBs+2oGguKkWTU50bBWrtz34OUWmIwpBTWDxaRPXrIXkgvmQ==}
+    engines: {node: '>=18'}
+    hasBin: true
 
   postcss@8.5.32:
     resolution: {integrity: sha512-LJlKCCAUFKOuZxipUdYw1NzIITEsPcgyOG9LkvRJvuKj/bRzbuRY0ARXvL0pWGpsZvn8jku+LMep2eU0seHp8g==}
@@ -7002,6 +7013,8 @@ snapshots:
   picocolors@1.1.1: {}
 
   picomatch@4.0.7: {}
+
+  playwright-core@1.56.1: {}
 
   postcss@8.5.32:
     dependencies:

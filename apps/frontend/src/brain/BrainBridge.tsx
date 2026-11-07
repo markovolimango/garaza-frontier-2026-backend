@@ -9,7 +9,7 @@
  * - Overlay: countdown, toasts, connection and wake state (pointer-events: none).
  */
 import { useLocation, useNavigate } from "@tanstack/react-router";
-import { useEffect, useRef, useSyncExternalStore } from "react";
+import { useEffect, useRef, useState, useSyncExternalStore } from "react";
 import { activeSource } from "../signals";
 import { BrainSource, type BrainSnapshot } from "./BrainSource";
 import { intentFor, viewToRoute, type ScreenPath } from "./mapping";
@@ -28,7 +28,28 @@ function Bridge({ brain }: { brain: BrainSource }) {
   const expected = useRef<ScreenPath | null>(null);
   const snapBack = useRef<ReturnType<typeof setTimeout> | null>(null);
   const deferred = useRef<ScreenPath | null>(null);
-  const view = snap.ui?.view ?? null;
+  // Navigation waits until hydration has settled: moving the router while a lazy route is
+  // still hydrating makes the server HTML mismatch (React hydration warning).
+  const [hydrated, setHydrated] = useState(false);
+  useEffect(() => { const t = setTimeout(() => setHydrated(true), 300); return () => clearTimeout(t); }, []);
+  const view = hydrated ? snap.ui?.view ?? null : null;
+
+  /** A user move to `to`: perform the loop action it means, or snap back. Reads the live snapshot. */
+  const handleMove = (to: string) => {
+    const live = brain.getSnapshot();
+    const liveView = live.ui?.view ?? null;
+    if (!liveView) return;
+    const want = viewToRoute(liveView);
+    expected.current = want;
+    if (to === want || !SCREENS.includes(to as ScreenPath)) return;
+    const intent = intentFor(liveView, live.run?.phase ?? null, to as ScreenPath);
+    const back = () => { snapBack.current = null; deferred.current = null; if (expected.current) void navigate({ to: expected.current }); };
+    if (intent.kind === "hint") { brain.toast(intent.text); back(); return; }
+    brain.unlockAudio();
+    if (intent.kind === "send") brain.send(intent.type, {});
+    else void brain.invoke(intent.tool, intent.args).then((r) => { if (!r.ok) brain.toast(r.hint ?? r.reason, "warn"); });
+    snapBack.current = setTimeout(back, 1500);   // the brain moves us if the action worked
+  };
 
   // brain view → route
   useEffect(() => {
@@ -38,28 +59,16 @@ function Bridge({ brain }: { brain: BrainSource }) {
     if (snapBack.current) { clearTimeout(snapBack.current); snapBack.current = null; }
     const d = deferred.current;
     deferred.current = null;
-    if (d && d !== route) { void navigate({ to: d }); return; }   // re-evaluate a move made while the last action was in flight
+    if (d && d !== route) { handleMove(d); return; }   // a move made while the last action was in flight
     if (pathname !== route) void navigate({ to: route });
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [view]);
 
-  // user navigation away from the brain's view → loop intent, else snap back.
-  // Reads the live snapshot, not the last render: a fast double press must see the newest view.
+  // user navigation away from the brain's view (Next buttons, keys 1-4)
   useEffect(() => {
+    if (!hydrated) return;
     if (snapBack.current) { deferred.current = pathname as ScreenPath; return; }   // previous action still in flight
-    const live = brain.getSnapshot();
-    const liveView = live.ui?.view ?? null;
-    if (!liveView) return;
-    const want = viewToRoute(liveView);
-    expected.current = want;
-    if (pathname === want || !SCREENS.includes(pathname as ScreenPath)) return;
-    const intent = intentFor(liveView, live.run?.phase ?? null, pathname as ScreenPath);
-    const back = () => { snapBack.current = null; deferred.current = null; if (expected.current) void navigate({ to: expected.current }); };
-    if (intent.kind === "hint") { brain.toast(intent.text); back(); return; }
-    brain.unlockAudio();
-    if (intent.kind === "send") brain.send(intent.type, {});
-    else void brain.invoke(intent.tool, intent.args).then((r) => { if (!r.ok) brain.toast(r.hint ?? r.reason, "warn"); });
-    snapBack.current = setTimeout(back, 1500);   // the brain moves us if the action worked
+    handleMove(pathname);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [pathname]);
 
@@ -78,7 +87,8 @@ function Bridge({ brain }: { brain: BrainSource }) {
     return () => { window.removeEventListener("keydown", down); window.removeEventListener("keyup", up); window.removeEventListener("pointerdown", click); };
   }, [brain]);
 
-  return <Overlay snap={snap} />;
+  // the overlay's state is client-only, so it renders after hydration (no SSR mismatch)
+  return hydrated ? <Overlay snap={snap} /> : null;
 }
 
 function Overlay({ snap }: { snap: BrainSnapshot }) {
