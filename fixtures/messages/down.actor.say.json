@@ -1,0 +1,47 @@
+{
+  "type": "actor.say",
+  "direction": "down",
+  "valid": [
+    {
+      "v": 1,
+      "type": "actor.say",
+      "id": "fx_actor_say_0",
+      "ts": 1762540000000,
+      "payload": {
+        "actorId": "judge_2",
+        "utteranceId": "u_7",
+        "source": 2,
+        "text": "On the pricing slide you said 40 euros per seat…"
+      }
+    },
+    {
+      "v": 1,
+      "type": "actor.say",
+      "id": "fx_actor_say_1",
+      "ts": 1762540000001,
+      "payload": {
+        "actorId": "jj",
+        "utteranceId": "jj_u1",
+        "source": 0,
+        "text": ""
+      }
+    }
+  ],
+  "invalid": [
+    {
+      "why": "unknown actor",
+      "message": {
+        "v": 1,
+        "type": "actor.say",
+        "id": "fx_actor_say_100",
+        "ts": 1762540000100,
+        "payload": {
+          "actorId": "judge_9",
+          "utteranceId": "u",
+          "source": 1,
+          "text": "x"
+        }
+      }
+    }
+  ]
+}

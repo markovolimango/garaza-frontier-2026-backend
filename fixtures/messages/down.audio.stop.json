@@ -1,0 +1,39 @@
+{
+  "type": "audio.stop",
+  "direction": "down",
+  "valid": [
+    {
+      "v": 1,
+      "type": "audio.stop",
+      "id": "fx_audio_stop_0",
+      "ts": 1762540000000,
+      "payload": {
+        "source": 0
+      }
+    },
+    {
+      "v": 1,
+      "type": "audio.stop",
+      "id": "fx_audio_stop_1",
+      "ts": 1762540000001,
+      "payload": {
+        "source": 2,
+        "utteranceId": "u_7"
+      }
+    }
+  ],
+  "invalid": [
+    {
+      "why": "source out of range",
+      "message": {
+        "v": 1,
+        "type": "audio.stop",
+        "id": "fx_audio_stop_100",
+        "ts": 1762540000100,
+        "payload": {
+          "source": 12
+        }
+      }
+    }
+  ]
+}

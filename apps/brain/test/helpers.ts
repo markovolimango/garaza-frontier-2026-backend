@@ -1,29 +1,10 @@
 import type { ClientRole, JudgeDef, Result, RunId, SceneOp, SessionState } from "@coach/protocol";
-import type { ContextPort, HubPort, JJClock, JJDownlink, MicPort, ReportsPort, SessionActionLike, SessionPort } from "../src/jj/ports.ts";
+import type { Clock } from "../src/clock.ts";
+import type { ContextPort, HubPort, JJDownlink, MicPort, ReportsPort, SessionActionLike, SessionPort } from "../src/jj/ports.ts";
 
 export const flush = async (n = 5) => { for (let i = 0; i < n; i++) await new Promise((r) => setImmediate(r)); };
 
-export class VirtualClock implements JJClock {
-  t = 1_700_000_000_000;
-  private timers: { at: number; id: number; fn: () => void }[] = [];
-  private nextId = 1;
-  now() { return this.t; }
-  setTimeout(fn: () => void, ms: number) { const id = this.nextId++; this.timers.push({ at: this.t + ms, id, fn }); return id; }
-  clearTimeout(h: unknown) { this.timers = this.timers.filter((x) => x.id !== h); }
-  advance(ms: number) {
-    const end = this.t + ms;
-    for (;;) {
-      this.timers.sort((a, b) => a.at - b.at || a.id - b.id);
-      const next = this.timers[0];
-      if (!next || next.at > end) break;
-      this.timers.shift();
-      this.t = next.at;
-      next.fn();
-    }
-    this.t = end;
-  }
-  pending() { return this.timers.length; }
-}
+export { VirtualClock } from "../src/clock.ts";
 
 export const judge = (n: number, over: Partial<JudgeDef> = {}): JudgeDef => ({
   id: `judge_${n}` as JudgeDef["id"], title: `Judge ${n}`, background: "b", seat: `judge_seat_${n}`,
@@ -49,7 +30,7 @@ export class FakeSession implements SessionPort {
   sceneOps: SceneOp[][] = [];
   sceneResult: Result<{ version: number }> | null = null;   // force an applyScene outcome
   private subs: ((s: SessionState, c: SessionActionLike | SceneOp[]) => void)[] = [];
-  constructor(private clock: JJClock) {}
+  constructor(private clock: Clock) {}
 
   get() { return this.s; }
   subscribe(fn: (s: SessionState, c: SessionActionLike | SceneOp[]) => void) { this.subs.push(fn); return () => {}; }

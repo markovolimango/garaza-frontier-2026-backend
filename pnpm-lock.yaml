@@ -39,9 +39,21 @@ importers:
         specifier: 4.6.6
         version: 4.6.6
     devDependencies:
+      '@coach/web':
+        specifier: workspace:*
+        version: link:../web
       '@types/ws':
         specifier: 8.18.1
         version: 8.18.1
+
+  apps/web:
+    dependencies:
+      '@coach/protocol':
+        specifier: workspace:*
+        version: link:../../packages/protocol
+      zod:
+        specifier: 4.6.6
+        version: 4.6.6
 
   packages/protocol:
     dependencies:

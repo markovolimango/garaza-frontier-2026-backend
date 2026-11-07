@@ -1,0 +1,38 @@
+{
+  "type": "report.focus",
+  "direction": "down",
+  "valid": [
+    {
+      "v": 1,
+      "type": "report.focus",
+      "id": "fx_report_focus_0",
+      "ts": 1762540000000,
+      "payload": {
+        "kind": "filler_burst"
+      }
+    },
+    {
+      "v": 1,
+      "type": "report.focus",
+      "id": "fx_report_focus_1",
+      "ts": 1762540000001,
+      "payload": {
+        "kind": null
+      }
+    }
+  ],
+  "invalid": [
+    {
+      "why": "unknown behaviour",
+      "message": {
+        "v": 1,
+        "type": "report.focus",
+        "id": "fx_report_focus_100",
+        "ts": 1762540000100,
+        "payload": {
+          "kind": "nervousness"
+        }
+      }
+    }
+  ]
+}

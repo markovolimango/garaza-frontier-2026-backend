@@ -1,5 +1,5 @@
 /**
- * PROVISIONAL: tool argument schemas (spec: "JJ adapter and tools" table).
+ * Tool argument schemas (spec: "JJ adapter and tools" table).
  * Flat objects only — no unions, refinements or transforms — because Gemini function
  * declarations are generated with z.toJSONSchema() and the operator panel builds its
  * forms from the same schema.
@@ -63,3 +63,12 @@ export const ToolArgs = {
 } as const satisfies Record<ToolName, z.ZodObject>;
 
 export type ToolArgsOf<N extends ToolName> = z.infer<(typeof ToolArgs)[N]>;
+
+/** GET /api/tools. The operator panel builds its forms from argsSchema. */
+export const ToolCatalogue = z.object({
+  tools: z.array(z.object({
+    name: ToolName, description: z.string(), argsSchema: z.record(z.string(), z.unknown()),
+    behavior: z.enum(["BLOCKING", "NON_BLOCKING"]),
+  })),
+});
+export type ToolCatalogue = z.infer<typeof ToolCatalogue>;

@@ -1,0 +1,35 @@
+{
+  "type": "behavior",
+  "direction": "up",
+  "valid": [
+    {
+      "v": 1,
+      "type": "behavior",
+      "id": "fx_behavior_0",
+      "ts": 1762540000000,
+      "payload": {
+        "kind": "arms_crossed",
+        "phase": "start",
+        "clientTs": 1762540011000,
+        "conf": 0.92
+      }
+    }
+  ],
+  "invalid": [
+    {
+      "why": "speech kinds come from the brain, not the sensor",
+      "message": {
+        "v": 1,
+        "type": "behavior",
+        "id": "fx_behavior_100",
+        "ts": 1762540000100,
+        "payload": {
+          "kind": "filler_burst",
+          "phase": "start",
+          "clientTs": 1,
+          "conf": 1
+        }
+      }
+    }
+  ]
+}

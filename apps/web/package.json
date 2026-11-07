@@ -1,0 +1,13 @@
+{
+  "name": "@coach/web",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "dependencies": {
+    "@coach/protocol": "workspace:*",
+    "zod": "4.6.6"
+  },
+  "exports": {
+    "./net": "./src/net/client.ts"
+  }
+}

@@ -1,0 +1,41 @@
+{
+  "type": "tool.result",
+  "direction": "down",
+  "valid": [
+    {
+      "v": 1,
+      "type": "tool.result",
+      "id": "fx_tool_result_0",
+      "ts": 1762540000000,
+      "payload": {
+        "ok": true,
+        "version": 5
+      }
+    },
+    {
+      "v": 1,
+      "type": "tool.result",
+      "id": "fx_tool_result_1",
+      "ts": 1762540000001,
+      "payload": {
+        "ok": false,
+        "reason": "stage_timeout",
+        "hint": "the main screen did not confirm"
+      }
+    }
+  ],
+  "invalid": [
+    {
+      "why": "failure without reason",
+      "message": {
+        "v": 1,
+        "type": "tool.result",
+        "id": "fx_tool_result_100",
+        "ts": 1762540000100,
+        "payload": {
+          "ok": false
+        }
+      }
+    }
+  ]
+}

@@ -11,6 +11,7 @@
     "zod": "4.6.6"
   },
   "devDependencies": {
-    "@types/ws": "8.18.1"
+    "@types/ws": "8.18.1",
+    "@coach/web": "workspace:*"
   }
 }

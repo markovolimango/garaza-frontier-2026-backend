@@ -1,0 +1,32 @@
+{
+  "type": "error",
+  "direction": "down",
+  "valid": [
+    {
+      "v": 1,
+      "type": "error",
+      "id": "fx_error_0",
+      "ts": 1762540000000,
+      "payload": {
+        "code": "invalid_message",
+        "message": "unknown type",
+        "refId": "abc"
+      }
+    }
+  ],
+  "invalid": [
+    {
+      "why": "unknown code",
+      "message": {
+        "v": 1,
+        "type": "error",
+        "id": "fx_error_100",
+        "ts": 1762540000100,
+        "payload": {
+          "code": "oops",
+          "message": "x"
+        }
+      }
+    }
+  ]
+}

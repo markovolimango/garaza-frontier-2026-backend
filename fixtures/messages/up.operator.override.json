@@ -1,0 +1,75 @@
+{
+  "type": "operator.override",
+  "direction": "up",
+  "valid": [
+    {
+      "v": 1,
+      "type": "operator.override",
+      "id": "fx_operator_override_0",
+      "ts": 1762540000000,
+      "payload": {
+        "action": "vignette",
+        "kind": "warn",
+        "intensity": 0.65,
+        "holdMs": 3000
+      }
+    },
+    {
+      "v": 1,
+      "type": "operator.override",
+      "id": "fx_operator_override_1",
+      "ts": 1762540000001,
+      "payload": {
+        "action": "wake"
+      }
+    },
+    {
+      "v": 1,
+      "type": "operator.override",
+      "id": "fx_operator_override_2",
+      "ts": 1762540000002,
+      "payload": {
+        "action": "jj_reconnect"
+      }
+    },
+    {
+      "v": 1,
+      "type": "operator.override",
+      "id": "fx_operator_override_3",
+      "ts": 1762540000003,
+      "payload": {
+        "action": "replay",
+        "file": "fixtures/sessions/demo_short.jsonl",
+        "speed": 1
+      }
+    }
+  ],
+  "invalid": [
+    {
+      "why": "unknown action",
+      "message": {
+        "v": 1,
+        "type": "operator.override",
+        "id": "fx_operator_override_100",
+        "ts": 1762540000100,
+        "payload": {
+          "action": "self_destruct"
+        }
+      }
+    },
+    {
+      "why": "vignette without intensity",
+      "message": {
+        "v": 1,
+        "type": "operator.override",
+        "id": "fx_operator_override_101",
+        "ts": 1762540000101,
+        "payload": {
+          "action": "vignette",
+          "kind": "warn",
+          "holdMs": 1
+        }
+      }
+    }
+  ]
+}

@@ -1,9 +1,6 @@
 /**
- * PROVISIONAL SUBSET of `packages/protocol` (spec: "Shared domain types").
- *
- * Only the lead owns this package. It was created by the JJ-engine lane because the
- * package did not exist yet; it contains just what the JJ adapter and the tool registry
- * need, transcribed 1:1 from the spec. The lead should replace or extend it.
+ * Shared domain types (spec: "Shared domain types"). Every type is z.infer<> of its schema.
+ * Owned by the lead; change shapes only here.
  */
 import { z } from "zod";
 
@@ -29,6 +26,11 @@ export const FeedbackCategory = z.enum(["posture", "movement", "gaze", "disfluen
 export type FeedbackCategory = z.infer<typeof FeedbackCategory>;
 export const FEEDBACK_ELIGIBLE = ["arms_crossed", "sway", "face_touch", "looking_down", "filler_burst", "pace_fast"] as const;
 export const FeedbackEligibleKind = z.enum(FEEDBACK_ELIGIBLE);
+export const CATEGORY_OF: Record<BehaviorKind, FeedbackCategory> = {
+  arms_crossed: "posture", face_touch: "posture", sway: "movement",
+  looking_down: "gaze", not_facing_judge: "gaze",
+  filler_burst: "disfluencies", pace_fast: "pace", long_pause: "pace",
+};
 
 // ---- loop ----
 export const RunMode = z.enum(["baseline", "training", "test"]);
@@ -62,7 +64,15 @@ export const SessionContext = z.object({
   brief: PresentationBrief.nullable(),
   digest: z.string().nullable(),
 });
+export type Slide = z.infer<typeof Slide>;
 export type Deck = z.infer<typeof Deck>;
+export type ContextDocMeta = z.infer<typeof ContextDocMeta>;
+/** Setup view → POST /api/uploads/deck (multipart field `manifest`). */
+export const DeckManifest = z.object({
+  name: z.string(),
+  slides: z.array(z.object({ index: z.number().int().min(0), text: z.string(), width: z.number().int().positive(), height: z.number().int().positive() })).max(60),
+});
+export type DeckManifest = z.infer<typeof DeckManifest>;
 export type PresentationBrief = z.infer<typeof PresentationBrief>;
 export type SessionContext = z.infer<typeof SessionContext>;
 
@@ -159,6 +169,40 @@ export type GazeCalibration = z.infer<typeof GazeCalibration>;
 export type WakeState = z.infer<typeof WakeState>;
 export type SessionState = z.infer<typeof SessionState>;
 
+// ---- observations ----
+export const WordToken = z.object({
+  text: z.string(),
+  start: z.number(), end: z.number(),
+  confidence: z.number().min(0).max(1),
+  isFiller: z.boolean(),
+  segment: z.enum(["presentation", "qa"]),
+  slideIndex: z.number().int().min(0),
+  excluded: z.enum(["jj", "judge_audio"]).optional(),
+});
+export type WordToken = z.infer<typeof WordToken>;
+export const BehaviorEvent = z.object({
+  kind: BehaviorKind,
+  phase: z.enum(["start", "end", "instant"]),
+  t: z.number(),
+  source: z.enum(["pose", "face", "speech", "derived"]),
+  data: z.object({ judgeId: JudgeId.optional(), word: z.string().optional(), wpm: z.number().optional(), gapMs: z.number().optional() }).optional(),
+});
+export type BehaviorEvent = z.infer<typeof BehaviorEvent>;
+
+// ---- UI ----
+export const OrbState = z.object({ visible: z.boolean(), placement: z.enum(["center", "side", "corner"]), score: z.number().min(0).max(1) });
+export type OrbState = z.infer<typeof OrbState>;
+export const FeedbackCommand = z.object({
+  kind: z.enum(["warn", "reward", "none"]), intensity: z.number().min(0).max(1), rampMs: z.number().int().min(0), reason: BehaviorKind.optional(),
+});
+export type FeedbackCommand = z.infer<typeof FeedbackCommand>;
+export const FEEDBACK_NONE: FeedbackCommand = { kind: "none", intensity: 0, rampMs: 1000 };
+
+export const Gesture = z.enum(["idle", "nod", "note", "lean_in", "lean_back", "cross_arms", "check_watch", "talk", "shift"]);
+export type Gesture = z.infer<typeof Gesture>;
+export const LookTarget = z.union([z.enum(["presenter", "notes", "audience"]), JudgeId]);
+export type LookTarget = z.infer<typeof LookTarget>;
+
 // ---- supporting ----
 export const ClientRole = z.enum(["stage", "sensor", "operator"]);
 export type ClientRole = z.infer<typeof ClientRole>;
@@ -171,8 +215,8 @@ export const JJState = z.object({ connected: z.boolean(), listening: z.boolean()
 export type JJState = z.infer<typeof JJState>;
 
 export type Result<T = {}> = ({ ok: true } & T) | { ok: false; reason: ErrorCode; hint?: string };
+export const ToolResult = z.union([
+  z.looseObject({ ok: z.literal(true) }),
+  z.object({ ok: z.literal(false), reason: ErrorCode, hint: z.string().optional() }),
+]);
 export type ToolResult = { ok: true; [k: string]: unknown } | { ok: false; reason: ErrorCode; hint?: string };
-
-/** Audio sources on /ws/audio (spec: Transport). */
-export const AUDIO_SOURCE = { jj: 0, system: 9 } as const;
-export const AUDIO_FLAG = { utteranceStart: 1, utteranceEnd: 2 } as const;

@@ -1,0 +1,79 @@
+{
+  "type": "run.state",
+  "direction": "down",
+  "valid": [
+    {
+      "v": 1,
+      "type": "run.state",
+      "id": "fx_run_state_0",
+      "ts": 1762540000000,
+      "payload": {
+        "run": {
+          "runId": "run_2",
+          "index": 2,
+          "mode": "training",
+          "feedbackLevel": "strong",
+          "targets": [
+            "arms_crossed"
+          ],
+          "enabledCategories": [
+            "posture",
+            "disfluencies"
+          ],
+          "sceneVersion": 3,
+          "phase": "presentation",
+          "slideIndex": 1,
+          "paused": false,
+          "pausedMs": 0,
+          "startedAt": 1762540000000,
+          "presentationStartedAt": 1762540003000
+        },
+        "sessionPhase": "running"
+      }
+    },
+    {
+      "v": 1,
+      "type": "run.state",
+      "id": "fx_run_state_1",
+      "ts": 1762540000001,
+      "payload": {
+        "run": null,
+        "sessionPhase": "setup"
+      }
+    }
+  ],
+  "invalid": [
+    {
+      "why": "bad run id",
+      "message": {
+        "v": 1,
+        "type": "run.state",
+        "id": "fx_run_state_100",
+        "ts": 1762540000100,
+        "payload": {
+          "run": {
+            "runId": "r2",
+            "index": 2,
+            "mode": "training",
+            "feedbackLevel": "strong",
+            "targets": [
+              "arms_crossed"
+            ],
+            "enabledCategories": [
+              "posture",
+              "disfluencies"
+            ],
+            "sceneVersion": 3,
+            "phase": "presentation",
+            "slideIndex": 1,
+            "paused": false,
+            "pausedMs": 0,
+            "startedAt": 1762540000000,
+            "presentationStartedAt": 1762540003000
+          },
+          "sessionPhase": "running"
+        }
+      }
+    }
+  ]
+}

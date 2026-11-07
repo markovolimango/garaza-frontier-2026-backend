@@ -1,0 +1,36 @@
+{
+  "type": "calibrate.prompt",
+  "direction": "down",
+  "valid": [
+    {
+      "v": 1,
+      "type": "calibrate.prompt",
+      "id": "fx_calibrate_prompt_0",
+      "ts": 1762540000000,
+      "payload": {
+        "judgeId": "judge_1"
+      }
+    },
+    {
+      "v": 1,
+      "type": "calibrate.prompt",
+      "id": "fx_calibrate_prompt_1",
+      "ts": 1762540000001,
+      "payload": {
+        "judgeId": null
+      }
+    }
+  ],
+  "invalid": [
+    {
+      "why": "missing judgeId",
+      "message": {
+        "v": 1,
+        "type": "calibrate.prompt",
+        "id": "fx_calibrate_prompt_100",
+        "ts": 1762540000100,
+        "payload": {}
+      }
+    }
+  ]
+}

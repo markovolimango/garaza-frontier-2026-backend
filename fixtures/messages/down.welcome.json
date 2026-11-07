@@ -1,0 +1,33 @@
+{
+  "type": "welcome",
+  "direction": "down",
+  "valid": [
+    {
+      "v": 1,
+      "type": "welcome",
+      "id": "fx_welcome_0",
+      "ts": 1762540000000,
+      "payload": {
+        "sessionId": "V1StGXR8_Z5jdHi6B-myT",
+        "serverTime": 1762540000000,
+        "protocol": 1
+      }
+    }
+  ],
+  "invalid": [
+    {
+      "why": "protocol 2",
+      "message": {
+        "v": 1,
+        "type": "welcome",
+        "id": "fx_welcome_100",
+        "ts": 1762540000100,
+        "payload": {
+          "sessionId": "s",
+          "serverTime": 1,
+          "protocol": 2
+        }
+      }
+    }
+  ]
+}

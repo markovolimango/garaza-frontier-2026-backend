@@ -1,0 +1,25 @@
+{
+  "type": "presentation.done",
+  "direction": "up",
+  "valid": [
+    {
+      "v": 1,
+      "type": "presentation.done",
+      "id": "fx_presentation_done_0",
+      "ts": 1762540000000,
+      "payload": {}
+    }
+  ],
+  "invalid": [
+    {
+      "why": "array payload",
+      "message": {
+        "v": 1,
+        "type": "presentation.done",
+        "id": "fx_presentation_done_100",
+        "ts": 1762540000100,
+        "payload": []
+      }
+    }
+  ]
+}

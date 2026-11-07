@@ -1,0 +1,45 @@
+{
+  "type": "sensor.status",
+  "direction": "up",
+  "valid": [
+    {
+      "v": 1,
+      "type": "sensor.status",
+      "id": "fx_sensor_status_0",
+      "ts": 1762540000000,
+      "payload": {
+        "camera": "ok",
+        "fps": 29.5,
+        "posePresent": true
+      }
+    },
+    {
+      "v": 1,
+      "type": "sensor.status",
+      "id": "fx_sensor_status_1",
+      "ts": 1762540000001,
+      "payload": {
+        "camera": "error",
+        "fps": 0,
+        "posePresent": false,
+        "message": "NotAllowedError"
+      }
+    }
+  ],
+  "invalid": [
+    {
+      "why": "negative fps",
+      "message": {
+        "v": 1,
+        "type": "sensor.status",
+        "id": "fx_sensor_status_100",
+        "ts": 1762540000100,
+        "payload": {
+          "camera": "ok",
+          "fps": -1,
+          "posePresent": true
+        }
+      }
+    }
+  ]
+}

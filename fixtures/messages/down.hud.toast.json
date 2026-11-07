@@ -1,0 +1,31 @@
+{
+  "type": "hud.toast",
+  "direction": "down",
+  "valid": [
+    {
+      "v": 1,
+      "type": "hud.toast",
+      "id": "fx_hud_toast_0",
+      "ts": 1762540000000,
+      "payload": {
+        "text": "Judges set to tough",
+        "level": "info"
+      }
+    }
+  ],
+  "invalid": [
+    {
+      "why": "empty text",
+      "message": {
+        "v": 1,
+        "type": "hud.toast",
+        "id": "fx_hud_toast_100",
+        "ts": 1762540000100,
+        "payload": {
+          "text": "",
+          "level": "info"
+        }
+      }
+    }
+  ]
+}

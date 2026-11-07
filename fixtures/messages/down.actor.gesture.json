@@ -1,0 +1,42 @@
+{
+  "type": "actor.gesture",
+  "direction": "down",
+  "valid": [
+    {
+      "v": 1,
+      "type": "actor.gesture",
+      "id": "fx_actor_gesture_0",
+      "ts": 1762540000000,
+      "payload": {
+        "actorId": "audience",
+        "gesture": "shift"
+      }
+    },
+    {
+      "v": 1,
+      "type": "actor.gesture",
+      "id": "fx_actor_gesture_1",
+      "ts": 1762540000001,
+      "payload": {
+        "actorId": "judge_1",
+        "gesture": "nod",
+        "durationMs": 800
+      }
+    }
+  ],
+  "invalid": [
+    {
+      "why": "unknown gesture",
+      "message": {
+        "v": 1,
+        "type": "actor.gesture",
+        "id": "fx_actor_gesture_100",
+        "ts": 1762540000100,
+        "payload": {
+          "actorId": "judge_1",
+          "gesture": "dab"
+        }
+      }
+    }
+  ]
+}

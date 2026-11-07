@@ -1,0 +1,31 @@
+{
+  "type": "slide.changed",
+  "direction": "up",
+  "valid": [
+    {
+      "v": 1,
+      "type": "slide.changed",
+      "id": "fx_slide_changed_0",
+      "ts": 1762540000000,
+      "payload": {
+        "index": 3,
+        "clientTs": 1762540010000
+      }
+    }
+  ],
+  "invalid": [
+    {
+      "why": "fractional index",
+      "message": {
+        "v": 1,
+        "type": "slide.changed",
+        "id": "fx_slide_changed_100",
+        "ts": 1762540000100,
+        "payload": {
+          "index": 1.5,
+          "clientTs": 1
+        }
+      }
+    }
+  ]
+}

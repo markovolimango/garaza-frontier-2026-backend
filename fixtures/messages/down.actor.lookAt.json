@@ -1,0 +1,41 @@
+{
+  "type": "actor.lookAt",
+  "direction": "down",
+  "valid": [
+    {
+      "v": 1,
+      "type": "actor.lookAt",
+      "id": "fx_actor_lookAt_0",
+      "ts": 1762540000000,
+      "payload": {
+        "actorId": "judge_1",
+        "target": "presenter"
+      }
+    },
+    {
+      "v": 1,
+      "type": "actor.lookAt",
+      "id": "fx_actor_lookAt_1",
+      "ts": 1762540000001,
+      "payload": {
+        "actorId": "judge_2",
+        "target": "judge_3"
+      }
+    }
+  ],
+  "invalid": [
+    {
+      "why": "audience cannot look",
+      "message": {
+        "v": 1,
+        "type": "actor.lookAt",
+        "id": "fx_actor_lookAt_100",
+        "ts": 1762540000100,
+        "payload": {
+          "actorId": "audience",
+          "target": "presenter"
+        }
+      }
+    }
+  ]
+}

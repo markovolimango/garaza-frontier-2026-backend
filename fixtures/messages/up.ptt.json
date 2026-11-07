@@ -1,0 +1,38 @@
+{
+  "type": "ptt",
+  "direction": "up",
+  "valid": [
+    {
+      "v": 1,
+      "type": "ptt",
+      "id": "fx_ptt_0",
+      "ts": 1762540000000,
+      "payload": {
+        "down": true
+      }
+    },
+    {
+      "v": 1,
+      "type": "ptt",
+      "id": "fx_ptt_1",
+      "ts": 1762540000001,
+      "payload": {
+        "down": false
+      }
+    }
+  ],
+  "invalid": [
+    {
+      "why": "down as string",
+      "message": {
+        "v": 1,
+        "type": "ptt",
+        "id": "fx_ptt_100",
+        "ts": 1762540000100,
+        "payload": {
+          "down": "yes"
+        }
+      }
+    }
+  ]
+}

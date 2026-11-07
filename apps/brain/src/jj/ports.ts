@@ -7,15 +7,9 @@ import type {
   ClientRole, JudgeDef, PresentationBrief, Result, RunId, SceneOp, SessionState,
 } from "@coach/protocol";
 
-export type LogLevel = "debug" | "info" | "warn" | "error";
-export type Logger = (level: LogLevel, msg: string, data?: Record<string, unknown>) => void;
-
+export type { LogLevel, Logger } from "../log.ts";
 /** Spec `Clock` (brain core). */
-export interface JJClock {
-  now(): number;
-  setTimeout(fn: () => void, ms: number): unknown;
-  clearTimeout(h: unknown): void;
-}
+export type { Clock as JJClock } from "../clock.ts";
 
 /** The SessionAction union lives in the brain lane; we only need its `type` tag here. */
 export type SessionActionLike = { type: string; [k: string]: unknown };

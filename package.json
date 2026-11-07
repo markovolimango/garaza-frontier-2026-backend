@@ -5,9 +5,10 @@
   "packageManager": "pnpm@10.18.0",
   "scripts": {
     "test": "vitest run",
-    "typecheck": "tsc -b packages/protocol apps/brain",
+    "typecheck": "tsc -b packages/protocol apps/web apps/brain",
     "jj:playground": "tsx apps/brain/src/jj/playground/server.ts",
-    "jj:smoke": "tsx apps/brain/src/jj/playground/smoke.ts"
+    "jj:smoke": "tsx apps/brain/src/jj/playground/smoke.ts",
+    "gen:fixtures": "tsx packages/protocol/scripts/gen-fixtures.ts"
   },
   "devDependencies": {
     "@types/node": "22.18.0",
