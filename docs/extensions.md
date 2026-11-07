@@ -19,6 +19,12 @@ Lanes: `lead` (protocol), `brain`, `sensing`, `agents`, `stage`, `report`.
 
 ---
 
+### 2026-11-08T00:30+01:00 · agents · Judge voices (ElevenLabs) + `POST /debug/judge-say`
+- **Where:** `apps/brain/src/voices/judgeVoice.ts` (`JudgeVoices`, `speakJudge`, `judgeVoicesHttp`, `DEFAULT_JUDGE_VOICE_IDS`), wired in `apps/brain/src/server.ts` via the `http` option; config keys `ELEVENLABS_API_KEY`, `JUDGE_VOICE_IDS` in `apps/brain/src/config.ts`
+- **What:** `speakJudge(judge_N, text)` queues one utterance at a time: `actor.gesture talk` → `actor.say {utteranceId: judge_N_uK, source: N}` → ElevenLabs streaming TTS (`eleven_flash_v2_5`, `pcm_24000`) forwarded on `/ws/audio` with JJ's framing (start flag on the first frame, empty end-flagged frame) → waits for the stage's `audio.playback` ended/stopped (fallback: audio length + 1.5 s) → `actor.gesture idle`. `JUDGE_VOICE_IDS` (comma-separated, judge_1..4) defaults to premade Rachel, Adam, Antoni, Sarah. No key → say + gestures only, audio skipped and logged; independent of `JJ_FAKE`. Debug: `POST /debug/judge-say {judge: 1-4, text}` → 202 `{ok, actorId, utteranceId, voiceId}`.
+- **Why:** hear and stage-test judge voices before the director lands.
+- **Impact:** director: call `JudgeVoices.speakJudge` instead of its own TTS. Stage: `judge_4` needs a judge in the scene (the default scene has 3). `JUDGE_VOICES` (JJ config, scene `voiceId`) is not read by this module.
+
 ### 2026-11-07T21:53+01:00 · brain · Repo layout: JJ code lives only under `apps/brain/src/jj/`
 - **Where:** `apps/brain/src/jj/tools.ts` (was `apps/brain/src/tools.ts`), `apps/brain/src/jj/VERIFY.md` (was `docs/jj-verification.md`), JJ scripts moved from the root `package.json` to `@coach/brain` (`pnpm --filter @coach/brain jj:playground | jj:smoke`)
 - **What:** nothing JJ-specific at the repo root or the brain root any more.

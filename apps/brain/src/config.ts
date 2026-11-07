@@ -14,6 +14,10 @@ export const BrainConfig = z.object({
   LOG_LEVEL: z.enum(["debug", "info", "warn", "error"]).default("info"),
   /** 1 = run without Gemini (FakeVoiceAgent); buttons and the operator panel still work. */
   JJ_FAKE: z.enum(["0", "1"]).default("0"),
+  /** Judge TTS (voices/judgeVoice.ts). Empty = judges send actor.say/gestures but no audio. Independent of JJ_FAKE. */
+  ELEVENLABS_API_KEY: z.string().default(""),
+  /** Comma-separated ElevenLabs voiceIds for judge_1..judge_4; empty entries fall back to premade defaults. */
+  JUDGE_VOICE_IDS: z.string().default("").transform((s) => s.split(",").map((v) => v.trim())),
 });
 export type BrainConfig = z.infer<typeof BrainConfig>;
 
