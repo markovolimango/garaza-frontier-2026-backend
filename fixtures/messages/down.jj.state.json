@@ -1,0 +1,32 @@
+{
+  "type": "jj.state",
+  "direction": "down",
+  "valid": [
+    {
+      "v": 1,
+      "type": "jj.state",
+      "id": "fx_jj_state_0",
+      "ts": 1762540000000,
+      "payload": {
+        "connected": true,
+        "listening": true,
+        "speaking": false
+      }
+    }
+  ],
+  "invalid": [
+    {
+      "why": "missing speaking",
+      "message": {
+        "v": 1,
+        "type": "jj.state",
+        "id": "fx_jj_state_100",
+        "ts": 1762540000100,
+        "payload": {
+          "connected": true,
+          "listening": true
+        }
+      }
+    }
+  ]
+}

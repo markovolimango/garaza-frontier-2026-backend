@@ -1,0 +1,29 @@
+{
+  "type": "slide.show",
+  "direction": "down",
+  "valid": [
+    {
+      "v": 1,
+      "type": "slide.show",
+      "id": "fx_slide_show_0",
+      "ts": 1762540000000,
+      "payload": {
+        "index": 0
+      }
+    }
+  ],
+  "invalid": [
+    {
+      "why": "negative index",
+      "message": {
+        "v": 1,
+        "type": "slide.show",
+        "id": "fx_slide_show_100",
+        "ts": 1762540000100,
+        "payload": {
+          "index": -1
+        }
+      }
+    }
+  ]
+}

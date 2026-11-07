@@ -1,0 +1,25 @@
+{
+  "type": "session.start",
+  "direction": "up",
+  "valid": [
+    {
+      "v": 1,
+      "type": "session.start",
+      "id": "fx_session_start_0",
+      "ts": 1762540000000,
+      "payload": {}
+    }
+  ],
+  "invalid": [
+    {
+      "why": "null payload",
+      "message": {
+        "v": 1,
+        "type": "session.start",
+        "id": "fx_session_start_100",
+        "ts": 1762540000100,
+        "payload": null
+      }
+    }
+  ]
+}

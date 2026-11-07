@@ -1,0 +1,43 @@
+{
+  "type": "ack",
+  "direction": "up",
+  "valid": [
+    {
+      "v": 1,
+      "type": "ack",
+      "id": "fx_ack_0",
+      "ts": 1762540000000,
+      "payload": {
+        "batchId": "b_1",
+        "version": 4,
+        "ok": true
+      }
+    },
+    {
+      "v": 1,
+      "type": "ack",
+      "id": "fx_ack_1",
+      "ts": 1762540000001,
+      "payload": {
+        "batchId": "b_1",
+        "ok": false,
+        "error": "seat missing"
+      }
+    }
+  ],
+  "invalid": [
+    {
+      "why": "ok without version",
+      "message": {
+        "v": 1,
+        "type": "ack",
+        "id": "fx_ack_100",
+        "ts": 1762540000100,
+        "payload": {
+          "batchId": "b_1",
+          "ok": true
+        }
+      }
+    }
+  ]
+}

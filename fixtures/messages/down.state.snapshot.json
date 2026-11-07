@@ -1,0 +1,350 @@
+{
+  "type": "state.snapshot",
+  "direction": "down",
+  "valid": [
+    {
+      "v": 1,
+      "type": "state.snapshot",
+      "id": "fx_state_snapshot_0",
+      "ts": 1762540000000,
+      "payload": {
+        "session": {
+          "sessionId": "V1StGXR8_Z5jdHi6B-myT",
+          "phase": "running",
+          "view": "slides",
+          "context": {
+            "deck": {
+              "deckId": "deck_1",
+              "name": "Acme seed",
+              "slides": [
+                {
+                  "index": 0,
+                  "url": "/api/decks/deck_1/0.png",
+                  "text": "Acme"
+                },
+                {
+                  "index": 1,
+                  "url": "/api/decks/deck_1/1.png",
+                  "text": "Pricing"
+                }
+              ]
+            },
+            "docs": [
+              {
+                "docId": "doc_1",
+                "name": "notes.md",
+                "chars": 1200
+              }
+            ],
+            "brief": {
+              "title": "Acme seed",
+              "audience": "seed investors",
+              "goal": "follow-up meeting",
+              "keyPoints": [
+                "40 teams"
+              ],
+              "setting": "investor pitch",
+              "durationMin": 5
+            },
+            "digest": "Seed pitch."
+          },
+          "scene": {
+            "version": 3,
+            "venueId": "greybox",
+            "qa": {
+              "questions": 2,
+              "answerCapMs": 45000
+            },
+            "judges": [
+              {
+                "id": "judge_1",
+                "title": "Seed investor",
+                "background": "Invests in B2B SaaS.",
+                "seat": "judge_seat_1",
+                "voiceId": "voiceA",
+                "toughness": 0.3,
+                "style": "warm",
+                "priorities": [
+                  "traction"
+                ]
+              },
+              {
+                "id": "judge_2",
+                "title": "Technical founder",
+                "background": "Built two dev tools.",
+                "seat": "judge_seat_2",
+                "voiceId": "voiceB",
+                "toughness": 0.5,
+                "style": "neutral",
+                "priorities": [
+                  "architecture"
+                ]
+              },
+              {
+                "id": "judge_3",
+                "title": "Domain expert",
+                "background": "Ran sales ops for 10 years.",
+                "seat": "judge_seat_3",
+                "voiceId": "voiceC",
+                "toughness": 0.8,
+                "style": "skeptical",
+                "priorities": [
+                  "churn",
+                  "pricing"
+                ]
+              }
+            ],
+            "audience": {
+              "count": 12
+            },
+            "lighting": "default"
+          },
+          "run": {
+            "runId": "run_2",
+            "index": 2,
+            "mode": "training",
+            "feedbackLevel": "strong",
+            "targets": [
+              "arms_crossed"
+            ],
+            "enabledCategories": [
+              "posture",
+              "disfluencies"
+            ],
+            "sceneVersion": 3,
+            "phase": "presentation",
+            "slideIndex": 1,
+            "paused": false,
+            "pausedMs": 0,
+            "startedAt": 1762540000000,
+            "presentationStartedAt": 1762540003000
+          },
+          "completedRuns": [
+            "run_1"
+          ],
+          "coach": {
+            "stage": "training",
+            "level": "strong",
+            "targets": [
+              {
+                "kind": "arms_crossed",
+                "status": "learning",
+                "cleanStreak": 0,
+                "lastSeverity": 0.6
+              }
+            ],
+            "score": 0.72,
+            "recommendation": {
+              "mode": "training",
+              "level": "strong",
+              "reason": "Strong feedback on crossed arms.",
+              "done": false
+            },
+            "trainingRuns": 1
+          },
+          "enabledCategories": [
+            "posture",
+            "disfluencies",
+            "pace"
+          ],
+          "calibration": null,
+          "introDone": true,
+          "wake": {
+            "active": false,
+            "via": null,
+            "since": null
+          }
+        },
+        "connections": {
+          "stage": true,
+          "sensor": false,
+          "operator": true
+        },
+        "jj": {
+          "connected": true,
+          "listening": false,
+          "speaking": false
+        },
+        "feedback": {
+          "kind": "warn",
+          "intensity": 0.65,
+          "rampMs": 2000,
+          "reason": "arms_crossed"
+        }
+      }
+    }
+  ],
+  "invalid": [
+    {
+      "why": "connections missing a role",
+      "message": {
+        "v": 1,
+        "type": "state.snapshot",
+        "id": "fx_state_snapshot_100",
+        "ts": 1762540000100,
+        "payload": {
+          "session": {
+            "sessionId": "V1StGXR8_Z5jdHi6B-myT",
+            "phase": "running",
+            "view": "slides",
+            "context": {
+              "deck": {
+                "deckId": "deck_1",
+                "name": "Acme seed",
+                "slides": [
+                  {
+                    "index": 0,
+                    "url": "/api/decks/deck_1/0.png",
+                    "text": "Acme"
+                  },
+                  {
+                    "index": 1,
+                    "url": "/api/decks/deck_1/1.png",
+                    "text": "Pricing"
+                  }
+                ]
+              },
+              "docs": [
+                {
+                  "docId": "doc_1",
+                  "name": "notes.md",
+                  "chars": 1200
+                }
+              ],
+              "brief": {
+                "title": "Acme seed",
+                "audience": "seed investors",
+                "goal": "follow-up meeting",
+                "keyPoints": [
+                  "40 teams"
+                ],
+                "setting": "investor pitch",
+                "durationMin": 5
+              },
+              "digest": "Seed pitch."
+            },
+            "scene": {
+              "version": 3,
+              "venueId": "greybox",
+              "qa": {
+                "questions": 2,
+                "answerCapMs": 45000
+              },
+              "judges": [
+                {
+                  "id": "judge_1",
+                  "title": "Seed investor",
+                  "background": "Invests in B2B SaaS.",
+                  "seat": "judge_seat_1",
+                  "voiceId": "voiceA",
+                  "toughness": 0.3,
+                  "style": "warm",
+                  "priorities": [
+                    "traction"
+                  ]
+                },
+                {
+                  "id": "judge_2",
+                  "title": "Technical founder",
+                  "background": "Built two dev tools.",
+                  "seat": "judge_seat_2",
+                  "voiceId": "voiceB",
+                  "toughness": 0.5,
+                  "style": "neutral",
+                  "priorities": [
+                    "architecture"
+                  ]
+                },
+                {
+                  "id": "judge_3",
+                  "title": "Domain expert",
+                  "background": "Ran sales ops for 10 years.",
+                  "seat": "judge_seat_3",
+                  "voiceId": "voiceC",
+                  "toughness": 0.8,
+                  "style": "skeptical",
+                  "priorities": [
+                    "churn",
+                    "pricing"
+                  ]
+                }
+              ],
+              "audience": {
+                "count": 12
+              },
+              "lighting": "default"
+            },
+            "run": {
+              "runId": "run_2",
+              "index": 2,
+              "mode": "training",
+              "feedbackLevel": "strong",
+              "targets": [
+                "arms_crossed"
+              ],
+              "enabledCategories": [
+                "posture",
+                "disfluencies"
+              ],
+              "sceneVersion": 3,
+              "phase": "presentation",
+              "slideIndex": 1,
+              "paused": false,
+              "pausedMs": 0,
+              "startedAt": 1762540000000,
+              "presentationStartedAt": 1762540003000
+            },
+            "completedRuns": [
+              "run_1"
+            ],
+            "coach": {
+              "stage": "training",
+              "level": "strong",
+              "targets": [
+                {
+                  "kind": "arms_crossed",
+                  "status": "learning",
+                  "cleanStreak": 0,
+                  "lastSeverity": 0.6
+                }
+              ],
+              "score": 0.72,
+              "recommendation": {
+                "mode": "training",
+                "level": "strong",
+                "reason": "Strong feedback on crossed arms.",
+                "done": false
+              },
+              "trainingRuns": 1
+            },
+            "enabledCategories": [
+              "posture",
+              "disfluencies",
+              "pace"
+            ],
+            "calibration": null,
+            "introDone": true,
+            "wake": {
+              "active": false,
+              "via": null,
+              "since": null
+            }
+          },
+          "connections": {
+            "stage": true
+          },
+          "jj": {
+            "connected": true,
+            "listening": false,
+            "speaking": false
+          },
+          "feedback": {
+            "kind": "none",
+            "intensity": 0,
+            "rampMs": 1000
+          }
+        }
+      }
+    }
+  ]
+}

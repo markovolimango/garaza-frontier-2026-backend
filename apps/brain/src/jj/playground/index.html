@@ -1,0 +1,351 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>JJ Playground</title>
+<style>
+  :root { --bg:#0f1115; --panel:#171a21; --line:#262b35; --text:#e6e8ee; --dim:#8a93a6; --ok:#3ecf8e; --warn:#f5a524; --bad:#f25f5c; --acc:#5b9cff; --jj:#b48cff; }
+  * { box-sizing: border-box; }
+  body { margin:0; background:var(--bg); color:var(--text); font:13px/1.45 ui-sans-serif,system-ui,sans-serif; }
+  header { display:flex; gap:12px; align-items:center; padding:10px 16px; border-bottom:1px solid var(--line); flex-wrap:wrap; }
+  header h1 { font-size:15px; margin:0 8px 0 0; }
+  .pill { padding:2px 9px; border-radius:99px; border:1px solid var(--line); color:var(--dim); }
+  .pill.on { color:#0f1115; background:var(--ok); border-color:var(--ok); }
+  .pill.warn { color:#0f1115; background:var(--warn); border-color:var(--warn); }
+  .pill.jj.on { background:var(--jj); border-color:var(--jj); }
+  main { display:grid; grid-template-columns: 360px 1fr; gap:0; height: calc(100vh - 49px); }
+  aside { border-right:1px solid var(--line); overflow:auto; padding:12px 14px; }
+  section { margin-bottom:16px; }
+  h2 { font-size:11px; letter-spacing:.08em; text-transform:uppercase; color:var(--dim); margin:0 0 6px; }
+  button { background:#222733; color:var(--text); border:1px solid #333a48; border-radius:6px; padding:5px 9px; margin:0 4px 4px 0; cursor:pointer; font:inherit; }
+  button:hover { border-color:var(--acc); }
+  button.primary { background:var(--acc); border-color:var(--acc); color:#fff; }
+  button.hot { background:var(--jj); border-color:var(--jj); color:#111; }
+  select, input, textarea { background:#10131a; color:var(--text); border:1px solid #333a48; border-radius:6px; padding:4px 6px; font:inherit; }
+  textarea { width:100%; font-family:ui-monospace,monospace; font-size:12px; }
+  .kv { display:grid; grid-template-columns: 92px 1fr; gap:2px 8px; font-size:12px; }
+  .kv b { color:var(--dim); font-weight:normal; }
+  .meter { height:6px; background:#10131a; border-radius:3px; overflow:hidden; margin:3px 0 8px; }
+  .meter i { display:block; height:100%; width:0; background:var(--ok); transition:width .05s; }
+  .meter.jj i { background:var(--jj); }
+  #slide { padding:10px; border:1px dashed var(--line); border-radius:8px; margin-bottom:8px; min-height:44px; font-size:14px; }
+  .right { display:flex; flex-direction:column; min-width:0; }
+  .filters { padding:8px 14px; border-bottom:1px solid var(--line); display:flex; gap:12px; flex-wrap:wrap; align-items:center; }
+  #log { flex:1; overflow:auto; padding:8px 14px; font-family:ui-monospace,monospace; font-size:12px; }
+  .ev { padding:3px 0; border-bottom:1px solid #1b1f27; white-space:pre-wrap; word-break:break-word; }
+  .ev time { color:var(--dim); margin-right:8px; }
+  .k { display:inline-block; min-width:72px; font-weight:600; }
+  .k.tool { color:var(--warn); } .k.transcript { color:var(--text); } .k.to_jj { color:var(--jj); } .k.down { color:var(--acc); }
+  .k.log { color:var(--dim); } .k.action { color:var(--ok); } .k.audio { color:#6b7487; } .k.error { color:var(--bad); }
+  .ok { color:var(--ok); } .bad { color:var(--bad); }
+  .who-user { color:#9fd0ff; } .who-jj { color:var(--jj); }
+  small { color:var(--dim); }
+  @media (max-width: 800px) { main { grid-template-columns: 1fr; height:auto; } aside { border-right:0; } #log { height:60vh; } }
+</style>
+</head>
+<body>
+<header>
+  <h1>JJ Playground</h1>
+  <span id="p-ws" class="pill">socket</span>
+  <span id="p-conn" class="pill">JJ connected</span>
+  <span id="p-listen" class="pill">listening</span>
+  <span id="p-speak" class="pill jj">speaking</span>
+  <span id="p-paused" class="pill">run paused</span>
+  <span id="p-fake" class="pill warn" hidden>FAKE AGENT</span>
+  <small id="model"></small>
+</header>
+<main>
+<aside>
+  <section>
+    <h2>Audio (use headphones)</h2>
+    <button id="b-audio" class="primary">Enable audio</button>
+    <label><input type="checkbox" id="c-wake"> "Hey JJ" detector</label>
+    <div><small>mic → brain</small><div class="meter"><i id="m-mic"></i></div></div>
+    <div><small>JJ out</small><div class="meter jj"><i id="m-jj"></i></div></div>
+    <small id="audio-info">mic off</small>
+  </section>
+
+  <section>
+    <h2>Session</h2>
+    <div id="slide">—</div>
+    <button data-act='{"type":"session_start"}' class="primary">Start session</button>
+    <button data-act='{"type":"reset"}'>Reset</button>
+    <button id="b-reconnect">Reconnect JJ</button>
+    <div style="margin-top:6px">
+      <select id="s-mode"><option value="">mode: recommended</option><option>baseline</option><option>training</option><option>test</option></select>
+      <select id="s-level"><option value="">level: recommended</option><option>strong</option><option>gentle</option><option>off</option></select>
+      <button id="b-start">Start run</button>
+    </div>
+    <button id="b-prev">◀ slide</button><button id="b-next">slide ▶</button>
+    <button data-act='{"type":"presentation_done"}'>Slides done → Q&amp;A</button>
+    <button data-act='{"type":"qa_done"}'>Q&amp;A done → report</button>
+    <button data-act='{"type":"end_run"}'>End run</button>
+    <button data-act='{"type":"abort_run"}'>Abort</button>
+    <button data-act='{"type":"run_it_back"}'>Run it back</button>
+    <button data-act='{"type":"show_final"}'>Show final</button>
+    <div style="margin-top:6px">
+      <button id="b-ptt" class="hot">Hey JJ (hold J)</button>
+      <button id="b-opwake">Operator wake</button>
+      <button data-act='{"type":"resume"}'>Resume</button>
+    </div>
+  </section>
+
+  <section>
+    <h2>State</h2>
+    <div class="kv" id="state"></div>
+  </section>
+
+  <section>
+    <h2>Invoke a tool (as operator)</h2>
+    <select id="s-tool" style="width:100%"></select>
+    <small id="tool-desc"></small>
+    <textarea id="t-args" rows="3">{}</textarea>
+    <button id="b-tool">Invoke</button>
+  </section>
+
+  <section>
+    <h2>Send a text note to JJ</h2>
+    <textarea id="t-note" rows="2" placeholder="e.g. [SESSION START] first session, phase intro. Run the intro."></textarea>
+    <label><input type="checkbox" id="c-turn" checked> turnComplete (JJ answers)</label>
+    <button id="b-note">Send</button>
+  </section>
+
+  <section id="fake-box" hidden>
+    <h2>Fake agent drivers</h2>
+    <button data-fake="speak">JJ speaks 1 s</button><button data-fake="finish">turn complete</button>
+    <button data-fake="barge">barge-in</button><button data-fake="drop">drop connection</button>
+    <button id="b-fake-tool">JJ calls the tool above</button>
+  </section>
+</aside>
+
+<div class="right">
+  <div class="filters" id="filters">
+    <label><input type="checkbox" value="transcript" checked> transcript</label>
+    <label><input type="checkbox" value="tool" checked> tool</label>
+    <label><input type="checkbox" value="to_jj" checked> to JJ</label>
+    <label><input type="checkbox" value="down" checked> downlink</label>
+    <label><input type="checkbox" value="action" checked> action</label>
+    <label><input type="checkbox" value="audio"> audio frames</label>
+    <label><input type="checkbox" value="log"> log</label>
+    <button id="b-clear">Clear</button>
+    <small>Every event is also written to data/jj-playground/*.jsonl</small>
+  </div>
+  <div id="log"></div>
+</div>
+</main>
+
+<script>
+const $ = (s) => document.querySelector(s);
+let ws, state = null, tools = [];
+const send = (o) => ws && ws.readyState === 1 && ws.send(JSON.stringify(o));
+
+// ---------------- socket ----------------
+function connect() {
+  ws = new WebSocket(`ws://${location.host}/ws`);
+  ws.binaryType = "arraybuffer";
+  ws.onopen = () => $("#p-ws").classList.add("on");
+  ws.onclose = () => { $("#p-ws").classList.remove("on"); setTimeout(connect, 1000); };
+  ws.onmessage = (m) => {
+    if (m.data instanceof ArrayBuffer) return playChunk(m.data);
+    const msg = JSON.parse(m.data);
+    if (msg.t === "state") return renderState(msg);
+    if (msg.t === "event") return onEvent(msg);
+  };
+}
+
+// ---------------- events ----------------
+const logEl = $("#log");
+const enabled = () => new Set([...document.querySelectorAll("#filters input:checked")].map((i) => i.value));
+let lastTranscript = null;
+const esc = (s) => String(s).replace(/[&<>]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;" }[c]));
+const j = (o) => esc(JSON.stringify(o));
+
+function onEvent(ev) {
+  if (ev.kind === "down" && ev.type === "audio.stop") stopPlayback();
+  if (ev.kind === "transcript") {
+    const now = ev.at;
+    if (lastTranscript && lastTranscript.who === ev.who && now - lastTranscript.at < 4000 && lastTranscript.el.isConnected) {
+      lastTranscript.text += ev.text; lastTranscript.at = now;
+      lastTranscript.el.querySelector(".txt").textContent = lastTranscript.text;
+      return;
+    }
+    const el = row(ev, `<span class="who-${ev.who}">${ev.who === "jj" ? "JJ" : "you"}:</span> <span class="txt">${esc(ev.text)}</span>`);
+    lastTranscript = el ? { who: ev.who, text: ev.text, at: now, el } : null;
+    return;
+  }
+  lastTranscript = ev.kind === "tool" || ev.kind === "to_jj" ? null : lastTranscript;
+  let html;
+  switch (ev.kind) {
+    case "tool": {
+      const r = ev.result; const okCls = r.ok ? "ok" : "bad";
+      html = `<b>${esc(ev.caller)}</b> → <b>${esc(ev.name)}</b> ${j(ev.args)}  <span class="${okCls}">${r.ok ? "✓" : "✗ " + esc(r.reason)}</span> ${j(r)} <small>${ev.durationMs} ms</small>`;
+      break;
+    }
+    case "to_jj": html = `<span class="who-jj">${esc(ev.text)}</span> <small>${ev.turnComplete ? "turnComplete" : "context only"}</small>`; break;
+    case "down": html = `${esc(ev.type)} ${j(ev.payload)}`; break;
+    case "action": html = `${j(ev.action)} → <span class="${ev.result.ok ? "ok" : "bad"}">${j(ev.result)}</span>`; break;
+    case "audio": html = `source ${ev.source} ${ev.flags & 1 ? "START" : ""}${ev.flags & 2 ? "END" : ""} seq ${ev.seq}`; break;
+    case "log": html = `[${esc(ev.level)}] ${esc(ev.msg)} ${ev.data ? j(ev.data) : ""}`; if (ev.level === "error") ev.kind = "error"; break;
+    default: html = j(ev);
+  }
+  row(ev, html);
+}
+
+function row(ev, html) {
+  const kind = ev.kind === "error" ? "log" : ev.kind;
+  if (!enabled().has(kind) && ev.kind !== "error") return null;
+  const el = document.createElement("div");
+  el.className = "ev";
+  const t = new Date(ev.at); const ts = t.toLocaleTimeString([], { hour12: false }) + "." + String(t.getMilliseconds()).padStart(3, "0");
+  el.innerHTML = `<time>${ts}</time><span class="k ${ev.kind}">${ev.kind}</span> ${html}`;
+  const stick = logEl.scrollTop + logEl.clientHeight >= logEl.scrollHeight - 30;
+  logEl.appendChild(el);
+  if (logEl.childElementCount > 3000) logEl.firstChild.remove();
+  if (stick) logEl.scrollTop = logEl.scrollHeight;
+  return el;
+}
+
+// ---------------- state ----------------
+function renderState(m) {
+  state = m;
+  const s = m.session, r = s.run;
+  $("#p-conn").classList.toggle("on", m.jj.connected);
+  $("#p-listen").classList.toggle("on", m.jj.listening);
+  $("#p-speak").classList.toggle("on", m.jj.speaking);
+  $("#p-paused").classList.toggle("warn", !!r?.paused);
+  $("#p-fake").hidden = !m.fake; $("#fake-box").hidden = !m.fake;
+  $("#model").textContent = `${m.model} · voice ${m.voice || "default"}`;
+  const slides = s.context.deck?.slides ?? [];
+  $("#slide").textContent = s.phase === "running" && r
+    ? `${r.phase.toUpperCase()}${r.paused ? " (paused)" : ""} · slide ${r.slideIndex + 1}/${slides.length}: ${slides[r.slideIndex]?.text ?? ""}`
+    : `${s.phase} · view ${s.view}`;
+  const rows = [
+    ["phase", `${s.phase} (view ${s.view})`],
+    ["run", r ? `${r.runId} ${r.mode}/${r.feedbackLevel} · ${r.phase}${r.paused ? " · PAUSED" : ""} · paused ${Math.round(r.pausedMs / 100) / 10}s` : "—"],
+    ["wake", s.wake.active ? `active via ${s.wake.via}` : "—"],
+    ["mic sinks", m.sinks.join(", ") || "none"],
+    ["frames→JJ", m.framesToJJ],
+    ["coach", `${s.coach.stage} · level ${s.coach.level} · score ${s.coach.score.toFixed(2)}`],
+    ["targets", s.coach.targets.map((t) => `${t.kind} (${t.status})`).join(", ") || "—"],
+    ["completed", s.completedRuns.join(", ") || "—"],
+    ["panel v" + s.scene.version, s.scene.judges.map((x) => `${x.id}: ${x.title} · t${x.toughness} · ${x.style}`).join("<br>")],
+    ["room", `audience ${s.scene.audience.count} · questions ${s.scene.qa.questions} · lighting ${s.scene.lighting}`],
+    ["brief", s.context.brief ? esc(s.context.brief.title + " — " + s.context.brief.audience) : "—"],
+  ];
+  $("#state").innerHTML = rows.map(([k, v]) => `<b>${k}</b><span>${v}</span>`).join("");
+}
+
+// ---------------- controls ----------------
+document.querySelectorAll("[data-act]").forEach((b) => b.onclick = () => send({ t: "action", action: JSON.parse(b.dataset.act) }));
+document.querySelectorAll("[data-fake]").forEach((b) => b.onclick = () => send({ t: "fake", what: b.dataset.fake }));
+$("#b-start").onclick = () => {
+  const a = { type: "start_run" }; if ($("#s-mode").value) a.mode = $("#s-mode").value; if ($("#s-level").value) a.level = $("#s-level").value;
+  send({ t: "action", action: a });
+};
+const slideBy = (d) => { const r = state?.session.run; if (r) send({ t: "action", action: { type: "slide", index: Math.max(0, r.slideIndex + d) } }); };
+$("#b-prev").onclick = () => slideBy(-1); $("#b-next").onclick = () => slideBy(1);
+$("#b-reconnect").onclick = () => send({ t: "reconnect" });
+$("#b-ptt").onclick = () => send({ t: "ptt" });
+$("#b-opwake").onclick = () => send({ t: "operator_wake" });
+$("#b-clear").onclick = () => { logEl.innerHTML = ""; lastTranscript = null; };
+$("#b-note").onclick = () => { const text = $("#t-note").value.trim(); if (text) send({ t: "note", text, turnComplete: $("#c-turn").checked }); };
+document.addEventListener("keydown", (e) => {
+  if (e.target.matches("input, textarea, select")) return;
+  if (e.key === "j" || e.key === "J") { if (!e.repeat) send({ t: "ptt" }); }
+  if (e.key === "ArrowRight") slideBy(1);
+  if (e.key === "ArrowLeft") slideBy(-1);
+});
+
+fetch("/api/tools").then((r) => r.json()).then((cat) => {
+  const list = cat.tools; tools = list;
+  $("#s-tool").innerHTML = list.map((t) => `<option>${t.name}</option>`).join("");
+  const show = () => {
+    const t = tools.find((x) => x.name === $("#s-tool").value);
+    $("#tool-desc").textContent = `${t.behavior} · ${t.description} · args: ${JSON.stringify(t.argsSchema.properties ?? {})}`;
+  };
+  $("#s-tool").onchange = show; show();
+});
+const toolArgs = () => { try { return JSON.parse($("#t-args").value || "{}"); } catch { alert("args are not valid JSON"); return null; } };
+$("#b-tool").onclick = () => { const a = toolArgs(); if (a) send({ t: "tool", name: $("#s-tool").value, args: a }); };
+$("#b-fake-tool").onclick = () => { const a = toolArgs(); if (a) send({ t: "fake", what: "tool", name: $("#s-tool").value, args: a }); };
+
+// ---------------- audio: mic up (16 kHz Int16, 20 ms frames) ----------------
+const WORKLET = `
+class Mic extends AudioWorkletProcessor {
+  constructor() { super(); this.ratio = sampleRate / 16000; this.pos = 0; this.sum = 0; this.cnt = 0; this.buf = new Int16Array(320); this.n = 0; }
+  process(inputs) {
+    const ch = inputs[0] && inputs[0][0]; if (!ch) return true;
+    for (let i = 0; i < ch.length; i++) {
+      this.sum += ch[i]; this.cnt++; this.pos += 1;
+      if (this.pos >= this.ratio) {
+        this.pos -= this.ratio;
+        const v = Math.max(-1, Math.min(1, this.sum / this.cnt));
+        this.buf[this.n++] = v < 0 ? v * 32768 : v * 32767; this.sum = 0; this.cnt = 0;
+        if (this.n === 320) { const out = this.buf.slice(); this.port.postMessage(out.buffer, [out.buffer]); this.n = 0; }
+      }
+    }
+    return true;
+  }
+}
+registerProcessor("mic", Mic);`;
+
+let outCtx, analyser, nextTime = 0, playing = [];
+$("#b-audio").onclick = async () => {
+  const stream = await navigator.mediaDevices.getUserMedia({ audio: { channelCount: 1, echoCancellation: true, autoGainControl: true, noiseSuppression: true } });
+  const inCtx = new AudioContext();
+  await inCtx.audioWorklet.addModule(URL.createObjectURL(new Blob([WORKLET], { type: "application/javascript" })));
+  const node = new AudioWorkletNode(inCtx, "mic");
+  inCtx.createMediaStreamSource(stream).connect(node);
+  node.port.onmessage = (e) => {
+    if (ws?.readyState === 1) ws.send(e.data);
+    const a = new Int16Array(e.data); let s = 0; for (const v of a) s += v * v;
+    $("#m-mic").style.width = Math.min(100, Math.sqrt(s / a.length) / 60) + "%";
+  };
+  outCtx = new AudioContext({ sampleRate: 24000 });
+  analyser = outCtx.createAnalyser(); analyser.fftSize = 512; analyser.connect(outCtx.destination);
+  const data = new Uint8Array(analyser.fftSize);
+  (function meter() { analyser.getByteTimeDomainData(data); let m = 0; for (const v of data) m = Math.max(m, Math.abs(v - 128)); $("#m-jj").style.width = Math.min(100, m / 1.28) + "%"; requestAnimationFrame(meter); })();
+  $("#audio-info").textContent = `mic on · input ${inCtx.sampleRate} Hz → 16 kHz · output 24 kHz`;
+  $("#b-audio").disabled = true; $("#b-audio").textContent = "Audio on";
+};
+
+function playChunk(buf) {
+  if (!outCtx) return;
+  const dv = new DataView(buf);
+  const source = dv.getUint8(0);
+  const pcm = new Int16Array(buf.slice(4));
+  if (pcm.length === 0) return;   // utterance-end marker
+  const f = new Float32Array(pcm.length); for (let i = 0; i < pcm.length; i++) f[i] = pcm[i] / 32768;
+  const ab = outCtx.createBuffer(1, f.length, 24000); ab.copyToChannel(f, 0);
+  const src = outCtx.createBufferSource(); src.buffer = ab; src.connect(analyser);
+  const t = Math.max(nextTime, outCtx.currentTime + 0.05);
+  src.start(t); nextTime = t + ab.duration;
+  playing.push(src); src.onended = () => { playing = playing.filter((x) => x !== src); };
+}
+function stopPlayback() { for (const s of playing) { try { s.stop(); } catch {} } playing = []; nextTime = 0; }
+
+// ---------------- "Hey JJ" detector (Chrome Web Speech, stand-in for Deepgram) ----------------
+const WAKE = /\b(hey|hi|ok|okay)[ ,]+(jj|j\.? ?j\.?|jay ?jay|jaye? ?jaye?)\b/i;
+let rec = null, lastWake = 0;
+$("#c-wake").onchange = (e) => {
+  const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
+  if (!SR) { alert("No SpeechRecognition in this browser; use Chrome, or the PTT button / J key."); e.target.checked = false; return; }
+  if (!e.target.checked) { rec?.stop(); rec = null; return; }
+  rec = new SR(); rec.continuous = true; rec.interimResults = true; rec.lang = "en-US";
+  rec.onresult = (ev) => {
+    const res = ev.results[ev.results.length - 1]; const text = res[0].transcript;
+    const s = state?.session;
+    if (WAKE.test(text) && s?.phase === "running" && !s.run?.paused && Date.now() - lastWake > 3000) {
+      lastWake = Date.now(); onEvent({ kind: "action", at: Date.now(), action: { heard: text }, result: { ok: true, wake: "phrase" } });
+      send({ t: "wake_phrase" });
+    }
+  };
+  rec.onend = () => { if (rec) try { rec.start(); } catch {} };
+  rec.start();
+};
+
+connect();
+</script>
+</body>
+</html>

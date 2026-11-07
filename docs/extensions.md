@@ -1,0 +1,120 @@
+# Extensions log
+
+**Every extension — a new or changed interface, message, field, option, config key or
+behaviour that the spec does not define — must be recorded here with a timestamp, so that
+different agents can sync up when merging.** Before merging, read every entry newer than
+the commit you branched from.
+
+Format: newest first, one entry per extension, using this template.
+
+```md
+### 2026-11-07T21:53+01:00 · <lane> · <short title>
+- **Where:** file(s) / symbol(s)
+- **What:** the extension, in one or two sentences
+- **Why:** what the spec left open or what needed it
+- **Impact:** who must react (lane / component), or "none"
+```
+
+Lanes: `lead` (protocol), `brain`, `sensing`, `agents`, `stage`, `report`.
+
+---
+
+### 2026-11-08T00:30+01:00 · agents · Judge voices (ElevenLabs) + `POST /debug/judge-say`
+- **Where:** `apps/brain/src/voices/judgeVoice.ts` (`JudgeVoices`, `speakJudge`, `judgeVoicesHttp`, `DEFAULT_JUDGE_VOICE_IDS`), wired in `apps/brain/src/server.ts` via the `http` option; config keys `ELEVENLABS_API_KEY`, `JUDGE_VOICE_IDS` in `apps/brain/src/config.ts`
+- **What:** `speakJudge(judge_N, text)` queues one utterance at a time: `actor.gesture talk` → `actor.say {utteranceId: judge_N_uK, source: N}` → ElevenLabs streaming TTS (`eleven_flash_v2_5`, `pcm_24000`) forwarded on `/ws/audio` with JJ's framing (start flag on the first frame, empty end-flagged frame) → waits for the stage's `audio.playback` ended/stopped (fallback: audio length + 1.5 s) → `actor.gesture idle`. `JUDGE_VOICE_IDS` (comma-separated, judge_1..4) defaults to premade Rachel, Adam, Antoni, Sarah. No key → say + gestures only, audio skipped and logged; independent of `JJ_FAKE`. Debug: `POST /debug/judge-say {judge: 1-4, text}` → 202 `{ok, actorId, utteranceId, voiceId}`.
+- **Why:** hear and stage-test judge voices before the director lands.
+- **Impact:** director: call `JudgeVoices.speakJudge` instead of its own TTS. Stage: `judge_4` needs a judge in the scene (the default scene has 3). `JUDGE_VOICES` (JJ config, scene `voiceId`) is not read by this module.
+
+### 2026-11-07T21:53+01:00 · brain · Repo layout: JJ code lives only under `apps/brain/src/jj/`
+- **Where:** `apps/brain/src/jj/tools.ts` (was `apps/brain/src/tools.ts`), `apps/brain/src/jj/VERIFY.md` (was `docs/jj-verification.md`), JJ scripts moved from the root `package.json` to `@coach/brain` (`pnpm --filter @coach/brain jj:playground | jj:smoke`)
+- **What:** nothing JJ-specific at the repo root or the brain root any more.
+- **Why:** clean project structure.
+- **Impact:** import `ToolRegistry` / `createCoachTools` from `./jj/tools.ts`.
+
+### 2026-11-07T21:53+01:00 · brain · `createBrain()` composition root with pluggable lanes
+- **Where:** `apps/brain/src/brain.ts`, `server.ts`, `config.ts`
+- **What:** options `coach`, `context`, `reports`, `stt`, `agent`, `http` plug in each lane; placeholders (`placeholders.ts`) keep the brain runnable. Unimplemented `/api/*` routes answer 501 `{ok:false, reason:"not_available"}`. `/health` also reports `mic` and `phase`.
+- **Why:** lanes integrate without editing each other's files.
+- **Impact:** every lane: integrate through these options (docs/integration.md §4).
+
+### 2026-11-07T21:53+01:00 · brain · Config keys `BRAIN_HOST`, `LOG_LEVEL`, `JJ_FAKE`, `JJ_SPEECH_RMS`
+- **Where:** `apps/brain/src/config.ts`, `apps/brain/src/jj/config.ts`, `.env.example`
+- **What:** bind host (default 127.0.0.1), log level, `JJ_FAKE=1` runs without Gemini (FakeVoiceAgent), mic RMS threshold for JJ auto-resume.
+- **Why:** run the brain before keys exist; tune auto-resume on site.
+- **Impact:** none.
+
+### 2026-11-07T21:53+01:00 · brain · `CoachPolicy` port
+- **Where:** `apps/brain/src/session.ts` (`CoachPolicy`), placeholder in `placeholders.ts`
+- **What:** `initial()`, `recommend(c)`, `afterRun(prev, run)` (sync, called while the run ends), `setTargets(prev, targets, completedRuns)`, `setLevel(prev, level)`.
+- **Why:** the spec defines `initialCoach/updateCoach/recommend` as functions of a `RunSummary`; the store needs one object it can call without knowing about the event store.
+- **Impact:** rules lane: implement `CoachPolicy` by calling `summarizeRun` + `updateCoach` inside `afterRun`.
+
+### 2026-11-07T21:53+01:00 · brain · Session store additions
+- **Where:** `apps/brain/src/session.ts`
+- **What:**
+  - `SessionEvent` causes delivered to subscribers: `countdown {secondsLeft}`, `presentation_started`, `context {patch}`. Subscriber cause type is `SessionAction | SessionEvent | SceneOp[]`.
+  - `setContext(patch)` for ContextService (deck, docs, brief, digest); a deck change re-sends `scene.sync`.
+  - `slide` action takes `from?: "stage" | "brain"`; stage-originated slide changes are not echoed back as `slide.show`.
+  - A wake during the countdown also pauses the countdown timer.
+  - `calibration_done` returns to the phase calibration started from (intro or debrief).
+  - `show_final` with no finished run → `not_available`.
+  - `set_targets` / `set_level` are accepted in every phase except setup; `set_categories` in every phase.
+  - `run_it_back` restores the repeated run's scene version by re-applying a snapshot (`judges.set`, `audience.set`, `lighting.set`, `qa.set`); the repeated run still updates the coach when it ends.
+  - Explicit `start_run` level is forced to `off` for baseline and test runs.
+- **Why:** spec left these open.
+- **Impact:** director, feedback controller, STT: react via `subscribe`; context lane: use `setContext`.
+
+### 2026-11-07T21:53+01:00 · brain · `StateSync` downlink driver
+- **Where:** `apps/brain/src/sync.ts`
+- **What:** `setFeedback(cmd)` (sent only on change), `forceVignette(kind, intensity, holdMs)` (operator override), `currentFeedback()`, `jjChanged()`. Feedback is forced to `none` while paused and outside runs. Operator gets `run.state` as well as `state.snapshot`; sensor gets `run.state` and `sensor.config`.
+- **Why:** one place for "what each role sees".
+- **Impact:** feedback controller: call `brain.sync.setFeedback()`.
+
+### 2026-11-07T21:53+01:00 · sensing · `MicRouter` and speech interfaces
+- **Where:** `apps/brain/src/mic.ts`, `apps/brain/src/speech.ts`
+- **What:** `MicRouter` implemented per the spec table plus `running: ended/aborted → jj`; `framesIn` counter. `SttStream`, `WakeDetector`, `SttFactory` are interfaces only.
+- **Why:** routing is plumbing the brain needs now; the models stay with the sensing lane.
+- **Impact:** sensing lane: implement `SttStream`/`WakeDetector` and wire as in docs/integration.md §8.
+
+### 2026-11-07T21:46+01:00 · lead · Protocol helpers beyond the spec
+- **Where:** `packages/protocol/src/*`
+- **What:** `parseUplink` / `parseDownlink`, `envelope()`, `UPLINK_SENDERS` (allowed roles per uplink), `ALL_*_TYPES`, `ToolResult` schema, `FEEDBACK_NONE`, `CATEGORY_OF`, `GREYBOX_VENUE`, `REQUIRED_ANCHORS` (enforced by `VenueDef`), audio helpers (`encodeAudioFrame`, `decodeAudioFrame`, `micFrameToPcm`, `judgeSource`), `WS_PATHS`, `MicHello`, `PING_INTERVAL_MS`, `DEAD_AFTER_MS`, `DeckManifest` (≤ 60 slides), `ToolCatalogue`.
+- **Why:** shared by every client and the brain.
+- **Impact:** all lanes: import from `@coach/protocol` instead of re-declaring.
+
+### 2026-11-07T21:46+01:00 · lead · Close codes and error replies
+- **Where:** `packages/protocol/src/messages.ts` (`CLOSE_CODES`), `apps/brain/src/hub.ts`, `apps/brain/src/brain.ts`
+- **What:** 4001 replaced (spec), 4002 protocol mismatch / bad `mic.hello`, 4003 no hello within 5 s, 4004 dead (15 s silence). `error` replies set envelope `replyTo` = the offending message id, as well as `payload.refId`.
+- **Why:** spec defines only 4001; `replyTo` lets `ControlClient.request()` resolve on errors.
+- **Impact:** pages: treat 4001/4002 as final (ControlClient does not reconnect).
+
+### 2026-11-07T21:46+01:00 · brain · Hub API additions
+- **Where:** `apps/brain/src/hub.ts`
+- **What:** `attach(server)`, `onDisconnect`, `onMic`, `onInbound` / `onOutbound` (recorder taps), `connections()`, `micConnected()`. Uplinks from a role not in `UPLINK_SENDERS` are refused with `invalid_message`. Only one `/ws/mic` and one `/ws/audio` socket at a time (newest wins).
+- **Why:** recorder, mic routing, health.
+- **Impact:** recorder lane: use the taps.
+
+### 2026-11-07T21:46+01:00 · stage · `ControlClient` behaviour
+- **Where:** `apps/web/src/net/client.ts` (`@coach/web/net`)
+- **What:** `request(type, payload)` resolves with the reply envelope; statuses `connecting | open | closed | replaced | refused`; no reconnect after 4001/4002; nothing is queued while disconnected (`send` returns null).
+- **Why:** spec says only "shared WS client with reconnect".
+- **Impact:** main app, sensor, operator pages.
+
+### 2026-11-07T21:29+01:00 · agents · `VoiceAgent` extensions
+- **Where:** `apps/brain/src/jj/voice-agent.ts`
+- **What:** `onInterrupted(cb)` (provider barge-in, so the stage flushes source 0) and `setContextProvider(fn)` (fresh reconnects send current context). `ToolDeclaration.scheduling` / `ToolSpec.scheduling` (`INTERRUPT | WHEN_IDLE | SILENT`) for non-blocking tool results.
+- **Why:** full duplex barge-in and reconnect context were not covered by the spec interface.
+- **Impact:** anyone implementing another `VoiceAgent`.
+
+### 2026-11-07T21:29+01:00 · agents · JJ engine behaviour the spec left open
+- **Where:** `apps/brain/src/jj/engine.ts`, `apps/brain/src/jj/tools.ts`
+- **What:**
+  - `JJEngine` API: `acceptMic(pcm)` (MicRouter calls it), `noteWakePhrase(t)` (WakeDetector calls it before dispatching `wake`), `reconnect()`, `status()`.
+  - `actor.say {actorId:"jj"}` is sent with `text: ""` (the transcript arrives after the audio starts).
+  - After a wake, auto-resume if JJ never answers within 10 s of silence.
+  - JJ audio during an un-woken run is dropped, except the rest of an utterance that started while woken.
+  - System notes sent to JJ: `[SESSION START]`, `[SESSION CONTEXT]`, `[RUN ABORTED]`, `[UI ACTION]` (besides the spec's `[WOKEN …]` and `[RUN ENDED]`).
+  - `set_judge` resolves left/center/right by seat order (numeric); with an even panel "center" is refused with a hint.
+  - `save_brief` and `set_judges {count}` apply the default toughness spread (0.3/0.5/0.8, interpolated for other sizes) unless an instruction was given.
+- **Why:** spec left these open.
+- **Impact:** director (none yet); prompts lane: `prompts/jj.md` documents the notes.

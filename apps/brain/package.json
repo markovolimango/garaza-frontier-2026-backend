@@ -1,0 +1,24 @@
+{
+  "name": "@coach/brain",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "dependencies": {
+    "@coach/protocol": "workspace:*",
+    "@google/genai": "3.0.0",
+    "nanoid": "5.1.6",
+    "ws": "8.18.3",
+    "zod": "4.6.6"
+  },
+  "devDependencies": {
+    "@coach/web": "workspace:*",
+    "@types/ws": "8.18.1",
+    "tsx": "4.20.6"
+  },
+  "scripts": {
+    "dev": "tsx watch src/server.ts",
+    "start": "tsx src/server.ts",
+    "jj:playground": "tsx src/jj/playground/server.ts",
+    "jj:smoke": "tsx src/jj/playground/smoke.ts"
+  }
+}

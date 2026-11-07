@@ -1,0 +1,64 @@
+{
+  "type": "scene.apply",
+  "direction": "down",
+  "valid": [
+    {
+      "v": 1,
+      "type": "scene.apply",
+      "id": "fx_scene_apply_0",
+      "ts": 1762540000000,
+      "payload": {
+        "batchId": "b_1",
+        "version": 4,
+        "ops": [
+          {
+            "op": "judge.update",
+            "id": "judge_3",
+            "patch": {
+              "toughness": 0.9
+            }
+          },
+          {
+            "op": "lighting.set",
+            "preset": "dim",
+            "transitionMs": 1500
+          }
+        ]
+      }
+    }
+  ],
+  "invalid": [
+    {
+      "why": "empty ops",
+      "message": {
+        "v": 1,
+        "type": "scene.apply",
+        "id": "fx_scene_apply_100",
+        "ts": 1762540000100,
+        "payload": {
+          "batchId": "b_1",
+          "version": 4,
+          "ops": []
+        }
+      }
+    },
+    {
+      "why": "unknown op",
+      "message": {
+        "v": 1,
+        "type": "scene.apply",
+        "id": "fx_scene_apply_101",
+        "ts": 1762540000101,
+        "payload": {
+          "batchId": "b",
+          "version": 4,
+          "ops": [
+            {
+              "op": "judges.dance"
+            }
+          ]
+        }
+      }
+    }
+  ]
+}

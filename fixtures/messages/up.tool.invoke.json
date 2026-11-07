@@ -1,0 +1,43 @@
+{
+  "type": "tool.invoke",
+  "direction": "up",
+  "valid": [
+    {
+      "v": 1,
+      "type": "tool.invoke",
+      "id": "fx_tool_invoke_0",
+      "ts": 1762540000000,
+      "payload": {
+        "tool": "set_judges",
+        "args": {
+          "toughness": 0.8
+        }
+      }
+    },
+    {
+      "v": 1,
+      "type": "tool.invoke",
+      "id": "fx_tool_invoke_1",
+      "ts": 1762540000001,
+      "payload": {
+        "tool": "end_run",
+        "args": {}
+      }
+    }
+  ],
+  "invalid": [
+    {
+      "why": "unknown tool",
+      "message": {
+        "v": 1,
+        "type": "tool.invoke",
+        "id": "fx_tool_invoke_100",
+        "ts": 1762540000100,
+        "payload": {
+          "tool": "launch_rocket",
+          "args": {}
+        }
+      }
+    }
+  ]
+}

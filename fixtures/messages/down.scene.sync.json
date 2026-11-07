@@ -1,0 +1,562 @@
+{
+  "type": "scene.sync",
+  "direction": "down",
+  "valid": [
+    {
+      "v": 1,
+      "type": "scene.sync",
+      "id": "fx_scene_sync_0",
+      "ts": 1762540000000,
+      "payload": {
+        "scene": {
+          "version": 3,
+          "venueId": "greybox",
+          "qa": {
+            "questions": 2,
+            "answerCapMs": 45000
+          },
+          "judges": [
+            {
+              "id": "judge_1",
+              "title": "Seed investor",
+              "background": "Invests in B2B SaaS.",
+              "seat": "judge_seat_1",
+              "voiceId": "voiceA",
+              "toughness": 0.3,
+              "style": "warm",
+              "priorities": [
+                "traction"
+              ]
+            },
+            {
+              "id": "judge_2",
+              "title": "Technical founder",
+              "background": "Built two dev tools.",
+              "seat": "judge_seat_2",
+              "voiceId": "voiceB",
+              "toughness": 0.5,
+              "style": "neutral",
+              "priorities": [
+                "architecture"
+              ]
+            },
+            {
+              "id": "judge_3",
+              "title": "Domain expert",
+              "background": "Ran sales ops for 10 years.",
+              "seat": "judge_seat_3",
+              "voiceId": "voiceC",
+              "toughness": 0.8,
+              "style": "skeptical",
+              "priorities": [
+                "churn",
+                "pricing"
+              ]
+            }
+          ],
+          "audience": {
+            "count": 12
+          },
+          "lighting": "default"
+        },
+        "venue": {
+          "id": "greybox",
+          "name": "Grey box room",
+          "backdrop": {
+            "kind": "greybox",
+            "size": [
+              10,
+              3.2,
+              12
+            ]
+          },
+          "anchors": {
+            "podium": {
+              "kind": "point",
+              "position": [
+                0,
+                0,
+                0
+              ],
+              "facing": [
+                0,
+                0,
+                -1
+              ]
+            },
+            "judge_seat_1": {
+              "kind": "point",
+              "position": [
+                -1.4,
+                0,
+                -4
+              ],
+              "facing": [
+                0,
+                0,
+                1
+              ]
+            },
+            "judge_seat_2": {
+              "kind": "point",
+              "position": [
+                0,
+                0,
+                -4.2
+              ],
+              "facing": [
+                0,
+                0,
+                1
+              ]
+            },
+            "judge_seat_3": {
+              "kind": "point",
+              "position": [
+                1.4,
+                0,
+                -4
+              ],
+              "facing": [
+                0,
+                0,
+                1
+              ]
+            },
+            "audience_area": {
+              "kind": "area",
+              "polygon": [
+                [
+                  -4,
+                  1.5
+                ],
+                [
+                  4,
+                  1.5
+                ],
+                [
+                  4,
+                  5
+                ],
+                [
+                  -4,
+                  5
+                ]
+              ],
+              "y": 0
+            }
+          },
+          "occluders": [
+            {
+              "kind": "box",
+              "center": [
+                0,
+                0.37,
+                -3.5
+              ],
+              "size": [
+                3.6,
+                0.75,
+                0.8
+              ],
+              "yawDeg": 0
+            }
+          ],
+          "lighting": {
+            "default": {
+              "ambient": 0.6,
+              "key": {
+                "dir": [
+                  0.3,
+                  -1,
+                  -0.4
+                ],
+                "intensity": 1
+              }
+            },
+            "stage": {
+              "ambient": 0.35,
+              "key": {
+                "dir": [
+                  0,
+                  -1,
+                  0.6
+                ],
+                "intensity": 1.4
+              }
+            },
+            "dim": {
+              "ambient": 0.25,
+              "key": {
+                "dir": [
+                  0.3,
+                  -1,
+                  -0.4
+                ],
+                "intensity": 0.6
+              }
+            }
+          }
+        },
+        "deck": {
+          "deckId": "deck_1",
+          "name": "Acme seed",
+          "slides": [
+            {
+              "index": 0,
+              "url": "/api/decks/deck_1/0.png",
+              "text": "Acme"
+            },
+            {
+              "index": 1,
+              "url": "/api/decks/deck_1/1.png",
+              "text": "Pricing"
+            }
+          ]
+        }
+      }
+    },
+    {
+      "v": 1,
+      "type": "scene.sync",
+      "id": "fx_scene_sync_1",
+      "ts": 1762540000001,
+      "payload": {
+        "scene": {
+          "version": 3,
+          "venueId": "greybox",
+          "qa": {
+            "questions": 2,
+            "answerCapMs": 45000
+          },
+          "judges": [
+            {
+              "id": "judge_1",
+              "title": "Seed investor",
+              "background": "Invests in B2B SaaS.",
+              "seat": "judge_seat_1",
+              "voiceId": "voiceA",
+              "toughness": 0.3,
+              "style": "warm",
+              "priorities": [
+                "traction"
+              ]
+            },
+            {
+              "id": "judge_2",
+              "title": "Technical founder",
+              "background": "Built two dev tools.",
+              "seat": "judge_seat_2",
+              "voiceId": "voiceB",
+              "toughness": 0.5,
+              "style": "neutral",
+              "priorities": [
+                "architecture"
+              ]
+            },
+            {
+              "id": "judge_3",
+              "title": "Domain expert",
+              "background": "Ran sales ops for 10 years.",
+              "seat": "judge_seat_3",
+              "voiceId": "voiceC",
+              "toughness": 0.8,
+              "style": "skeptical",
+              "priorities": [
+                "churn",
+                "pricing"
+              ]
+            }
+          ],
+          "audience": {
+            "count": 12
+          },
+          "lighting": "default"
+        },
+        "venue": {
+          "id": "greybox",
+          "name": "Grey box room",
+          "backdrop": {
+            "kind": "greybox",
+            "size": [
+              10,
+              3.2,
+              12
+            ]
+          },
+          "anchors": {
+            "podium": {
+              "kind": "point",
+              "position": [
+                0,
+                0,
+                0
+              ],
+              "facing": [
+                0,
+                0,
+                -1
+              ]
+            },
+            "judge_seat_1": {
+              "kind": "point",
+              "position": [
+                -1.4,
+                0,
+                -4
+              ],
+              "facing": [
+                0,
+                0,
+                1
+              ]
+            },
+            "judge_seat_2": {
+              "kind": "point",
+              "position": [
+                0,
+                0,
+                -4.2
+              ],
+              "facing": [
+                0,
+                0,
+                1
+              ]
+            },
+            "judge_seat_3": {
+              "kind": "point",
+              "position": [
+                1.4,
+                0,
+                -4
+              ],
+              "facing": [
+                0,
+                0,
+                1
+              ]
+            },
+            "audience_area": {
+              "kind": "area",
+              "polygon": [
+                [
+                  -4,
+                  1.5
+                ],
+                [
+                  4,
+                  1.5
+                ],
+                [
+                  4,
+                  5
+                ],
+                [
+                  -4,
+                  5
+                ]
+              ],
+              "y": 0
+            }
+          },
+          "occluders": [
+            {
+              "kind": "box",
+              "center": [
+                0,
+                0.37,
+                -3.5
+              ],
+              "size": [
+                3.6,
+                0.75,
+                0.8
+              ],
+              "yawDeg": 0
+            }
+          ],
+          "lighting": {
+            "default": {
+              "ambient": 0.6,
+              "key": {
+                "dir": [
+                  0.3,
+                  -1,
+                  -0.4
+                ],
+                "intensity": 1
+              }
+            },
+            "stage": {
+              "ambient": 0.35,
+              "key": {
+                "dir": [
+                  0,
+                  -1,
+                  0.6
+                ],
+                "intensity": 1.4
+              }
+            },
+            "dim": {
+              "ambient": 0.25,
+              "key": {
+                "dir": [
+                  0.3,
+                  -1,
+                  -0.4
+                ],
+                "intensity": 0.6
+              }
+            }
+          }
+        },
+        "deck": null
+      }
+    }
+  ],
+  "invalid": [
+    {
+      "why": "venue lacks judge seats",
+      "message": {
+        "v": 1,
+        "type": "scene.sync",
+        "id": "fx_scene_sync_100",
+        "ts": 1762540000100,
+        "payload": {
+          "scene": {
+            "version": 3,
+            "venueId": "greybox",
+            "qa": {
+              "questions": 2,
+              "answerCapMs": 45000
+            },
+            "judges": [
+              {
+                "id": "judge_1",
+                "title": "Seed investor",
+                "background": "Invests in B2B SaaS.",
+                "seat": "judge_seat_1",
+                "voiceId": "voiceA",
+                "toughness": 0.3,
+                "style": "warm",
+                "priorities": [
+                  "traction"
+                ]
+              },
+              {
+                "id": "judge_2",
+                "title": "Technical founder",
+                "background": "Built two dev tools.",
+                "seat": "judge_seat_2",
+                "voiceId": "voiceB",
+                "toughness": 0.5,
+                "style": "neutral",
+                "priorities": [
+                  "architecture"
+                ]
+              },
+              {
+                "id": "judge_3",
+                "title": "Domain expert",
+                "background": "Ran sales ops for 10 years.",
+                "seat": "judge_seat_3",
+                "voiceId": "voiceC",
+                "toughness": 0.8,
+                "style": "skeptical",
+                "priorities": [
+                  "churn",
+                  "pricing"
+                ]
+              }
+            ],
+            "audience": {
+              "count": 12
+            },
+            "lighting": "default"
+          },
+          "venue": {
+            "id": "greybox",
+            "name": "Grey box room",
+            "backdrop": {
+              "kind": "greybox",
+              "size": [
+                10,
+                3.2,
+                12
+              ]
+            },
+            "anchors": {
+              "podium": {
+                "kind": "point",
+                "position": [
+                  0,
+                  0,
+                  0
+                ],
+                "facing": [
+                  0,
+                  0,
+                  -1
+                ]
+              }
+            },
+            "occluders": [
+              {
+                "kind": "box",
+                "center": [
+                  0,
+                  0.37,
+                  -3.5
+                ],
+                "size": [
+                  3.6,
+                  0.75,
+                  0.8
+                ],
+                "yawDeg": 0
+              }
+            ],
+            "lighting": {
+              "default": {
+                "ambient": 0.6,
+                "key": {
+                  "dir": [
+                    0.3,
+                    -1,
+                    -0.4
+                  ],
+                  "intensity": 1
+                }
+              },
+              "stage": {
+                "ambient": 0.35,
+                "key": {
+                  "dir": [
+                    0,
+                    -1,
+                    0.6
+                  ],
+                  "intensity": 1.4
+                }
+              },
+              "dim": {
+                "ambient": 0.25,
+                "key": {
+                  "dir": [
+                    0.3,
+                    -1,
+                    -0.4
+                  ],
+                  "intensity": 0.6
+                }
+              }
+            }
+          },
+          "deck": null
+        }
+      }
+    }
+  ]
+}

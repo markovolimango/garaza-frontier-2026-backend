@@ -1,0 +1,41 @@
+{
+  "type": "ui.state",
+  "direction": "down",
+  "valid": [
+    {
+      "v": 1,
+      "type": "ui.state",
+      "id": "fx_ui_state_0",
+      "ts": 1762540000000,
+      "payload": {
+        "view": "jj",
+        "orb": {
+          "visible": true,
+          "placement": "center",
+          "score": 0.8
+        },
+        "introDone": false
+      }
+    }
+  ],
+  "invalid": [
+    {
+      "why": "unknown view",
+      "message": {
+        "v": 1,
+        "type": "ui.state",
+        "id": "fx_ui_state_100",
+        "ts": 1762540000100,
+        "payload": {
+          "view": "vr",
+          "orb": {
+            "visible": true,
+            "placement": "center",
+            "score": 0.8
+          },
+          "introDone": false
+        }
+      }
+    }
+  ]
+}

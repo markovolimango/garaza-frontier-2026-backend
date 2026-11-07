@@ -1,0 +1,38 @@
+{
+  "type": "countdown",
+  "direction": "down",
+  "valid": [
+    {
+      "v": 1,
+      "type": "countdown",
+      "id": "fx_countdown_0",
+      "ts": 1762540000000,
+      "payload": {
+        "secondsLeft": 3
+      }
+    },
+    {
+      "v": 1,
+      "type": "countdown",
+      "id": "fx_countdown_1",
+      "ts": 1762540000001,
+      "payload": {
+        "secondsLeft": 0
+      }
+    }
+  ],
+  "invalid": [
+    {
+      "why": "4 is not a countdown step",
+      "message": {
+        "v": 1,
+        "type": "countdown",
+        "id": "fx_countdown_100",
+        "ts": 1762540000100,
+        "payload": {
+          "secondsLeft": 4
+        }
+      }
+    }
+  ]
+}

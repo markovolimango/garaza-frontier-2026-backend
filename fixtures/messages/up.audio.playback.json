@@ -1,0 +1,33 @@
+{
+  "type": "audio.playback",
+  "direction": "up",
+  "valid": [
+    {
+      "v": 1,
+      "type": "audio.playback",
+      "id": "fx_audio_playback_0",
+      "ts": 1762540000000,
+      "payload": {
+        "source": 1,
+        "utteranceId": "u_1",
+        "state": "ended"
+      }
+    }
+  ],
+  "invalid": [
+    {
+      "why": "unknown state",
+      "message": {
+        "v": 1,
+        "type": "audio.playback",
+        "id": "fx_audio_playback_100",
+        "ts": 1762540000100,
+        "payload": {
+          "source": 1,
+          "utteranceId": "u_1",
+          "state": "paused"
+        }
+      }
+    }
+  ]
+}

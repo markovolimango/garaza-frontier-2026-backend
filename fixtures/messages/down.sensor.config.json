@@ -1,0 +1,38 @@
+{
+  "type": "sensor.config",
+  "direction": "down",
+  "valid": [
+    {
+      "v": 1,
+      "type": "sensor.config",
+      "id": "fx_sensor_config_0",
+      "ts": 1762540000000,
+      "payload": {
+        "enabledCategories": [
+          "posture",
+          "gaze"
+        ],
+        "neutralPitchDeg": null,
+        "debug": false
+      }
+    }
+  ],
+  "invalid": [
+    {
+      "why": "unknown category",
+      "message": {
+        "v": 1,
+        "type": "sensor.config",
+        "id": "fx_sensor_config_100",
+        "ts": 1762540000100,
+        "payload": {
+          "enabledCategories": [
+            "mood"
+          ],
+          "neutralPitchDeg": null,
+          "debug": false
+        }
+      }
+    }
+  ]
+}

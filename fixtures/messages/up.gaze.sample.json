@@ -1,0 +1,34 @@
+{
+  "type": "gaze.sample",
+  "direction": "up",
+  "valid": [
+    {
+      "v": 1,
+      "type": "gaze.sample",
+      "id": "fx_gaze_sample_0",
+      "ts": 1762540000000,
+      "payload": {
+        "yawDeg": -12.5,
+        "pitchDeg": 4,
+        "clientTs": 1762540011100,
+        "facePresent": true
+      }
+    }
+  ],
+  "invalid": [
+    {
+      "why": "missing facePresent",
+      "message": {
+        "v": 1,
+        "type": "gaze.sample",
+        "id": "fx_gaze_sample_100",
+        "ts": 1762540000100,
+        "payload": {
+          "yawDeg": 0,
+          "pitchDeg": 0,
+          "clientTs": 1
+        }
+      }
+    }
+  ]
+}

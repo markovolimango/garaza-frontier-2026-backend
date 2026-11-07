@@ -1,0 +1,33 @@
+{
+  "type": "hello",
+  "direction": "up",
+  "valid": [
+    {
+      "v": 1,
+      "type": "hello",
+      "id": "fx_hello_0",
+      "ts": 1762540000000,
+      "payload": {
+        "role": "stage",
+        "clientId": "c_1",
+        "protocol": 1
+      }
+    }
+  ],
+  "invalid": [
+    {
+      "why": "unknown role",
+      "message": {
+        "v": 1,
+        "type": "hello",
+        "id": "fx_hello_100",
+        "ts": 1762540000100,
+        "payload": {
+          "role": "vr",
+          "clientId": "c",
+          "protocol": 1
+        }
+      }
+    }
+  ]
+}

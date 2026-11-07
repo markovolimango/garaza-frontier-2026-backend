@@ -1,0 +1,25 @@
+{
+  "type": "ping",
+  "direction": "down",
+  "valid": [
+    {
+      "v": 1,
+      "type": "ping",
+      "id": "fx_ping_0",
+      "ts": 1762540000000,
+      "payload": {}
+    }
+  ],
+  "invalid": [
+    {
+      "why": "not an object",
+      "message": {
+        "v": 1,
+        "type": "ping",
+        "id": "fx_ping_100",
+        "ts": 1762540000100,
+        "payload": "ping"
+      }
+    }
+  ]
+}

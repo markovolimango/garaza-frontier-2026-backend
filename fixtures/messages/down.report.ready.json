@@ -1,0 +1,40 @@
+{
+  "type": "report.ready",
+  "direction": "down",
+  "valid": [
+    {
+      "v": 1,
+      "type": "report.ready",
+      "id": "fx_report_ready_0",
+      "ts": 1762540000000,
+      "payload": {
+        "kind": "run",
+        "runId": "run_1"
+      }
+    },
+    {
+      "v": 1,
+      "type": "report.ready",
+      "id": "fx_report_ready_1",
+      "ts": 1762540000001,
+      "payload": {
+        "kind": "final",
+        "sessionId": "V1StGXR8_Z5jdHi6B-myT"
+      }
+    }
+  ],
+  "invalid": [
+    {
+      "why": "run kind without runId",
+      "message": {
+        "v": 1,
+        "type": "report.ready",
+        "id": "fx_report_ready_100",
+        "ts": 1762540000100,
+        "payload": {
+          "kind": "run"
+        }
+      }
+    }
+  ]
+}

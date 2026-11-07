@@ -1,0 +1,44 @@
+{
+  "type": "feedback.set",
+  "direction": "down",
+  "valid": [
+    {
+      "v": 1,
+      "type": "feedback.set",
+      "id": "fx_feedback_set_0",
+      "ts": 1762540000000,
+      "payload": {
+        "kind": "none",
+        "intensity": 0,
+        "rampMs": 1000
+      }
+    },
+    {
+      "v": 1,
+      "type": "feedback.set",
+      "id": "fx_feedback_set_1",
+      "ts": 1762540000001,
+      "payload": {
+        "kind": "reward",
+        "intensity": 0.25,
+        "rampMs": 1500
+      }
+    }
+  ],
+  "invalid": [
+    {
+      "why": "intensity > 1",
+      "message": {
+        "v": 1,
+        "type": "feedback.set",
+        "id": "fx_feedback_set_100",
+        "ts": 1762540000100,
+        "payload": {
+          "kind": "warn",
+          "intensity": 2,
+          "rampMs": 2000
+        }
+      }
+    }
+  ]
+}
