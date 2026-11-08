@@ -96,6 +96,12 @@ Lanes: `lead` (protocol), `brain`, `sensing`, `agents`, `stage`, `report`.
 - **Why:** the brain had a final view that nothing showed.
 - **Impact:** Lovable: `report.tsx` keeps rendering `BrainReport` in brain mode.
 
+### 2026-11-08T10:45+01:00 · lead · One command for the demo (`scripts/demo.sh`, `pnpm demo`)
+- **Where:** `scripts/demo.sh`, root `package.json` (`demo`, `start:brain`), `.env.example` (`DEMO_CAMERA`, `BRAIN_FRESH`)
+- **What:** starts brain (no watch), frontend, coach, bridge and camera in one terminal with prefixed output and logs in `data/demo-logs/<time>/`; waits for each health check; warms Vite's routes; restarts crashed services (the brain continues the saved session); refuses ports already in use (`--takeover` stops the old processes); Ctrl+C stops everything after the brain saves. Options `--camera N | --no-camera`, `--fresh`, `--force`, `--no-coach`, `--no-open`, `--dev`; ports `BRAIN_PORT`, `FRONTEND_PORT`, `COACH_PORT`.
+- **Why:** 4–5 terminals on stage was a risk.
+- **Impact:** none.
+
 ### 2026-11-08T03:15+01:00 · lead · `coach.observation` uplink and `RunDigest`
 - **Where:** `packages/protocol/src/messages.ts` (`UPLINK["coach.observation"]`, sender `sensor`), `scripts/samples.ts`, `fixtures/messages/up.coach.observation.json`; `packages/protocol/src/reports.ts` (`RunDigest`, `RunDigestObservation`)
 - **What:** `coach.observation {rule, kind: BehaviorKind|null, category: FeedbackCategory|null, text, clientTs}` carries every coaching observation of the coach backend (not only the 4 sensor behaviours). `RunDigest` is the report the brain can build today (observations, slides, feedback, wakes, Q&A, strengths, next run) without STT or gaze.

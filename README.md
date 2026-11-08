@@ -15,6 +15,20 @@ corepack pnpm dev:brain            # brain on :8787 (watch: restarts on every co
 corepack pnpm dev:frontend         # Lovable app on :5174, wired to the brain
 ```
 
+### Demo: jedna komanda
+
+```bash
+bash scripts/demo.sh --camera 1     # brain, frontend, coach, most i kamera (1 je primer: bash vision/run.sh --list-cameras)
+bash scripts/demo.sh --no-camera    # bez Mac kamere
+bash scripts/demo.sh --fresh        # nova sesija umesto nastavka sačuvane
+```
+
+Pokreće sve redom, čeka da se svaki deo javi, zagreje ekrane u Vite-u i otvori aplikaciju. Brain radi bez
+watch moda. Ako brain, frontend, coach ili most padnu, skripta ih ponovo pokrene. Ctrl+C gasi sve.
+Ako su portovi zauzeti (servisi iz starih terminala), skripta kaže ko ih drži; `--takeover` ih gasi.
+Ostale opcije: `--force` (vinjeta na svaki predlog), `--no-coach`, `--no-open`, `--dev`. Logovi su u
+`data/demo-logs/`. Kameru možeš upisati u `.env` kao `DEMO_CAMERA=1`.
+
 **Sesija se čuva na disk** (`data/sessions/`): runovi, izveštaji, coach i deck ostaju posle restarta
 braina. Run koji je bio u toku se prekida, a sesija nastavlja od izveštaja poslednjeg runa. Za novu
 sesiju koristi `--fresh` (stara ostaje na disku) ili dugme **Delete and start over** na kartici Progress
