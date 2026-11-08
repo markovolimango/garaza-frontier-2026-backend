@@ -3,6 +3,7 @@
 import asyncio
 from datetime import datetime, timedelta, timezone
 
+import coach.brain_bridge as bridge_mod
 from coach.brain_bridge import (RULE_CATEGORY, RULE_KIND, SENSOR_BEHAVIORS, Bridge, behavior_message,
                                 coach_session_plan, hold_ms, observation, reward_for, sensor_status, vignette_for)
 from coach.metrics.episodes import KINDS
@@ -325,3 +326,99 @@ def test_a_reset_brain_session_deletes_its_coach_sessions(monkeypatch):
 
     b = asyncio.run(scenario())
     assert Coach.deleted == ["ses_2", "ses_3", "ses_4"] and b._created == [] and b.coach_session is None
+
+
+class RestartedCoach(FakeCoach):
+    """A coach that restarted: the sessions it had before are unknown (404)."""
+    n = 0
+    known: set = set()
+    calls: list = []
+
+    def create_session(self, **body):
+        RestartedCoach.n += 1
+        sid = f"ses_new{RestartedCoach.n}"
+        RestartedCoach.known.add(sid)
+        RestartedCoach.calls.append(("create", sid))
+        return {"session_id": sid, "state": "created"}
+
+    def get_session(self, sid):
+        RestartedCoach.calls.append(("get", sid))
+        if sid not in RestartedCoach.known:
+            raise bridge_mod.ApiError(404, {"error": {"code": "session_not_found"}})
+        return {"session_id": sid, "state": "running"}
+
+    def action(self, sid, action):
+        RestartedCoach.calls.append((action, sid))
+        if sid not in RestartedCoach.known:
+            raise bridge_mod.ApiError(404, {"error": {"code": "session_not_found"}})
+        return {"state": {"start": "running", "stop": "ended", "pause": "paused", "resume": "running"}[action]}
+
+
+def restarted(monkeypatch):
+    RestartedCoach.n, RestartedCoach.known, RestartedCoach.calls = 0, set(), []
+    monkeypatch.setattr(bridge_mod, "CoachClient", RestartedCoach)
+    b = Bridge("http://coach", "http://brain", lambda: "t")
+    b.sensor, b.operator = FakeLink(), FakeLink()
+    b.coach_session = {"id": "ses_old", "run_id": "standby", "state": "running"}   # from before the restart
+    return b
+
+
+def test_a_run_after_a_coach_restart_still_gets_a_coach_session(monkeypatch):
+    async def scenario():
+        b = restarted(monkeypatch)
+        b._on_brain({"type": "run.state", "payload": {"run": {**LIVE, "runId": "run_1"}, "sessionPhase": "running"}})
+        await b._session_task
+        return b
+
+    b = asyncio.run(scenario())
+    assert RestartedCoach.calls == [("stop", "ses_old"), ("create", "ses_new1"), ("start", "ses_new1")]
+    assert b.coach_session == {"id": "ses_new1", "run_id": "run_1", "state": "running"}
+
+
+def test_a_gone_session_is_replaced_when_pausing_it_fails(monkeypatch):
+    async def scenario():
+        b = restarted(monkeypatch)
+        b.coach_session = {"id": "ses_old", "run_id": "run_1", "state": "running"}
+        b._on_brain({"type": "run.state", "payload": {"run": {**LIVE, "runId": "run_1", "paused": True},
+                                                       "sessionPhase": "running"}})
+        await b._session_task
+        return b
+
+    b = asyncio.run(scenario())
+    assert RestartedCoach.calls == [("pause", "ses_old"), ("create", "ses_new1"), ("start", "ses_new1"),
+                                    ("pause", "ses_new1")]
+    assert b.coach_session["state"] == "paused"
+
+
+def test_a_stream_reconnect_recreates_the_standby_session(monkeypatch):
+    async def scenario():
+        b = restarted(monkeypatch)
+        b.run_state, b.session_phase = None, "debrief"     # between runs: no run.state will come
+        b._recheck_session()                                # the coach stream reconnected / no active session
+        await b._session_task
+        b._recheck_session()                                # the new one exists: nothing to do
+        await b._session_task
+        return b
+
+    b = asyncio.run(scenario())
+    assert RestartedCoach.calls == [("get", "ses_old"), ("create", "ses_new1"), ("start", "ses_new1"),
+                                    ("get", "ses_new1")]
+    assert b.coach_session == {"id": "ses_new1", "run_id": "standby", "state": "running"}
+
+
+def test_stopping_an_already_ended_session_is_done(monkeypatch):
+    class Ended(RestartedCoach):
+        def action(self, sid, action):
+            if sid == "ses_old":
+                raise bridge_mod.ApiError(409, {"error": {"code": "invalid_transition"}})
+            return super().action(sid, action)
+
+    async def scenario():
+        b = restarted(monkeypatch)
+        monkeypatch.setattr(bridge_mod, "CoachClient", Ended)
+        b._on_brain({"type": "run.state", "payload": {"run": {**LIVE, "runId": "run_1"}, "sessionPhase": "running"}})
+        await b._session_task
+        return b
+
+    b = asyncio.run(scenario())
+    assert b.coach_session == {"id": "ses_new1", "run_id": "run_1", "state": "running"}

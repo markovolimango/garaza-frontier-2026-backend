@@ -294,6 +294,7 @@ class Bridge:
         self._purge_pending = False
         self._session_task: asyncio.Task | None = None
         self._session_dirty = False
+        self._verify_pending = False
 
     # brain -> bridge
     def _on_brain(self, msg: dict) -> None:
@@ -312,9 +313,19 @@ class Bridge:
             return
         self._session_task = asyncio.get_running_loop().create_task(self._sync_sessions())
 
+    def _recheck_session(self) -> None:
+        """The coach stream reconnected or found no active session: the coach may have restarted (demo.sh
+        restarts it) or expired the session this bridge owns (idle TTL). Check it before the next plan;
+        if it is gone, the plan makes a new one for the brain's current state."""
+        if self.sessions and self.coach_session and self.coach_session["state"] != "ended":
+            self._verify_pending = True
+            self._kick_sessions()
+
     async def _sync_sessions(self) -> None:
         while True:
             self._session_dirty = False
+            if self._verify_pending:
+                await self._verify_session()
             for action in coach_session_plan(self.coach_session, self.run_state, self.session_phase):
                 if not await self._session_action(action):
                     break
@@ -322,6 +333,29 @@ class Bridge:
                 await self._purge()
             if not self._session_dirty:
                 return
+
+    async def _verify_session(self) -> None:
+        self._verify_pending = False
+        current = self.coach_session
+        if not current or current["state"] == "ended":
+            return
+
+        def call() -> dict:
+            client = CoachClient(self.coach_url, self.token())
+            try:
+                return client.get_session(current["id"])
+            finally:
+                client.http.close()
+        try:
+            session = await asyncio.to_thread(call)
+        except ApiError as exc:
+            if exc.status == 404:
+                log.info("coach: session %s is gone (coach restarted or the session expired)", current["id"][:12])
+                self.coach_session = None
+            return
+        except (Exception, SystemExit):   # coach unreachable: the next reconnect checks again
+            return
+        current["state"] = session.get("state", current["state"])
 
     async def _purge(self) -> None:
         """Delete the coach sessions created for the brain session that was just reset (pose, speech, heart rate)."""
@@ -367,10 +401,19 @@ class Bridge:
                 client.http.close()
         try:
             session = await asyncio.to_thread(call)
-        except (Exception, SystemExit) as exc:   # coach down, token missing, 409 …: retried on the next run change
+        except (Exception, SystemExit) as exc:   # coach down, token missing …: retried on the next run change
+            status = exc.status if isinstance(exc, ApiError) else None
+            if action != "create" and (status == 404 or (action == "stop" and status == 409)):
+                # gone (the coach restarted, or the session expired) or already ended: the plan goes on
+                log.info("coach: session %s is gone or already ended (%s)", self.coach_session["id"][:12], exc)
+                self.coach_session = None
+                if action == "stop":
+                    return True
+                self._session_dirty = True   # re-plan: a new session for the brain's current state
+                return False
             log.warning("coach: could not %s the session for the brain run (%s)", action, exc)
             if action == "stop" and self.coach_session:
-                self.coach_session["state"] = "ended"   # gone or already ended: don't keep retrying
+                self.coach_session["state"] = "ended"   # coach unreachable: don't keep retrying the stop
             return False
         if action == "create":
             self.coach_session = {"id": session["session_id"], "run_id": session_target(self.run_state, self.session_phase),
@@ -448,6 +491,7 @@ class Bridge:
                         raise RuntimeError(f"coach stream auth failed: {hello}")
                     delay = 0.5
                     log.info("coach: connected to %s", url)
+                    self._recheck_session()   # after a coach restart the bridge's session no longer exists
                     await self._subscribe(ws)
                     async for raw in ws:
                         msg = json.loads(raw)
@@ -455,6 +499,7 @@ class Bridge:
                         if t == "error" and (msg.get("error") or {}).get("code") == "no_active_session":
                             if self.session_id != "":   # log once per waiting period
                                 log.info("coach: waiting for a session (start one in the app / vision --coach)")
+                                self._recheck_session()   # the bridge's own session expired or was deleted
                             self.session_id = ""
                             await asyncio.sleep(2)
                             await self._subscribe(ws)

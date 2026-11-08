@@ -67,6 +67,9 @@ class CoachClient:
     def create_session(self, **body) -> dict:
         return self.request("POST", "/v1/sessions", body)
 
+    def get_session(self, session_id: str) -> dict:
+        return self.request("GET", f"/v1/sessions/{session_id}")
+
     def action(self, session_id: str, action: str) -> dict:
         return self.request("POST", f"/v1/sessions/{session_id}/{action}")
 
