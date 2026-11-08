@@ -1,0 +1,378 @@
+{
+  "$defs": {
+    "CoachingConfig": {
+      "additionalProperties": false,
+      "properties": {
+        "global_min_interval_s": {
+          "default": 8.0,
+          "description": "Minimum time between any two suggestions.",
+          "minimum": 0,
+          "title": "Global Min Interval S",
+          "type": "number"
+        },
+        "display_s": {
+          "default": 6.0,
+          "description": "A suggestion counts as active this long (one at a time).",
+          "exclusiveMinimum": 0,
+          "title": "Display S",
+          "type": "number"
+        },
+        "language": {
+          "default": "en",
+          "description": "Language of suggestion texts (templates: en, sr).",
+          "title": "Language",
+          "type": "string"
+        },
+        "speak": {
+          "default": false,
+          "description": "Send suggestions to the Mac assistant for speech synthesis.",
+          "title": "Speak",
+          "type": "boolean"
+        },
+        "rephrase_with_assistant": {
+          "default": false,
+          "description": "Ask Foundation Models to rephrase (timeout -> template).",
+          "title": "Rephrase With Assistant",
+          "type": "boolean"
+        },
+        "rules": {
+          "additionalProperties": {
+            "$ref": "#/$defs/RuleConfig"
+          },
+          "title": "Rules",
+          "type": "object"
+        }
+      },
+      "title": "CoachingConfig",
+      "type": "object"
+    },
+    "HeartConfig": {
+      "additionalProperties": false,
+      "properties": {
+        "fresh_max_age_s": {
+          "default": 20.0,
+          "description": "Samples older than this are not 'fresh'.",
+          "exclusiveMinimum": 0,
+          "title": "Fresh Max Age S",
+          "type": "number"
+        },
+        "calibration_s": {
+          "default": 60.0,
+          "description": "Default quiet calibration duration for the session reference.",
+          "exclusiveMinimum": 0,
+          "title": "Calibration S",
+          "type": "number"
+        },
+        "min_reference_samples": {
+          "default": 5,
+          "description": "Fresh samples needed for a session reference.",
+          "minimum": 1,
+          "title": "Min Reference Samples",
+          "type": "integer"
+        },
+        "rise_threshold_bpm": {
+          "default": 15.0,
+          "description": "Above-reference threshold for the observation rule.",
+          "exclusiveMinimum": 0,
+          "title": "Rise Threshold Bpm",
+          "type": "number"
+        },
+        "clear_margin_bpm": {
+          "default": 5.0,
+          "description": "Hysteresis for clearing the above-reference state.",
+          "minimum": 0,
+          "title": "Clear Margin Bpm",
+          "type": "number"
+        },
+        "evaluation_window_s": {
+          "default": 30.0,
+          "exclusiveMinimum": 0,
+          "title": "Evaluation Window S",
+          "type": "number"
+        },
+        "min_fresh_samples": {
+          "default": 3,
+          "description": "Fresh samples in the window required to evaluate.",
+          "minimum": 1,
+          "title": "Min Fresh Samples",
+          "type": "integer"
+        }
+      },
+      "title": "HeartConfig",
+      "type": "object"
+    },
+    "PoseConfig": {
+      "additionalProperties": false,
+      "properties": {
+        "target_rate_hz": {
+          "default": 12.0,
+          "description": "Advisory pose observation rate for devices.",
+          "maximum": 30,
+          "minimum": 1,
+          "title": "Target Rate Hz",
+          "type": "number"
+        },
+        "stale_after_s": {
+          "default": 1.5,
+          "description": "A pose frame older than this is not 'current'.",
+          "exclusiveMinimum": 0,
+          "title": "Stale After S",
+          "type": "number"
+        },
+        "tracking_lost_after_s": {
+          "default": 1.0,
+          "description": "No valid body for this long -> tracking lost.",
+          "exclusiveMinimum": 0,
+          "title": "Tracking Lost After S",
+          "type": "number"
+        },
+        "min_confidence_2d": {
+          "default": 0.3,
+          "description": "2D joints below this Vision confidence are ignored.",
+          "maximum": 1,
+          "minimum": 0,
+          "title": "Min Confidence 2D",
+          "type": "number"
+        },
+        "smoothing_min_cutoff_hz": {
+          "default": 1.5,
+          "description": "One-Euro filter minimum cutoff.",
+          "exclusiveMinimum": 0,
+          "title": "Smoothing Min Cutoff Hz",
+          "type": "number"
+        },
+        "smoothing_beta": {
+          "default": 0.4,
+          "description": "One-Euro filter speed coefficient.",
+          "minimum": 0,
+          "title": "Smoothing Beta",
+          "type": "number"
+        },
+        "reset_after_gap_s": {
+          "default": 0.5,
+          "description": "Smoothing restarts after a gap this long.",
+          "exclusiveMinimum": 0,
+          "title": "Reset After Gap S",
+          "type": "number"
+        },
+        "metrics_window_s": {
+          "default": 3.0,
+          "description": "Window for movement observations.",
+          "exclusiveMinimum": 0,
+          "title": "Metrics Window S",
+          "type": "number"
+        },
+        "reference_window_s": {
+          "default": 5.0,
+          "description": "Window for the median torso-length reference.",
+          "exclusiveMinimum": 0,
+          "title": "Reference Window S",
+          "type": "number"
+        },
+        "metrics_emit_hz": {
+          "default": 2.0,
+          "description": "Max body.metrics events per second.",
+          "exclusiveMinimum": 0,
+          "maximum": 15,
+          "title": "Metrics Emit Hz",
+          "type": "number"
+        },
+        "reorder_tolerance_s": {
+          "default": 0.3,
+          "description": "Older frames than this are stored but not smoothed.",
+          "minimum": 0,
+          "title": "Reorder Tolerance S",
+          "type": "number"
+        },
+        "hand_movement_high_per_s": {
+          "default": 1.5,
+          "description": "Rule body.hand_movement_high: faster wrist (torso lengths/s, relative to the torso) is 'high'.",
+          "exclusiveMinimum": 0,
+          "title": "Hand Movement High Per S",
+          "type": "number"
+        },
+        "hand_movement_clear_per_s": {
+          "default": 1.0,
+          "description": "Hysteresis: the faster wrist must drop below this to re-arm the rule.",
+          "exclusiveMinimum": 0,
+          "title": "Hand Movement Clear Per S",
+          "type": "number"
+        },
+        "torso_movement_high_per_s": {
+          "default": 0.4,
+          "description": "Rule body.torso_movement_high: torso-center speed (torso lengths/s) above this is 'high'.",
+          "exclusiveMinimum": 0,
+          "title": "Torso Movement High Per S",
+          "type": "number"
+        },
+        "torso_movement_clear_per_s": {
+          "default": 0.25,
+          "description": "Hysteresis: torso-center speed must drop below this to re-arm the rule.",
+          "exclusiveMinimum": 0,
+          "title": "Torso Movement Clear Per S",
+          "type": "number"
+        }
+      },
+      "title": "PoseConfig",
+      "type": "object"
+    },
+    "RuleConfig": {
+      "additionalProperties": false,
+      "properties": {
+        "enabled": {
+          "default": true,
+          "title": "Enabled",
+          "type": "boolean"
+        },
+        "priority": {
+          "default": 3,
+          "description": "1 = most important.",
+          "maximum": 9,
+          "minimum": 1,
+          "title": "Priority",
+          "type": "integer"
+        },
+        "sustain_s": {
+          "default": 8.0,
+          "description": "Condition must hold this long before firing.",
+          "minimum": 0,
+          "title": "Sustain S",
+          "type": "number"
+        },
+        "cooldown_s": {
+          "default": 45.0,
+          "description": "Minimum time before the same rule may fire again.",
+          "minimum": 0,
+          "title": "Cooldown S",
+          "type": "number"
+        },
+        "count": {
+          "default": 3,
+          "description": "Occurrences needed (count-based rules).",
+          "minimum": 1,
+          "title": "Count",
+          "type": "integer"
+        },
+        "window_s": {
+          "default": 60.0,
+          "description": "Window for count-based rules.",
+          "exclusiveMinimum": 0,
+          "title": "Window S",
+          "type": "number"
+        }
+      },
+      "title": "RuleConfig",
+      "type": "object"
+    },
+    "SpeechConfig": {
+      "additionalProperties": false,
+      "properties": {
+        "language": {
+          "default": "en-US",
+          "description": "BCP-47 language requested for transcription.",
+          "title": "Language",
+          "type": "string"
+        },
+        "target_wpm_max": {
+          "default": 165.0,
+          "description": "Practice target: speaking rate above this is 'fast'.",
+          "exclusiveMinimum": 0,
+          "title": "Target Wpm Max",
+          "type": "number"
+        },
+        "rate_clear_margin_wpm": {
+          "default": 12.0,
+          "description": "Hysteresis: rate must fall this far below target.",
+          "minimum": 0,
+          "title": "Rate Clear Margin Wpm",
+          "type": "number"
+        },
+        "wpm_window_s": {
+          "default": 20.0,
+          "description": "Window for words-per-minute.",
+          "exclusiveMinimum": 0,
+          "title": "Wpm Window S",
+          "type": "number"
+        },
+        "min_words_for_rate": {
+          "default": 12,
+          "description": "Fewer final words in the window -> rate unavailable.",
+          "minimum": 1,
+          "title": "Min Words For Rate",
+          "type": "integer"
+        },
+        "min_speaking_s_for_rate": {
+          "default": 5.0,
+          "description": "Less speech-active time -> rate unavailable.",
+          "exclusiveMinimum": 0,
+          "title": "Min Speaking S For Rate",
+          "type": "number"
+        },
+        "long_pause_s": {
+          "default": 2.0,
+          "description": "Silence between speech segments counted as a long pause.",
+          "exclusiveMinimum": 0,
+          "title": "Long Pause S",
+          "type": "number"
+        },
+        "filler_window_s": {
+          "default": 60.0,
+          "exclusiveMinimum": 0,
+          "title": "Filler Window S",
+          "type": "number"
+        },
+        "filler_lexicon": {
+          "anyOf": [
+            {
+              "items": {
+                "type": "string"
+              },
+              "type": "array"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Override the per-language filler list.",
+          "title": "Filler Lexicon"
+        },
+        "playback_tail_s": {
+          "default": 0.6,
+          "description": "Speech analysis stays suppressed this long after playback.",
+          "minimum": 0,
+          "title": "Playback Tail S",
+          "type": "number"
+        },
+        "stale_after_s": {
+          "default": 15.0,
+          "description": "Speech events older than this do not update current state.",
+          "exclusiveMinimum": 0,
+          "title": "Stale After S",
+          "type": "number"
+        }
+      },
+      "title": "SpeechConfig",
+      "type": "object"
+    }
+  },
+  "additionalProperties": false,
+  "properties": {
+    "pose": {
+      "$ref": "#/$defs/PoseConfig"
+    },
+    "speech": {
+      "$ref": "#/$defs/SpeechConfig"
+    },
+    "heart": {
+      "$ref": "#/$defs/HeartConfig"
+    },
+    "coaching": {
+      "$ref": "#/$defs/CoachingConfig"
+    }
+  },
+  "title": "SessionConfig",
+  "type": "object",
+  "$id": "https://garaza-frontier.local/schemas/1.0/SessionConfig.schema.json",
+  "$schema": "https://json-schema.org/draft/2020-12/schema"
+}

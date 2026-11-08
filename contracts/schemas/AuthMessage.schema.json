@@ -1,0 +1,43 @@
+{
+  "additionalProperties": false,
+  "properties": {
+    "type": {
+      "const": "auth",
+      "title": "Type",
+      "type": "string"
+    },
+    "token": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "description": "Device token (ingest) or operator token (stream).",
+      "title": "Token"
+    },
+    "ticket": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "description": "Short-lived single-use stream ticket (browser clients).",
+      "title": "Ticket"
+    }
+  },
+  "required": [
+    "type"
+  ],
+  "title": "AuthMessage",
+  "type": "object",
+  "$id": "https://garaza-frontier.local/schemas/1.0/AuthMessage.schema.json",
+  "$schema": "https://json-schema.org/draft/2020-12/schema"
+}

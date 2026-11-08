@@ -1,0 +1,5 @@
+{
+  "language": "sr",
+  "note": "Demo lexicon (Latin and Cyrillic). Words such as 'pa', 'kao' or 'mislim' are excluded by default because they are often not fillers. On-device Serbian transcription may be unavailable on Apple platforms; this lexicon is used only when transcripts in Serbian arrive.",
+  "phrases": ["ovaj", "овај", "ono", "оно", "znači", "значи", "eee", "еее", "mmm", "ммм", "hm", "хм", "ovaj kao", "овај као"]
+}

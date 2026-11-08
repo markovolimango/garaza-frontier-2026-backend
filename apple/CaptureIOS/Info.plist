@@ -1,0 +1,35 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+	<key>CFBundleDevelopmentRegion</key><string>en</string>
+	<key>CFBundleDisplayName</key><string>Coach Capture</string>
+	<key>CFBundleExecutable</key><string>$(EXECUTABLE_NAME)</string>
+	<key>CFBundleIdentifier</key><string>$(PRODUCT_BUNDLE_IDENTIFIER)</string>
+	<key>CFBundleInfoDictionaryVersion</key><string>6.0</string>
+	<key>CFBundleName</key><string>$(PRODUCT_NAME)</string>
+	<key>CFBundlePackageType</key><string>APPL</string>
+	<key>CFBundleShortVersionString</key><string>0.1.0</string>
+	<key>CFBundleVersion</key><string>1</string>
+	<key>LSRequiresIPhoneOS</key><true/>
+	<key>UILaunchScreen</key><dict/>
+	<key>UISupportedInterfaceOrientations</key>
+	<array><string>UIInterfaceOrientationPortrait</string></array>
+	<key>NSCameraUsageDescription</key>
+	<string>The camera is used to detect body joints during your practice session. Only joint coordinates are sent to your Mac; video is not recorded or transmitted.</string>
+	<key>NSMicrophoneUsageDescription</key>
+	<string>The microphone is used for on-device transcription and speech/silence detection during practice. Audio is not stored or transmitted.</string>
+	<key>NSSpeechRecognitionUsageDescription</key>
+	<string>Speech is transcribed on this iPhone to measure speaking rate, pauses and filler words. Recognition runs on device only.</string>
+	<key>NSLocalNetworkUsageDescription</key>
+	<string>Coach Capture sends joint and speech measurements to the coaching service on your Mac over your local network.</string>
+	<key>NSHealthShareUsageDescription</key>
+	<string>Reads heart-rate samples from a workout you start on Apple Watch and mirror to this iPhone, to show them next to your practice session.</string>
+	<key>NSAppTransportSecurity</key>
+	<dict>
+		<!-- Local network only (LAN IPs, .local names). iOS 17+ ATS blocks IP-address connections without it.
+		     Prefer wss:// with the development CA; remove this key if the backend gets a public TLS hostname. -->
+		<key>NSAllowsLocalNetworking</key><true/>
+	</dict>
+</dict>
+</plist>

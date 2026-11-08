@@ -1,0 +1,68 @@
+{
+  "additionalProperties": false,
+  "properties": {
+    "clock_basis": {
+      "description": "handshake: device offset measured; relay_assumed: relayed device clock assumed in sync with its relay; server: produced by the server; none: no offset estimate (uncorrected).",
+      "enum": [
+        "handshake",
+        "relay_assumed",
+        "server",
+        "none"
+      ],
+      "title": "Clock Basis",
+      "type": "string"
+    },
+    "clock_offset_ms": {
+      "anyOf": [
+        {
+          "type": "number"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "description": "Estimated server_time - device_time.",
+      "title": "Clock Offset Ms"
+    },
+    "clock_uncertainty_ms": {
+      "anyOf": [
+        {
+          "type": "number"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "description": "Half round-trip of the best handshake sample, plus margin.",
+      "title": "Clock Uncertainty Ms"
+    },
+    "corrected_captured_at": {
+      "description": "captured_at mapped to the server clock (event time).",
+      "format": "date-time",
+      "title": "Corrected Captured At",
+      "type": "string"
+    },
+    "out_of_order": {
+      "default": false,
+      "description": "Arrived after a later sequence number from the same source.",
+      "title": "Out Of Order",
+      "type": "boolean"
+    },
+    "late": {
+      "default": false,
+      "description": "Older than the staleness limit for its type when it arrived.",
+      "title": "Late",
+      "type": "boolean"
+    }
+  },
+  "required": [
+    "clock_basis",
+    "corrected_captured_at"
+  ],
+  "title": "Timing",
+  "type": "object",
+  "$id": "https://garaza-frontier.local/schemas/1.0/Timing.schema.json",
+  "$schema": "https://json-schema.org/draft/2020-12/schema"
+}

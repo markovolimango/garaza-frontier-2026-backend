@@ -1,6 +1,50 @@
 .DS_Store
+
+# Python environments and caches
+.venv/
+venv/
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+
+# vision module: local environment, downloaded weights, session results, Ultralytics settings
+vision/.venv/
+vision/.ultralytics/
+vision/.runtime/
+vision/models/*
+!vision/models/.gitkeep
+vision/sessions/*
+!vision/sessions/.gitkeep
+*.pt
+*.pt.bad
+*.part
+
+# Local secrets
+.env
+.env.*
+!.env.example
+*.pem
+secrets/
+
+# coach backend: local environment and runtime secrets (tokens, TLS keys, exports)
+services/coach/.venv/
+services/coach/.runtime/
+services/coach/.env
+*.key.pem
+*.p12
+
+# Swift / Xcode build output (project is generated from apple/project.yml)
+apple/.build/
+apple/.swiftpm/
+apple/Coach.xcodeproj/
+DerivedData/
+*.xcuserstate
+xcuserdata/
+
+# Node (brain, protocol, web, frontend)
 node_modules/
 dist/
 data/
-.env
 *.tsbuildinfo

@@ -1,0 +1,50 @@
+{
+  "additionalProperties": false,
+  "properties": {
+    "language": {
+      "title": "Language",
+      "type": "string"
+    },
+    "final": {
+      "additionalProperties": true,
+      "description": "From finalized transcripts only (authoritative).",
+      "title": "Final",
+      "type": "object"
+    },
+    "provisional": {
+      "additionalProperties": true,
+      "description": "Including partial results; may change, never used by rules.",
+      "title": "Provisional",
+      "type": "object"
+    },
+    "activity": {
+      "additionalProperties": true,
+      "description": "Speech/silence from VAD, pauses, suppression.",
+      "title": "Activity",
+      "type": "object"
+    },
+    "quality": {
+      "enum": [
+        "good",
+        "limited",
+        "degraded",
+        "insufficient_data",
+        "stale",
+        "unavailable"
+      ],
+      "title": "Quality",
+      "type": "string"
+    }
+  },
+  "required": [
+    "language",
+    "final",
+    "provisional",
+    "activity",
+    "quality"
+  ],
+  "title": "SpeechMetricsPayload",
+  "type": "object",
+  "$id": "https://garaza-frontier.local/schemas/1.0/SpeechMetricsPayload.schema.json",
+  "$schema": "https://json-schema.org/draft/2020-12/schema"
+}

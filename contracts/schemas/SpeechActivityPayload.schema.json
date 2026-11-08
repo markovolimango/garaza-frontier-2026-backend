@@ -1,0 +1,73 @@
+{
+  "additionalProperties": false,
+  "properties": {
+    "transition": {
+      "description": "VAD transition at captured_at (audio time).",
+      "enum": [
+        "speech_start",
+        "speech_end"
+      ],
+      "title": "Transition",
+      "type": "string"
+    },
+    "vad_method": {
+      "description": "e.g. energy_threshold_heuristic_v1 (labelled heuristic).",
+      "maxLength": 64,
+      "title": "Vad Method",
+      "type": "string"
+    },
+    "level_dbfs": {
+      "anyOf": [
+        {
+          "maximum": 0,
+          "type": "number"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Level Dbfs"
+    },
+    "threshold_dbfs": {
+      "anyOf": [
+        {
+          "maximum": 0,
+          "type": "number"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Threshold Dbfs"
+    },
+    "noise_floor_dbfs": {
+      "anyOf": [
+        {
+          "maximum": 0,
+          "type": "number"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Noise Floor Dbfs"
+    },
+    "calibrated": {
+      "default": false,
+      "description": "True once the noise floor was measured for this session.",
+      "title": "Calibrated",
+      "type": "boolean"
+    }
+  },
+  "required": [
+    "transition",
+    "vad_method"
+  ],
+  "title": "SpeechActivityPayload",
+  "type": "object",
+  "$id": "https://garaza-frontier.local/schemas/1.0/SpeechActivityPayload.schema.json",
+  "$schema": "https://json-schema.org/draft/2020-12/schema"
+}

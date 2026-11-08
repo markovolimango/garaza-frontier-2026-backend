@@ -1,0 +1,82 @@
+{
+  "additionalProperties": false,
+  "properties": {
+    "event_id": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "title": "Event Id"
+    },
+    "status": {
+      "enum": [
+        "accepted",
+        "duplicate",
+        "rejected"
+      ],
+      "title": "Status",
+      "type": "string"
+    },
+    "code": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Code"
+    },
+    "message": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Message"
+    },
+    "details": {
+      "anyOf": [
+        {
+          "additionalProperties": true,
+          "type": "object"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Details"
+    },
+    "retryable": {
+      "anyOf": [
+        {
+          "type": "boolean"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Retryable"
+    }
+  },
+  "required": [
+    "event_id",
+    "status"
+  ],
+  "title": "AckResult",
+  "type": "object",
+  "$id": "https://garaza-frontier.local/schemas/1.0/AckResult.schema.json",
+  "$schema": "https://json-schema.org/draft/2020-12/schema"
+}

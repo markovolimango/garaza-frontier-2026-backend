@@ -1,0 +1,36 @@
+{
+  "additionalProperties": false,
+  "properties": {
+    "code": {
+      "maxLength": 64,
+      "title": "Code",
+      "type": "string"
+    },
+    "message": {
+      "maxLength": 500,
+      "title": "Message",
+      "type": "string"
+    },
+    "details": {
+      "anyOf": [
+        {
+          "additionalProperties": true,
+          "type": "object"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Details"
+    }
+  },
+  "required": [
+    "code",
+    "message"
+  ],
+  "title": "SystemWarningPayload",
+  "type": "object",
+  "$id": "https://garaza-frontier.local/schemas/1.0/SystemWarningPayload.schema.json",
+  "$schema": "https://json-schema.org/draft/2020-12/schema"
+}

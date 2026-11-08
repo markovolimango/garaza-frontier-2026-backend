@@ -25,3 +25,69 @@ The main app is built in Lovable in a separate repo and carried here as a git su
 | `apps/frontend` | stage (Lovable) | the main app; `src/brain/` is our integration layer |
 | `apps/web` | stage, sensing, brain | `src/net`: the shared WS client |
 | `fixtures/` | all | message samples (generated), later pose/audio/sessions |
+| `services/coach` | sensing | Python FastAPI: pose/speech/heart metrics, deterministic coaching rules |
+| `vision/` | sensing | Mac camera (iPhone via Continuity Camera) + YOLO26 pose → `services/coach` |
+| `apple/` | sensing | iPhone capture (Vision pose, speech), Watch heart rate, Mac assistant |
+| `contracts/` | sensing | generated JSON schemas / TypeScript client for `services/coach` |
+
+## Sensing lane (services/coach, vision, apple)
+
+### Vision: praćenje položaja tela (iPhone + Mac)
+
+Lokalni prototip: iPhone (Continuity Camera) je kamera, a Mac sa Apple Silicon čipom pokreće
+YOLO26 pose model i prikazuje 17 tačaka tela, FPS i uređaj (MPS/CPU). Opciono beleži
+koordinate. Detalji, povezivanje telefona i rešavanje problema su u [vision/README.md](vision/README.md).
+
+```bash
+bash vision/setup.sh                          # jednom: okruženje, zavisnosti, model, provere
+bash vision/run.sh --list-cameras             # pronađi indeks iPhone kamere
+bash vision/run.sh --camera 1 --preview-only  # potvrdi da je to iPhone (1 je primer)
+bash vision/run.sh --camera 1                 # slika + tačke
+bash vision/run.sh --camera 1 --save-points   # + zapis u vision/sessions/
+bash vision/run.sh --camera 1 --coach         # + slanje poza servisu services/coach (vidi ispod)
+bash vision/run.sh --doctor                   # dijagnostika bez kamere
+```
+
+### Coach: backend za vežbanje prezentacija (bez UI)
+
+Headless servis na Macu prima opažanja pokreta (iPhone sa Apple Vision-om, ili Mac kamera sa
+YOLO26 preko `vision/ --coach`), govora (Speech, VAD) i pulsa (Apple Watch). Računa merljive karakteristike (brzina ruku, kretanje po prostoru, tempo govora, pauze,
+poštapalice, puls u odnosu na referencu sesije), daje kratke determinističke predloge i nudi
+REST i WebSocket API za budući frontend. Nema medicinskih zaključaka niti procene emocija.
+
+```bash
+bash scripts/coach-setup.sh     # okruženje, zavisnosti, testovi
+bash scripts/coach-demo.sh      # kompletna simulirana sesija, bez hardvera
+bash scripts/coach-serve.sh     # backend na 127.0.0.1:8765
+bash scripts/coach-stream.sh    # tok događaja
+bash scripts/apple-check.sh     # Swift paket: build, testovi, Vision na slikama, Apple dostupnosti
+```
+
+#### Most ka brainu (coach → brain preko WebSocketa)
+
+Coach (`services/coach`, Python) i brain (`apps/brain`, Node) su odvojeni procesi.
+`coach-brain-bridge.sh` ih povezuje preko WebSocketa: prati poslednju
+aktivnu coach sesiju (`/v1/stream`) i šalje brainu (`/ws/control`):
+
+- `body.metrics` → `sensor.status` (kamera ok / nema osobe, fps), uloga `sensor`;
+- `body.torso_movement_high` → `behavior sway` start/end, uloga `sensor`;
+- coaching predlozi o ponašanju (ruke, kretanje, tempo, pauze, poštapalice) → crvena vinjeta na
+  ekranu (`operator.override`), samo dok traje run, kad JJ ne sluša i kad run ima uključen feedback
+  (baseline i test run su namerno bez feedbacka). Puls i gubitak praćenja ne pale vinjetu.
+
+```bash
+JJ_FAKE=1 corepack pnpm dev:brain             # brain → :8787
+bash scripts/coach-serve.sh                    # coach → :8765
+bash scripts/coach-brain-bridge.sh             # most; sam se ponovo povezuje ako nešto restartuješ
+bash scripts/coach-brain-bridge.sh --force     # demo: vinjeta na svaki predlog tokom runa
+bash scripts/coach-brain-bridge.sh --no-vignette   # kad je otvoren pravi operator panel (brain dozvoljava jednog)
+```
+
+Dokumentacija:
+
+- [docs/api.md](docs/api.md): ugovor (REST, WebSocket, koordinate, vreme, greške, autentifikacija);
+- [docs/device-setup.md](docs/device-setup.md): iPhone i Watch;
+- [docs/architecture.md](docs/architecture.md): arhitektura;
+- [docs/platform-notes.md](docs/platform-notes.md): proverene činjenice i ograničenja.
+
+Generisani ugovori su u `contracts/`, a simulirani fixture u `fixtures/`.

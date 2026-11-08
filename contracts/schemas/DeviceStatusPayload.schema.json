@@ -1,0 +1,166 @@
+{
+  "additionalProperties": false,
+  "properties": {
+    "status": {
+      "enum": [
+        "online",
+        "offline",
+        "heartbeat",
+        "interrupted",
+        "resumed"
+      ],
+      "title": "Status",
+      "type": "string"
+    },
+    "subject_device_id": {
+      "anyOf": [
+        {
+          "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{0,63}$",
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "description": "Device described, if not the source (server-reported status).",
+      "title": "Subject Device Id"
+    },
+    "app_version": {
+      "anyOf": [
+        {
+          "maxLength": 32,
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "App Version"
+    },
+    "os_version": {
+      "anyOf": [
+        {
+          "maxLength": 32,
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Os Version"
+    },
+    "model": {
+      "anyOf": [
+        {
+          "maxLength": 64,
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Model"
+    },
+    "pose_mode": {
+      "anyOf": [
+        {
+          "enum": [
+            "3d",
+            "2d",
+            "off"
+          ],
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Pose Mode"
+    },
+    "pose_rate_hz": {
+      "anyOf": [
+        {
+          "maximum": 60,
+          "minimum": 0,
+          "type": "number"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Pose Rate Hz"
+    },
+    "speech": {
+      "anyOf": [
+        {
+          "additionalProperties": true,
+          "type": "object"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "description": "Speech availability (authorized, on_device, locale, reason).",
+      "title": "Speech"
+    },
+    "watch": {
+      "anyOf": [
+        {
+          "additionalProperties": true,
+          "type": "object"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "description": "Watch link (paired, reachable, authorized, collection_mode).",
+      "title": "Watch"
+    },
+    "thermal_state": {
+      "anyOf": [
+        {
+          "enum": [
+            "nominal",
+            "fair",
+            "serious",
+            "critical"
+          ],
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Thermal State"
+    },
+    "reason": {
+      "anyOf": [
+        {
+          "maxLength": 200,
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Reason"
+    }
+  },
+  "required": [
+    "status"
+  ],
+  "title": "DeviceStatusPayload",
+  "type": "object",
+  "$id": "https://garaza-frontier.local/schemas/1.0/DeviceStatusPayload.schema.json",
+  "$schema": "https://json-schema.org/draft/2020-12/schema"
+}

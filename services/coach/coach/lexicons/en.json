@@ -1,0 +1,5 @@
+{
+  "language": "en",
+  "note": "Demo lexicon. Ambiguous words such as 'like' or 'so' are excluded by default because they are often not fillers. Speech recognizers may omit disfluencies such as 'um' from transcripts, so counts can be low.",
+  "phrases": ["um", "umm", "uh", "uhh", "uhm", "erm", "er", "hmm", "you know", "i mean", "sort of", "kind of"]
+}

@@ -1,0 +1,17 @@
+{
+  "additionalProperties": false,
+  "properties": {
+    "type": {
+      "const": "unsubscribe",
+      "title": "Type",
+      "type": "string"
+    }
+  },
+  "required": [
+    "type"
+  ],
+  "title": "UnsubscribeMessage",
+  "type": "object",
+  "$id": "https://garaza-frontier.local/schemas/1.0/UnsubscribeMessage.schema.json",
+  "$schema": "https://json-schema.org/draft/2020-12/schema"
+}

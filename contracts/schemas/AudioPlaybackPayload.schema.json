@@ -1,0 +1,104 @@
+{
+  "additionalProperties": false,
+  "properties": {
+    "state": {
+      "enum": [
+        "scheduled",
+        "started",
+        "finished",
+        "interrupted",
+        "skipped"
+      ],
+      "title": "State",
+      "type": "string"
+    },
+    "playback_id": {
+      "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{0,63}$",
+      "title": "Playback Id",
+      "type": "string"
+    },
+    "feedback_id": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Feedback Id"
+    },
+    "engine": {
+      "enum": [
+        "avspeechsynthesizer",
+        "audio_clip",
+        "text_only",
+        "simulated"
+      ],
+      "title": "Engine",
+      "type": "string"
+    },
+    "voice": {
+      "anyOf": [
+        {
+          "maxLength": 128,
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Voice"
+    },
+    "language": {
+      "anyOf": [
+        {
+          "maxLength": 16,
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Language"
+    },
+    "text": {
+      "anyOf": [
+        {
+          "maxLength": 500,
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Text"
+    },
+    "reason": {
+      "anyOf": [
+        {
+          "maxLength": 200,
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Reason"
+    }
+  },
+  "required": [
+    "state",
+    "playback_id",
+    "engine"
+  ],
+  "title": "AudioPlaybackPayload",
+  "type": "object",
+  "$id": "https://garaza-frontier.local/schemas/1.0/AudioPlaybackPayload.schema.json",
+  "$schema": "https://json-schema.org/draft/2020-12/schema"
+}

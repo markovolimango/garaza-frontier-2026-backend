@@ -1,0 +1,119 @@
+{
+  "additionalProperties": false,
+  "properties": {
+    "body_present": {
+      "title": "Body Present",
+      "type": "boolean"
+    },
+    "tracking_state": {
+      "enum": [
+        "tracking",
+        "partial",
+        "lost",
+        "stale",
+        "unknown"
+      ],
+      "title": "Tracking State",
+      "type": "string"
+    },
+    "quality": {
+      "enum": [
+        "good",
+        "limited",
+        "degraded",
+        "insufficient_data",
+        "stale",
+        "unavailable"
+      ],
+      "title": "Quality",
+      "type": "string"
+    },
+    "mode": {
+      "anyOf": [
+        {
+          "enum": [
+            "3d",
+            "2d"
+          ],
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Mode"
+    },
+    "window_s": {
+      "title": "Window S",
+      "type": "number"
+    },
+    "reference": {
+      "anyOf": [
+        {
+          "additionalProperties": true,
+          "type": "object"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "description": "Body reference used for normalisation (torso length).",
+      "title": "Reference"
+    },
+    "wrist_movement": {
+      "additionalProperties": true,
+      "description": "Mean wrist speed relative to the torso, per side; unit field included.",
+      "title": "Wrist Movement",
+      "type": "object"
+    },
+    "torso_displacement": {
+      "additionalProperties": true,
+      "description": "Net torso-center displacement over the window, normalised.",
+      "title": "Torso Displacement",
+      "type": "object"
+    },
+    "torso_movement": {
+      "additionalProperties": true,
+      "description": "Mean torso-center speed along its path over the window (walking back and forth does not cancel out), torso lengths per second.",
+      "title": "Torso Movement",
+      "type": "object"
+    },
+    "joint_angles_deg": {
+      "additionalProperties": true,
+      "description": "Angles only where all three joints are valid; plane given.",
+      "title": "Joint Angles Deg",
+      "type": "object"
+    },
+    "frames_in_window": {
+      "title": "Frames In Window",
+      "type": "integer"
+    },
+    "smoothing": {
+      "additionalProperties": true,
+      "title": "Smoothing",
+      "type": "object"
+    },
+    "note": {
+      "default": "Movement observations only; they do not indicate emotional state.",
+      "title": "Note",
+      "type": "string"
+    }
+  },
+  "required": [
+    "body_present",
+    "tracking_state",
+    "quality",
+    "window_s",
+    "wrist_movement",
+    "torso_displacement",
+    "joint_angles_deg",
+    "frames_in_window",
+    "smoothing"
+  ],
+  "title": "BodyMetricsPayload",
+  "type": "object",
+  "$id": "https://garaza-frontier.local/schemas/1.0/BodyMetricsPayload.schema.json",
+  "$schema": "https://json-schema.org/draft/2020-12/schema"
+}

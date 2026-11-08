@@ -1,0 +1,40 @@
+{
+  "additionalProperties": false,
+  "properties": {
+    "type": {
+      "const": "clock.sample",
+      "title": "Type",
+      "type": "string"
+    },
+    "t0": {
+      "title": "T0",
+      "type": "number"
+    },
+    "t1": {
+      "description": "Server receive time from clock.pong, epoch ms.",
+      "title": "T1",
+      "type": "number"
+    },
+    "t2": {
+      "description": "Server send time from clock.pong, epoch ms.",
+      "title": "T2",
+      "type": "number"
+    },
+    "t3": {
+      "description": "Device wall clock when clock.pong arrived, epoch ms.",
+      "title": "T3",
+      "type": "number"
+    }
+  },
+  "required": [
+    "type",
+    "t0",
+    "t1",
+    "t2",
+    "t3"
+  ],
+  "title": "ClockSampleMessage",
+  "type": "object",
+  "$id": "https://garaza-frontier.local/schemas/1.0/ClockSampleMessage.schema.json",
+  "$schema": "https://json-schema.org/draft/2020-12/schema"
+}

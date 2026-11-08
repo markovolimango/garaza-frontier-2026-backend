@@ -1,0 +1,63 @@
+{
+  "additionalProperties": false,
+  "properties": {
+    "label": {
+      "anyOf": [
+        {
+          "maxLength": 120,
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Label"
+    },
+    "mic_source": {
+      "default": "iphone",
+      "description": "Exactly one authoritative microphone.",
+      "enum": [
+        "iphone",
+        "mac",
+        "none"
+      ],
+      "title": "Mic Source",
+      "type": "string"
+    },
+    "timeline": {
+      "default": "live",
+      "description": "live: server clock drives rules. event_time: corrected event times drive rules (deterministic simulation/replay, may run faster than real time).",
+      "enum": [
+        "live",
+        "event_time"
+      ],
+      "title": "Timeline",
+      "type": "string"
+    },
+    "simulated": {
+      "default": false,
+      "description": "Session intended for synthetic data.",
+      "title": "Simulated",
+      "type": "boolean"
+    },
+    "config": {
+      "anyOf": [
+        {
+          "additionalProperties": true,
+          "type": "object"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "description": "Overrides for SessionConfig (see GET /v1/capabilities).",
+      "title": "Config"
+    }
+  },
+  "title": "SessionCreate",
+  "type": "object",
+  "$id": "https://garaza-frontier.local/schemas/1.0/SessionCreate.schema.json",
+  "$schema": "https://json-schema.org/draft/2020-12/schema"
+}

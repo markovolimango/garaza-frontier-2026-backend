@@ -1,0 +1,52 @@
+{
+  "additionalProperties": false,
+  "properties": {
+    "type": {
+      "const": "subscribe",
+      "title": "Type",
+      "type": "string"
+    },
+    "session_id": {
+      "default": "latest",
+      "description": "Session id or 'latest'.",
+      "title": "Session Id",
+      "type": "string"
+    },
+    "event_types": {
+      "anyOf": [
+        {
+          "items": {
+            "type": "string"
+          },
+          "type": "array"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "description": "Exact types or prefix wildcards such as 'speech.*'.",
+      "title": "Event Types"
+    },
+    "after_cursor": {
+      "anyOf": [
+        {
+          "type": "integer"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "description": "Resume: replay retained events with cursor > after_cursor.",
+      "title": "After Cursor"
+    }
+  },
+  "required": [
+    "type"
+  ],
+  "title": "SubscribeMessage",
+  "type": "object",
+  "$id": "https://garaza-frontier.local/schemas/1.0/SubscribeMessage.schema.json",
+  "$schema": "https://json-schema.org/draft/2020-12/schema"
+}

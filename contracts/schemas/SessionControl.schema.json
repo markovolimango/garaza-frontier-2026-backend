@@ -1,0 +1,24 @@
+{
+  "additionalProperties": false,
+  "properties": {
+    "type": {
+      "const": "session",
+      "title": "Type",
+      "type": "string"
+    },
+    "session": {
+      "additionalProperties": true,
+      "description": "{session_id, state, mic_source, simulated, timeline, language, pose_rate_hz}",
+      "title": "Session",
+      "type": "object"
+    }
+  },
+  "required": [
+    "type",
+    "session"
+  ],
+  "title": "SessionControl",
+  "type": "object",
+  "$id": "https://garaza-frontier.local/schemas/1.0/SessionControl.schema.json",
+  "$schema": "https://json-schema.org/draft/2020-12/schema"
+}

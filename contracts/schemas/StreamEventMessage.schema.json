@@ -1,0 +1,253 @@
+{
+  "$defs": {
+    "EventOut": {
+      "additionalProperties": false,
+      "description": "An event as delivered on /v1/stream and REST event pages.",
+      "properties": {
+        "schema_version": {
+          "const": "1.0",
+          "default": "1.0",
+          "title": "Schema Version",
+          "type": "string"
+        },
+        "cursor": {
+          "description": "Server-assigned, strictly increasing per session.",
+          "minimum": 1,
+          "title": "Cursor",
+          "type": "integer"
+        },
+        "event_id": {
+          "title": "Event Id",
+          "type": "string"
+        },
+        "session_id": {
+          "title": "Session Id",
+          "type": "string"
+        },
+        "source": {
+          "$ref": "#/$defs/Source"
+        },
+        "sequence": {
+          "title": "Sequence",
+          "type": "integer"
+        },
+        "event_type": {
+          "$ref": "#/$defs/EventType"
+        },
+        "captured_at": {
+          "format": "date-time",
+          "title": "Captured At",
+          "type": "string"
+        },
+        "source_monotonic_ms": {
+          "anyOf": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Source Monotonic Ms"
+        },
+        "received_at": {
+          "format": "date-time",
+          "title": "Received At",
+          "type": "string"
+        },
+        "timing": {
+          "$ref": "#/$defs/Timing"
+        },
+        "payload": {
+          "additionalProperties": true,
+          "title": "Payload",
+          "type": "object"
+        }
+      },
+      "required": [
+        "cursor",
+        "event_id",
+        "session_id",
+        "source",
+        "sequence",
+        "event_type",
+        "captured_at",
+        "received_at",
+        "timing",
+        "payload"
+      ],
+      "title": "EventOut",
+      "type": "object"
+    },
+    "EventType": {
+      "enum": [
+        "session.state",
+        "device.status",
+        "pose.frame",
+        "body.metrics",
+        "speech.activity",
+        "speech.transcript.partial",
+        "speech.transcript.final",
+        "speech.metrics",
+        "heart_rate.sample",
+        "heart_rate.state",
+        "coaching.feedback",
+        "audio.playback",
+        "system.warning"
+      ],
+      "title": "EventType",
+      "type": "string"
+    },
+    "Source": {
+      "additionalProperties": false,
+      "properties": {
+        "device_id": {
+          "description": "Stable per-install device identifier.",
+          "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{0,63}$",
+          "title": "Device Id",
+          "type": "string"
+        },
+        "kind": {
+          "$ref": "#/$defs/SourceKind"
+        },
+        "simulated": {
+          "default": false,
+          "description": "True for synthetic data. Real and simulated data are never mixed silently.",
+          "title": "Simulated",
+          "type": "boolean"
+        },
+        "relay_device_id": {
+          "anyOf": [
+            {
+              "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{0,63}$",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Device that forwarded this event (e.g. the iPhone relaying Watch samples).",
+          "title": "Relay Device Id"
+        }
+      },
+      "required": [
+        "device_id",
+        "kind"
+      ],
+      "title": "Source",
+      "type": "object"
+    },
+    "SourceKind": {
+      "enum": [
+        "iphone",
+        "watch",
+        "mac",
+        "simulator",
+        "server",
+        "assistant"
+      ],
+      "title": "SourceKind",
+      "type": "string"
+    },
+    "Timing": {
+      "additionalProperties": false,
+      "properties": {
+        "clock_basis": {
+          "description": "handshake: device offset measured; relay_assumed: relayed device clock assumed in sync with its relay; server: produced by the server; none: no offset estimate (uncorrected).",
+          "enum": [
+            "handshake",
+            "relay_assumed",
+            "server",
+            "none"
+          ],
+          "title": "Clock Basis",
+          "type": "string"
+        },
+        "clock_offset_ms": {
+          "anyOf": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Estimated server_time - device_time.",
+          "title": "Clock Offset Ms"
+        },
+        "clock_uncertainty_ms": {
+          "anyOf": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Half round-trip of the best handshake sample, plus margin.",
+          "title": "Clock Uncertainty Ms"
+        },
+        "corrected_captured_at": {
+          "description": "captured_at mapped to the server clock (event time).",
+          "format": "date-time",
+          "title": "Corrected Captured At",
+          "type": "string"
+        },
+        "out_of_order": {
+          "default": false,
+          "description": "Arrived after a later sequence number from the same source.",
+          "title": "Out Of Order",
+          "type": "boolean"
+        },
+        "late": {
+          "default": false,
+          "description": "Older than the staleness limit for its type when it arrived.",
+          "title": "Late",
+          "type": "boolean"
+        }
+      },
+      "required": [
+        "clock_basis",
+        "corrected_captured_at"
+      ],
+      "title": "Timing",
+      "type": "object"
+    }
+  },
+  "additionalProperties": false,
+  "properties": {
+    "type": {
+      "const": "event",
+      "title": "Type",
+      "type": "string"
+    },
+    "event": {
+      "$ref": "#/$defs/EventOut"
+    },
+    "replay": {
+      "anyOf": [
+        {
+          "type": "boolean"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "description": "True for history replayed after a resume.",
+      "title": "Replay"
+    }
+  },
+  "required": [
+    "type",
+    "event"
+  ],
+  "title": "StreamEventMessage",
+  "type": "object",
+  "$id": "https://garaza-frontier.local/schemas/1.0/StreamEventMessage.schema.json",
+  "$schema": "https://json-schema.org/draft/2020-12/schema"
+}
