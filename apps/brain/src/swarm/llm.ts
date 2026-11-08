@@ -30,13 +30,19 @@ export class LlmError extends Error {}
 export async function llmJson<T>(o: {
   apiKey: string | null; model: string; system: string; prompt: string; schema: Record<string, unknown>;
   timeoutMs?: number;
-  /** Extra generateContent config (e.g. thinkingConfig). None by default: some models (gemini-3.5-flash-lite) reject thinkingBudget 0. */
+  /** Kept for callers written against the first version; no effect (the model's default thinking is used). */
+  thinking?: boolean;
+  /** Extra generation config, e.g. `{ thinkingConfig: { thinkingLevel: "low" } }`. Default: none, because
+   *  `thinkingBudget: 0` is rejected (400) by gemini-3.5-flash-lite. */
   config?: Record<string, unknown>;
 }): Promise<T> {
   if (!o.apiKey) throw new LlmError("no GEMINI_API_KEY");
   const call = gemini(o.apiKey).models.generateContent({
     model: o.model, contents: o.prompt,
-    config: { ...(o.config ?? {}), systemInstruction: o.system, responseMimeType: "application/json", responseJsonSchema: o.schema },
+    config: {
+      systemInstruction: o.system, responseMimeType: "application/json", responseJsonSchema: o.schema,
+      ...(o.config ?? {}),
+    },
   });
   let timer: ReturnType<typeof setTimeout> | null = null;
   const timeout = new Promise<never>((_, reject) => { timer = setTimeout(() => reject(new LlmError(`timeout after ${o.timeoutMs ?? 8000} ms`)), o.timeoutMs ?? 8000); });

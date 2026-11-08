@@ -33,9 +33,15 @@ export interface Phrase {
   runId: RunId; segment: "presentation" | "qa"; text: string; fillers: string[];
   startAt: number; endAt: number; slideIndex: number;
 }
-/** A line or reaction of a judge (director). */
+/** A line or reaction of a judge (director). The Q&A's closing line carries `verdicts` (reporter). */
 export interface JudgeLine {
   runId: RunId; judgeId: JudgeId; kind: "question" | "followup" | "closing" | "reaction"; text: string; at: number;
+  verdicts?: QaVerdict[];
+}
+/** The director's verdict on one answered question or follow-up of a run's Q&A. */
+export interface QaVerdict {
+  judgeId: JudgeId; kind: "question" | "followup"; topic: string; question: string; answer: string; answerMs: number;
+  verdict: "answered" | "partial" | "dodged" | "no_answer"; note: string;
 }
 /** Something the body agent saw on a run's recording. `atMs` from the run start (recording time). */
 export interface VideoNote { runId: RunId; kind: BehaviorKind | null; atMs: number; durationMs?: number; text: string }

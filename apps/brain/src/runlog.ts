@@ -23,7 +23,8 @@ export interface Observation {
 export interface EpisodeRecord {
   kind: BehaviorKind; startAt: number; endAt: number | null; slideIndex: number; segment: Segment; conf: number;
 }
-export interface QaTurnRecord { judgeId: JudgeId; judgeTitle: string; question: string; askedAt: number; answerMs: number }
+/** `answer`: the answer's words from the swarm listener (director agent), when known. */
+export interface QaTurnRecord { judgeId: JudgeId; judgeTitle: string; question: string; askedAt: number; answerMs: number; answer?: string }
 
 export interface RunRecord {
   runId: RunId;

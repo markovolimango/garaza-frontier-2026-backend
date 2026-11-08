@@ -63,7 +63,8 @@ export function deckFacts(deck: Deck | null): DeckFact[] {
   return [...facts.values()];
 }
 
-export interface PlannedQuestion { judgeId: JudgeId; judgeTitle: string; topic: Topic; slideIndex: number | null; text: string }
+/** `topic`: a template Topic, or a free label from the director agent's LLM plan. */
+export interface PlannedQuestion { judgeId: JudgeId; judgeTitle: string; topic: Topic | (string & {}); slideIndex: number | null; text: string }
 
 /**
  * `count` questions, one judge at a time (toughest first, rotated by `seed`), each on the first

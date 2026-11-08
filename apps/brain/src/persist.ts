@@ -39,7 +39,7 @@ const RunRecordSchema = z.object({
   })).default([]),
   feedback: z.array(z.object({ kind: z.enum(["warn", "reward"]), at: z.number() })),
   wakes: z.number().int(),
-  qa: z.array(z.object({ judgeId: JudgeId, judgeTitle: z.string(), question: z.string(), askedAt: z.number(), answerMs: z.number() })),
+  qa: z.array(z.object({ judgeId: JudgeId, judgeTitle: z.string(), question: z.string(), askedAt: z.number(), answerMs: z.number(), answer: z.string().optional() })),
   coachConnected: z.boolean(),
   qaStartedAt: z.number().nullable(),
   endedAt: z.number().nullable(),
