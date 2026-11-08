@@ -1,0 +1,56 @@
+{
+  "$defs": {
+    "SourceKind": {
+      "enum": [
+        "iphone",
+        "watch",
+        "mac",
+        "simulator",
+        "server",
+        "assistant"
+      ],
+      "title": "SourceKind",
+      "type": "string"
+    }
+  },
+  "additionalProperties": false,
+  "properties": {
+    "device_id": {
+      "description": "Stable per-install device identifier.",
+      "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{0,63}$",
+      "title": "Device Id",
+      "type": "string"
+    },
+    "kind": {
+      "$ref": "#/$defs/SourceKind"
+    },
+    "simulated": {
+      "default": false,
+      "description": "True for synthetic data. Real and simulated data are never mixed silently.",
+      "title": "Simulated",
+      "type": "boolean"
+    },
+    "relay_device_id": {
+      "anyOf": [
+        {
+          "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{0,63}$",
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "description": "Device that forwarded this event (e.g. the iPhone relaying Watch samples).",
+      "title": "Relay Device Id"
+    }
+  },
+  "required": [
+    "device_id",
+    "kind"
+  ],
+  "title": "Source",
+  "type": "object",
+  "$id": "https://garaza-frontier.local/schemas/1.0/Source.schema.json",
+  "$schema": "https://json-schema.org/draft/2020-12/schema"
+}

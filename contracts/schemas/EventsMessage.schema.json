@@ -1,0 +1,177 @@
+{
+  "$defs": {
+    "EventIn": {
+      "additionalProperties": false,
+      "description": "An event as sent by a device to /v1/ingest.",
+      "properties": {
+        "schema_version": {
+          "const": "1.0",
+          "default": "1.0",
+          "title": "Schema Version",
+          "type": "string"
+        },
+        "event_id": {
+          "description": "Unique per source; used for de-duplication (resends are safe).",
+          "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{0,63}$",
+          "title": "Event Id",
+          "type": "string"
+        },
+        "session_id": {
+          "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{0,63}$",
+          "title": "Session Id",
+          "type": "string"
+        },
+        "source": {
+          "$ref": "#/$defs/Source"
+        },
+        "sequence": {
+          "description": "Per-source counter, assigned at first transmission; gaps = lost events.",
+          "minimum": 0,
+          "title": "Sequence",
+          "type": "integer"
+        },
+        "event_type": {
+          "$ref": "#/$defs/EventType"
+        },
+        "captured_at": {
+          "description": "Capture time on the source device clock (UTC).",
+          "format": "date-time",
+          "title": "Captured At",
+          "type": "string"
+        },
+        "source_monotonic_ms": {
+          "anyOf": [
+            {
+              "minimum": 0,
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Source monotonic clock (ms) if available.",
+          "title": "Source Monotonic Ms"
+        },
+        "received_at": {
+          "default": null,
+          "description": "Must be null on ingest; assigned by the server.",
+          "title": "Received At",
+          "type": "null"
+        },
+        "payload": {
+          "additionalProperties": true,
+          "title": "Payload",
+          "type": "object"
+        }
+      },
+      "required": [
+        "event_id",
+        "session_id",
+        "source",
+        "sequence",
+        "event_type",
+        "captured_at",
+        "payload"
+      ],
+      "title": "EventIn",
+      "type": "object"
+    },
+    "EventType": {
+      "enum": [
+        "session.state",
+        "device.status",
+        "pose.frame",
+        "body.metrics",
+        "speech.activity",
+        "speech.transcript.partial",
+        "speech.transcript.final",
+        "speech.metrics",
+        "heart_rate.sample",
+        "heart_rate.state",
+        "coaching.feedback",
+        "audio.playback",
+        "system.warning"
+      ],
+      "title": "EventType",
+      "type": "string"
+    },
+    "Source": {
+      "additionalProperties": false,
+      "properties": {
+        "device_id": {
+          "description": "Stable per-install device identifier.",
+          "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{0,63}$",
+          "title": "Device Id",
+          "type": "string"
+        },
+        "kind": {
+          "$ref": "#/$defs/SourceKind"
+        },
+        "simulated": {
+          "default": false,
+          "description": "True for synthetic data. Real and simulated data are never mixed silently.",
+          "title": "Simulated",
+          "type": "boolean"
+        },
+        "relay_device_id": {
+          "anyOf": [
+            {
+              "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{0,63}$",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Device that forwarded this event (e.g. the iPhone relaying Watch samples).",
+          "title": "Relay Device Id"
+        }
+      },
+      "required": [
+        "device_id",
+        "kind"
+      ],
+      "title": "Source",
+      "type": "object"
+    },
+    "SourceKind": {
+      "enum": [
+        "iphone",
+        "watch",
+        "mac",
+        "simulator",
+        "server",
+        "assistant"
+      ],
+      "title": "SourceKind",
+      "type": "string"
+    }
+  },
+  "additionalProperties": false,
+  "properties": {
+    "type": {
+      "const": "events",
+      "title": "Type",
+      "type": "string"
+    },
+    "events": {
+      "items": {
+        "$ref": "#/$defs/EventIn"
+      },
+      "maxItems": 100,
+      "minItems": 1,
+      "title": "Events",
+      "type": "array"
+    }
+  },
+  "required": [
+    "type",
+    "events"
+  ],
+  "title": "EventsMessage",
+  "type": "object",
+  "$id": "https://garaza-frontier.local/schemas/1.0/EventsMessage.schema.json",
+  "$schema": "https://json-schema.org/draft/2020-12/schema"
+}

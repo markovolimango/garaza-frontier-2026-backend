@@ -1,0 +1,38 @@
+{
+  "additionalProperties": false,
+  "properties": {
+    "type": {
+      "const": "clock.estimate",
+      "title": "Type",
+      "type": "string"
+    },
+    "offset_ms": {
+      "description": "server_time - device_time",
+      "title": "Offset Ms",
+      "type": "number"
+    },
+    "uncertainty_ms": {
+      "title": "Uncertainty Ms",
+      "type": "number"
+    },
+    "rtt_ms": {
+      "title": "Rtt Ms",
+      "type": "number"
+    },
+    "samples": {
+      "title": "Samples",
+      "type": "integer"
+    }
+  },
+  "required": [
+    "type",
+    "offset_ms",
+    "uncertainty_ms",
+    "rtt_ms",
+    "samples"
+  ],
+  "title": "ClockEstimateMessage",
+  "type": "object",
+  "$id": "https://garaza-frontier.local/schemas/1.0/ClockEstimateMessage.schema.json",
+  "$schema": "https://json-schema.org/draft/2020-12/schema"
+}

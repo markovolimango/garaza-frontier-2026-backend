@@ -1,0 +1,16 @@
+# Direct dependencies of the vision module (macOS, Apple Silicon, Python 3.10-3.13).
+# Exact versions that passed vision/selftest.py are in requirements.lock.txt.
+#
+# torch/torchvision are kept on a matched minor pair (2.14 <-> 0.29).
+# The default macOS arm64 wheels from PyPI include MPS support; CUDA is not used.
+torch>=2.14,<2.15
+torchvision>=0.29,<0.30
+# YOLO26 pose models need the Ultralytics 8.4 line.
+ultralytics>=8.4.0,<8.5
+# GUI build (Cocoa + AVFoundation), not opencv-python-headless.
+# 4.13.0.90 is excluded by Ultralytics; OpenCV 5.x is a new major line and not used yet.
+opencv-python>=4.12,<5,!=4.13.0.90
+numpy>=1.26
+# Only for --coach (streaming poses to services/coach); same versions as services/coach.
+httpx>=0.28,<0.29
+websockets>=16.1,<17

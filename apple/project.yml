@@ -1,0 +1,50 @@
+# XcodeGen spec for the iOS capture app and the watchOS sensor app (both use the local CoachKit package).
+#   brew install xcodegen && cd apple && xcodegen generate && open Coach.xcodeproj
+# Set your own bundle id prefix and Team in Xcode (Signing & Capabilities). No identities are stored here.
+name: Coach
+options:
+  bundleIdPrefix: com.example.garazacoach
+  deploymentTarget:
+    iOS: "17.0"
+    watchOS: "10.0"
+  createIntermediateGroups: true
+packages:
+  CoachKit:
+    path: .
+settings:
+  base:
+    SWIFT_VERSION: "5.0"
+    CODE_SIGN_STYLE: Automatic
+    DEVELOPMENT_TEAM: ""
+    MARKETING_VERSION: "0.1.0"
+    CURRENT_PROJECT_VERSION: "1"
+targets:
+  CaptureIOS:
+    type: application
+    platform: iOS
+    sources: [CaptureIOS]
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: com.example.garazacoach.capture
+        INFOPLIST_FILE: CaptureIOS/Info.plist
+        CODE_SIGN_ENTITLEMENTS: CaptureIOS/CaptureIOS.entitlements
+        TARGETED_DEVICE_FAMILY: "1"
+        GENERATE_INFOPLIST_FILE: NO
+    dependencies:
+      - package: CoachKit
+        product: CoachCaptureKit
+      - target: WatchSensors
+  WatchSensors:
+    type: application
+    platform: watchOS
+    sources: [WatchSensors]
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: com.example.garazacoach.capture.watchkitapp
+        COMPANION_BUNDLE_IDENTIFIER: com.example.garazacoach.capture
+        INFOPLIST_FILE: WatchSensors/Info.plist
+        CODE_SIGN_ENTITLEMENTS: WatchSensors/WatchSensors.entitlements
+        GENERATE_INFOPLIST_FILE: NO
+    dependencies:
+      - package: CoachKit
+        product: CoachWire

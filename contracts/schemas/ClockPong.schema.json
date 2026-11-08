@@ -1,0 +1,39 @@
+{
+  "additionalProperties": false,
+  "properties": {
+    "type": {
+      "const": "clock.pong",
+      "title": "Type",
+      "type": "string"
+    },
+    "t0": {
+      "anyOf": [
+        {
+          "type": "number"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "title": "T0"
+    },
+    "t1": {
+      "title": "T1",
+      "type": "number"
+    },
+    "t2": {
+      "title": "T2",
+      "type": "number"
+    }
+  },
+  "required": [
+    "type",
+    "t0",
+    "t1",
+    "t2"
+  ],
+  "title": "ClockPong",
+  "type": "object",
+  "$id": "https://garaza-frontier.local/schemas/1.0/ClockPong.schema.json",
+  "$schema": "https://json-schema.org/draft/2020-12/schema"
+}

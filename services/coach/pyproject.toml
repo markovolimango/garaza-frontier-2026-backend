@@ -1,0 +1,10 @@
+[project]
+name = "coach"
+version = "0.1.0"
+description = "Headless presentation-practice coaching backend (sessions, ingest, metrics, rules, REST/WebSocket)"
+requires-python = ">=3.11"
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+pythonpath = ["."]
+filterwarnings = ["ignore::DeprecationWarning:fastapi.testclient", "ignore:Using `httpx`:DeprecationWarning"]

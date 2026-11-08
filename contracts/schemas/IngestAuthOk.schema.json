@@ -1,0 +1,43 @@
+{
+  "additionalProperties": false,
+  "properties": {
+    "type": {
+      "const": "auth.ok",
+      "title": "Type",
+      "type": "string"
+    },
+    "device_id": {
+      "title": "Device Id",
+      "type": "string"
+    },
+    "kind": {
+      "title": "Kind",
+      "type": "string"
+    },
+    "schema_version": {
+      "title": "Schema Version",
+      "type": "string"
+    },
+    "server_time_ms": {
+      "title": "Server Time Ms",
+      "type": "number"
+    },
+    "limits": {
+      "additionalProperties": true,
+      "title": "Limits",
+      "type": "object"
+    }
+  },
+  "required": [
+    "type",
+    "device_id",
+    "kind",
+    "schema_version",
+    "server_time_ms",
+    "limits"
+  ],
+  "title": "IngestAuthOk",
+  "type": "object",
+  "$id": "https://garaza-frontier.local/schemas/1.0/IngestAuthOk.schema.json",
+  "$schema": "https://json-schema.org/draft/2020-12/schema"
+}

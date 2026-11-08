@@ -1,0 +1,403 @@
+{
+  "$defs": {
+    "ImageInfo": {
+      "additionalProperties": false,
+      "properties": {
+        "width": {
+          "description": "Pixel width of the image Vision analysed (after orientation).",
+          "exclusiveMinimum": 0,
+          "title": "Width",
+          "type": "integer"
+        },
+        "height": {
+          "exclusiveMinimum": 0,
+          "title": "Height",
+          "type": "integer"
+        },
+        "orientation": {
+          "default": "up",
+          "enum": [
+            "up",
+            "down",
+            "left",
+            "right",
+            "up_mirrored",
+            "down_mirrored",
+            "left_mirrored",
+            "right_mirrored"
+          ],
+          "title": "Orientation",
+          "type": "string"
+        },
+        "mirrored": {
+          "default": false,
+          "description": "True if the analysed image was mirrored (front-camera style).",
+          "title": "Mirrored",
+          "type": "boolean"
+        },
+        "camera_position": {
+          "default": "unspecified",
+          "enum": [
+            "back",
+            "front",
+            "external",
+            "unspecified"
+          ],
+          "title": "Camera Position",
+          "type": "string"
+        }
+      },
+      "required": [
+        "width",
+        "height"
+      ],
+      "title": "ImageInfo",
+      "type": "object"
+    },
+    "Joint2D": {
+      "additionalProperties": false,
+      "properties": {
+        "name": {
+          "description": "Vision joint name in snake_case, anatomical left/right (e.g. left_wrist).",
+          "title": "Name",
+          "type": "string"
+        },
+        "x": {
+          "description": "Normalized image x, 0 = left edge (top-left origin).",
+          "maximum": 1.05,
+          "minimum": -0.05,
+          "title": "X",
+          "type": "number"
+        },
+        "y": {
+          "description": "Normalized image y, 0 = top edge (Vision's lower-left origin converted).",
+          "maximum": 1.05,
+          "minimum": -0.05,
+          "title": "Y",
+          "type": "number"
+        },
+        "confidence": {
+          "description": "VNRecognizedPoint.confidence (Apple Vision) or the YOLO keypoint confidence (vision/, detector ultralytics-*).",
+          "maximum": 1,
+          "minimum": 0,
+          "title": "Confidence",
+          "type": "number"
+        }
+      },
+      "required": [
+        "name",
+        "x",
+        "y",
+        "confidence"
+      ],
+      "title": "Joint2D",
+      "type": "object"
+    },
+    "Joint3D": {
+      "additionalProperties": false,
+      "properties": {
+        "name": {
+          "description": "Vision 3D joint name in snake_case, anatomical left/right.",
+          "title": "Name",
+          "type": "string"
+        },
+        "position_m": {
+          "description": "Model position relative to root (hip center), meters.",
+          "items": {
+            "type": "number"
+          },
+          "maxItems": 3,
+          "minItems": 3,
+          "title": "Position M",
+          "type": "array"
+        },
+        "local_position_m": {
+          "anyOf": [
+            {
+              "items": {
+                "type": "number"
+              },
+              "maxItems": 3,
+              "minItems": 3,
+              "type": "array"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Position relative to the parent joint, meters.",
+          "title": "Local Position M"
+        },
+        "parent": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Parent joint name (Vision parentJointName).",
+          "title": "Parent"
+        },
+        "image_point": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/Point2D"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Projection into the image, normalized, top-left origin."
+        }
+      },
+      "required": [
+        "name",
+        "position_m"
+      ],
+      "title": "Joint3D",
+      "type": "object"
+    },
+    "Point2D": {
+      "additionalProperties": false,
+      "description": "Normalized image point (top-left origin). Projections of joints outside the frame fall\noutside 0..1 (observed up to ~3 on cropped photos); clients must clip before drawing.",
+      "properties": {
+        "x": {
+          "maximum": 10,
+          "minimum": -10,
+          "title": "X",
+          "type": "number"
+        },
+        "y": {
+          "maximum": 10,
+          "minimum": -10,
+          "title": "Y",
+          "type": "number"
+        }
+      },
+      "required": [
+        "x",
+        "y"
+      ],
+      "title": "Point2D",
+      "type": "object"
+    }
+  },
+  "additionalProperties": false,
+  "properties": {
+    "mode": {
+      "description": "Active Vision mode. 3D and 2D outputs are not interchangeable.",
+      "enum": [
+        "3d",
+        "2d"
+      ],
+      "title": "Mode",
+      "type": "string"
+    },
+    "detector": {
+      "description": "e.g. VNDetectHumanBodyPose3DRequest, VNDetectHumanBodyPoseRequest, simulated",
+      "maxLength": 64,
+      "title": "Detector",
+      "type": "string"
+    },
+    "detector_revision": {
+      "anyOf": [
+        {
+          "type": "integer"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Detector Revision"
+    },
+    "image": {
+      "$ref": "#/$defs/ImageInfo"
+    },
+    "persons_detected": {
+      "maximum": 16,
+      "minimum": 0,
+      "title": "Persons Detected",
+      "type": "integer"
+    },
+    "tracking_state": {
+      "description": "Device view of this frame: person found, no person, or capture interrupted.",
+      "enum": [
+        "tracking",
+        "no_person",
+        "interrupted"
+      ],
+      "title": "Tracking State",
+      "type": "string"
+    },
+    "inference_ms": {
+      "anyOf": [
+        {
+          "minimum": 0,
+          "type": "number"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "description": "Vision request duration measured on the device.",
+      "title": "Inference Ms"
+    },
+    "dropped_frames_since_last": {
+      "default": 0,
+      "description": "Camera frames skipped on device (one in-flight request).",
+      "minimum": 0,
+      "title": "Dropped Frames Since Last",
+      "type": "integer"
+    },
+    "coordinate_space_2d": {
+      "const": "image_normalized_top_left",
+      "default": "image_normalized_top_left",
+      "title": "Coordinate Space 2D",
+      "type": "string"
+    },
+    "coordinate_space_3d": {
+      "anyOf": [
+        {
+          "const": "vision_body_root_m",
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Coordinate Space 3D"
+    },
+    "joints_2d": {
+      "anyOf": [
+        {
+          "items": {
+            "$ref": "#/$defs/Joint2D"
+          },
+          "maxItems": 32,
+          "type": "array"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Joints 2D"
+    },
+    "joints_3d": {
+      "anyOf": [
+        {
+          "items": {
+            "$ref": "#/$defs/Joint3D"
+          },
+          "maxItems": 32,
+          "type": "array"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Joints 3D"
+    },
+    "body_height_m": {
+      "anyOf": [
+        {
+          "exclusiveMinimum": 0,
+          "type": "number"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "description": "Vision bodyHeight; 1.8 m reference unless measured.",
+      "title": "Body Height M"
+    },
+    "height_estimation": {
+      "anyOf": [
+        {
+          "enum": [
+            "reference",
+            "measured"
+          ],
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Height Estimation"
+    },
+    "camera_origin_matrix": {
+      "anyOf": [
+        {
+          "items": {
+            "type": "number"
+          },
+          "maxItems": 16,
+          "minItems": 16,
+          "type": "array"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "description": "Root(hip)->camera transform, column-major 4x4.",
+      "title": "Camera Origin Matrix"
+    },
+    "observation_confidence": {
+      "anyOf": [
+        {
+          "maximum": 1,
+          "minimum": 0,
+          "type": "number"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "description": "VNObservation.confidence passthrough; semantics not documented for 3D.",
+      "title": "Observation Confidence"
+    },
+    "root_camera_position_m": {
+      "anyOf": [
+        {
+          "items": {
+            "type": "number"
+          },
+          "maxItems": 3,
+          "minItems": 3,
+          "type": "array"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "description": "Root joint relative to the camera (Vision cameraRelativePosition), meters.",
+      "title": "Root Camera Position M"
+    }
+  },
+  "required": [
+    "mode",
+    "detector",
+    "image",
+    "persons_detected",
+    "tracking_state"
+  ],
+  "title": "PoseFramePayload",
+  "type": "object",
+  "$id": "https://garaza-frontier.local/schemas/1.0/PoseFramePayload.schema.json",
+  "$schema": "https://json-schema.org/draft/2020-12/schema"
+}

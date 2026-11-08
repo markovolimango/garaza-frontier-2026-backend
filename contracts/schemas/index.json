@@ -1,0 +1,78 @@
+{
+  "schema_version": "1.0",
+  "event_payloads": {
+    "pose.frame": "PoseFramePayload",
+    "device.status": "DeviceStatusPayload",
+    "speech.activity": "SpeechActivityPayload",
+    "speech.transcript.partial": "TranscriptPayload",
+    "speech.transcript.final": "TranscriptPayload",
+    "heart_rate.sample": "HeartRateSamplePayload",
+    "audio.playback": "AudioPlaybackPayload",
+    "system.warning": "SystemWarningPayload",
+    "session.state": "SessionStatePayload",
+    "body.metrics": "BodyMetricsPayload",
+    "speech.metrics": "SpeechMetricsPayload",
+    "heart_rate.state": "HeartRateStatePayload",
+    "coaching.feedback": "CoachingFeedbackPayload"
+  },
+  "device_event_types": [
+    "audio.playback",
+    "device.status",
+    "heart_rate.sample",
+    "pose.frame",
+    "speech.activity",
+    "speech.transcript.final",
+    "speech.transcript.partial",
+    "system.warning"
+  ],
+  "server_event_types": [
+    "audio.playback",
+    "body.metrics",
+    "coaching.feedback",
+    "device.status",
+    "heart_rate.state",
+    "session.state",
+    "speech.metrics",
+    "system.warning"
+  ],
+  "ingest": {
+    "client": [
+      "AuthMessage",
+      "ClockPing",
+      "ClockSampleMessage",
+      "JoinMessage",
+      "EventMessage",
+      "EventsMessage",
+      "PingMessage"
+    ],
+    "server": [
+      "IngestAuthOk",
+      "ClockPong",
+      "ClockEstimateMessage",
+      "SessionControl",
+      "AckMessage",
+      "BackpressureMessage",
+      "PongMessage",
+      "ErrorMessage"
+    ]
+  },
+  "stream": {
+    "client": [
+      "AuthMessage",
+      "SubscribeMessage",
+      "UnsubscribeMessage",
+      "PingMessage"
+    ],
+    "server": [
+      "StreamAuthOk",
+      "SnapshotMessage",
+      "StreamEventMessage",
+      "SyncedMessage",
+      "HistoryExpiredMessage",
+      "HeartbeatMessage",
+      "UnsubscribedMessage",
+      "PongMessage",
+      "ErrorMessage"
+    ]
+  }
+}

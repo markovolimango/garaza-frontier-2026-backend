@@ -1,0 +1,32 @@
+{
+  "additionalProperties": false,
+  "properties": {
+    "type": {
+      "const": "history_expired",
+      "title": "Type",
+      "type": "string"
+    },
+    "requested_after_cursor": {
+      "title": "Requested After Cursor",
+      "type": "integer"
+    },
+    "oldest_complete_after_cursor": {
+      "title": "Oldest Complete After Cursor",
+      "type": "integer"
+    },
+    "head_cursor": {
+      "title": "Head Cursor",
+      "type": "integer"
+    }
+  },
+  "required": [
+    "type",
+    "requested_after_cursor",
+    "oldest_complete_after_cursor",
+    "head_cursor"
+  ],
+  "title": "HistoryExpiredMessage",
+  "type": "object",
+  "$id": "https://garaza-frontier.local/schemas/1.0/HistoryExpiredMessage.schema.json",
+  "$schema": "https://json-schema.org/draft/2020-12/schema"
+}

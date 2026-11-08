@@ -1,0 +1,73 @@
+{
+  "additionalProperties": false,
+  "properties": {
+    "availability": {
+      "enum": [
+        "available",
+        "stale",
+        "no_data",
+        "unauthorized",
+        "unavailable",
+        "watch_unreachable"
+      ],
+      "title": "Availability",
+      "type": "string"
+    },
+    "latest": {
+      "anyOf": [
+        {
+          "additionalProperties": true,
+          "type": "object"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "title": "Latest"
+    },
+    "reference": {
+      "additionalProperties": true,
+      "description": "Session reference from an explicit quiet calibration (not clinical resting HR).",
+      "title": "Reference",
+      "type": "object"
+    },
+    "delta_from_reference_bpm": {
+      "anyOf": [
+        {
+          "type": "number"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "title": "Delta From Reference Bpm"
+    },
+    "above_reference": {
+      "anyOf": [
+        {
+          "type": "boolean"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "title": "Above Reference"
+    },
+    "hrv": {
+      "additionalProperties": true,
+      "title": "Hrv",
+      "type": "object"
+    }
+  },
+  "required": [
+    "availability",
+    "latest",
+    "reference",
+    "delta_from_reference_bpm",
+    "above_reference"
+  ],
+  "title": "HeartRateStatePayload",
+  "type": "object",
+  "$id": "https://garaza-frontier.local/schemas/1.0/HeartRateStatePayload.schema.json",
+  "$schema": "https://json-schema.org/draft/2020-12/schema"
+}

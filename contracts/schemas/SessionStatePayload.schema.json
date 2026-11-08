@@ -1,0 +1,52 @@
+{
+  "additionalProperties": false,
+  "properties": {
+    "state": {
+      "enum": [
+        "created",
+        "running",
+        "paused",
+        "ended"
+      ],
+      "title": "State",
+      "type": "string"
+    },
+    "previous": {
+      "anyOf": [
+        {
+          "enum": [
+            "created",
+            "running",
+            "paused",
+            "ended"
+          ],
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Previous"
+    },
+    "reason": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Reason"
+    }
+  },
+  "required": [
+    "state"
+  ],
+  "title": "SessionStatePayload",
+  "type": "object",
+  "$id": "https://garaza-frontier.local/schemas/1.0/SessionStatePayload.schema.json",
+  "$schema": "https://json-schema.org/draft/2020-12/schema"
+}

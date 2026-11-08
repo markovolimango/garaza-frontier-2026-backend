@@ -1,0 +1,30 @@
+{
+  "additionalProperties": false,
+  "properties": {
+    "type": {
+      "const": "join",
+      "title": "Type",
+      "type": "string"
+    },
+    "session_id": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "description": "null = most recent session that has not ended.",
+      "title": "Session Id"
+    }
+  },
+  "required": [
+    "type"
+  ],
+  "title": "JoinMessage",
+  "type": "object",
+  "$id": "https://garaza-frontier.local/schemas/1.0/JoinMessage.schema.json",
+  "$schema": "https://json-schema.org/draft/2020-12/schema"
+}

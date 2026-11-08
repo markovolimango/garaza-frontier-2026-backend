@@ -1,0 +1,17 @@
+{
+  "additionalProperties": false,
+  "properties": {
+    "type": {
+      "const": "ping",
+      "title": "Type",
+      "type": "string"
+    }
+  },
+  "required": [
+    "type"
+  ],
+  "title": "PingMessage",
+  "type": "object",
+  "$id": "https://garaza-frontier.local/schemas/1.0/PingMessage.schema.json",
+  "$schema": "https://json-schema.org/draft/2020-12/schema"
+}

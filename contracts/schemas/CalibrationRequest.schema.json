@@ -1,0 +1,23 @@
+{
+  "additionalProperties": false,
+  "properties": {
+    "duration_s": {
+      "anyOf": [
+        {
+          "exclusiveMinimum": 0,
+          "maximum": 600,
+          "type": "number"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Duration S"
+    }
+  },
+  "title": "CalibrationRequest",
+  "type": "object",
+  "$id": "https://garaza-frontier.local/schemas/1.0/CalibrationRequest.schema.json",
+  "$schema": "https://json-schema.org/draft/2020-12/schema"
+}

@@ -1,0 +1,29 @@
+{
+  "additionalProperties": false,
+  "properties": {
+    "type": {
+      "const": "heartbeat",
+      "title": "Type",
+      "type": "string"
+    },
+    "cursor": {
+      "anyOf": [
+        {
+          "type": "integer"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "title": "Cursor"
+    }
+  },
+  "required": [
+    "type",
+    "cursor"
+  ],
+  "title": "HeartbeatMessage",
+  "type": "object",
+  "$id": "https://garaza-frontier.local/schemas/1.0/HeartbeatMessage.schema.json",
+  "$schema": "https://json-schema.org/draft/2020-12/schema"
+}

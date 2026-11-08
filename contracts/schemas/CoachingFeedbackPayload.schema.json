@@ -1,0 +1,91 @@
+{
+  "additionalProperties": false,
+  "properties": {
+    "feedback_id": {
+      "title": "Feedback Id",
+      "type": "string"
+    },
+    "rule_id": {
+      "title": "Rule Id",
+      "type": "string"
+    },
+    "evidence_event_ids": {
+      "items": {
+        "type": "string"
+      },
+      "maxItems": 50,
+      "title": "Evidence Event Ids",
+      "type": "array"
+    },
+    "observation": {
+      "title": "Observation",
+      "type": "string"
+    },
+    "suggested_action": {
+      "title": "Suggested Action",
+      "type": "string"
+    },
+    "priority": {
+      "title": "Priority",
+      "type": "integer"
+    },
+    "quality_state": {
+      "enum": [
+        "good",
+        "limited",
+        "degraded",
+        "insufficient_data",
+        "stale",
+        "unavailable"
+      ],
+      "title": "Quality State",
+      "type": "string"
+    },
+    "cooldown": {
+      "additionalProperties": true,
+      "title": "Cooldown",
+      "type": "object"
+    },
+    "language": {
+      "title": "Language",
+      "type": "string"
+    },
+    "display_text": {
+      "description": "Text to show or speak. observation/suggested_action stay deterministic.",
+      "title": "Display Text",
+      "type": "string"
+    },
+    "text_source": {
+      "description": "Origin of display_text only; Foundation Models may rephrase, never change measurements.",
+      "enum": [
+        "template",
+        "foundation_models"
+      ],
+      "title": "Text Source",
+      "type": "string"
+    },
+    "expires_at": {
+      "format": "date-time",
+      "title": "Expires At",
+      "type": "string"
+    }
+  },
+  "required": [
+    "feedback_id",
+    "rule_id",
+    "evidence_event_ids",
+    "observation",
+    "suggested_action",
+    "priority",
+    "quality_state",
+    "cooldown",
+    "language",
+    "display_text",
+    "text_source",
+    "expires_at"
+  ],
+  "title": "CoachingFeedbackPayload",
+  "type": "object",
+  "$id": "https://garaza-frontier.local/schemas/1.0/CoachingFeedbackPayload.schema.json",
+  "$schema": "https://json-schema.org/draft/2020-12/schema"
+}

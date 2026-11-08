@@ -1,0 +1,23 @@
+{
+  "additionalProperties": false,
+  "properties": {
+    "type": {
+      "const": "clock.ping",
+      "title": "Type",
+      "type": "string"
+    },
+    "t0": {
+      "description": "Device wall clock, epoch ms, when sent.",
+      "title": "T0",
+      "type": "number"
+    }
+  },
+  "required": [
+    "type",
+    "t0"
+  ],
+  "title": "ClockPing",
+  "type": "object",
+  "$id": "https://garaza-frontier.local/schemas/1.0/ClockPing.schema.json",
+  "$schema": "https://json-schema.org/draft/2020-12/schema"
+}

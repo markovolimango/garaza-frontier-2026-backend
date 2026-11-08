@@ -1,0 +1,49 @@
+{
+  "additionalProperties": false,
+  "properties": {
+    "type": {
+      "const": "backpressure",
+      "title": "Type",
+      "type": "string"
+    },
+    "state": {
+      "enum": [
+        "on",
+        "off"
+      ],
+      "title": "State",
+      "type": "string"
+    },
+    "lane": {
+      "const": "pose",
+      "title": "Lane",
+      "type": "string"
+    },
+    "queue_level": {
+      "title": "Queue Level",
+      "type": "number"
+    },
+    "advice": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Advice"
+    }
+  },
+  "required": [
+    "type",
+    "state",
+    "lane",
+    "queue_level"
+  ],
+  "title": "BackpressureMessage",
+  "type": "object",
+  "$id": "https://garaza-frontier.local/schemas/1.0/BackpressureMessage.schema.json",
+  "$schema": "https://json-schema.org/draft/2020-12/schema"
+}

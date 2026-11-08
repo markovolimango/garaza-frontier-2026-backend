@@ -1,0 +1,99 @@
+{
+  "additionalProperties": false,
+  "properties": {
+    "bpm": {
+      "exclusiveMaximum": 260,
+      "exclusiveMinimum": 20,
+      "title": "Bpm",
+      "type": "number"
+    },
+    "measured_at": {
+      "description": "HealthKit sample end date on the Watch clock.",
+      "format": "date-time",
+      "title": "Measured At",
+      "type": "string"
+    },
+    "sample_age_ms_at_send": {
+      "anyOf": [
+        {
+          "minimum": 0,
+          "type": "number"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "description": "Age when the relaying device sent it.",
+      "title": "Sample Age Ms At Send"
+    },
+    "collection_mode": {
+      "enum": [
+        "passive_healthkit",
+        "workout_session",
+        "simulated"
+      ],
+      "title": "Collection Mode",
+      "type": "string"
+    },
+    "delivery": {
+      "description": "WatchConnectivity path; queued and context deliveries can be minutes old.",
+      "enum": [
+        "live_message",
+        "queued_transfer",
+        "application_context",
+        "direct"
+      ],
+      "title": "Delivery",
+      "type": "string"
+    },
+    "availability": {
+      "default": "available",
+      "enum": [
+        "available",
+        "unauthorized",
+        "unavailable",
+        "watch_unreachable"
+      ],
+      "title": "Availability",
+      "type": "string"
+    },
+    "hk_sample_uuid": {
+      "anyOf": [
+        {
+          "maxLength": 64,
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Hk Sample Uuid"
+    },
+    "hrv_sdnn_ms": {
+      "anyOf": [
+        {
+          "exclusiveMinimum": 0,
+          "type": "number"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "description": "Optional contextual HealthKit SDNN; never computed from bpm.",
+      "title": "Hrv Sdnn Ms"
+    }
+  },
+  "required": [
+    "bpm",
+    "measured_at",
+    "collection_mode",
+    "delivery"
+  ],
+  "title": "HeartRateSamplePayload",
+  "type": "object",
+  "$id": "https://garaza-frontier.local/schemas/1.0/HeartRateSamplePayload.schema.json",
+  "$schema": "https://json-schema.org/draft/2020-12/schema"
+}

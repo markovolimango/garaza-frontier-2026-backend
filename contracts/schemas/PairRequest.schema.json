@@ -1,0 +1,47 @@
+{
+  "additionalProperties": false,
+  "properties": {
+    "code": {
+      "maxLength": 12,
+      "minLength": 6,
+      "title": "Code",
+      "type": "string"
+    },
+    "device_id": {
+      "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{0,63}$",
+      "title": "Device Id",
+      "type": "string"
+    },
+    "kind": {
+      "enum": [
+        "iphone",
+        "mac",
+        "simulator"
+      ],
+      "title": "Kind",
+      "type": "string"
+    },
+    "name": {
+      "anyOf": [
+        {
+          "maxLength": 64,
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Name"
+    }
+  },
+  "required": [
+    "code",
+    "device_id",
+    "kind"
+  ],
+  "title": "PairRequest",
+  "type": "object",
+  "$id": "https://garaza-frontier.local/schemas/1.0/PairRequest.schema.json",
+  "$schema": "https://json-schema.org/draft/2020-12/schema"
+}

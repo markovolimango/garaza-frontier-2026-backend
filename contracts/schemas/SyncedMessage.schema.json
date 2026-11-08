@@ -1,0 +1,40 @@
+{
+  "additionalProperties": false,
+  "properties": {
+    "type": {
+      "const": "synced",
+      "title": "Type",
+      "type": "string"
+    },
+    "cursor": {
+      "description": "History boundary: every later event is live.",
+      "title": "Cursor",
+      "type": "integer"
+    },
+    "replayed": {
+      "title": "Replayed",
+      "type": "integer"
+    },
+    "note": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Note"
+    }
+  },
+  "required": [
+    "type",
+    "cursor",
+    "replayed"
+  ],
+  "title": "SyncedMessage",
+  "type": "object",
+  "$id": "https://garaza-frontier.local/schemas/1.0/SyncedMessage.schema.json",
+  "$schema": "https://json-schema.org/draft/2020-12/schema"
+}
