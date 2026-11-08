@@ -14,6 +14,7 @@ import { useEffect, useState, useSyncExternalStore, type ReactNode } from "react
 import { NextButton } from "../components/NextButton";
 import { activeSource } from "../signals";
 import { ProgressView } from "./BrainProgress";
+import { RunAnalysis, SessionAnalysis } from "./CoachAnalysis";
 import { BrainSource } from "./BrainSource";
 
 export const fmtMs = (ms: number) => {
@@ -58,7 +59,8 @@ function Report({ brain }: { brain: BrainSource }) {
   if (!runId) return <Empty text="No run yet. Start one from JJ's screen." />;
   if (error) return <Empty text={`Couldn't load the report (${error}).`} />;
   if (!digest) return <Empty text="Loading the report…" />;
-  return <ReportView d={digest} progress={progress} tab={tab} onTab={setTab} actions={<SessionActions brain={brain} />} />;
+  return <ReportView d={digest} progress={progress} tab={tab} onTab={setTab} actions={<SessionActions brain={brain} />}
+    analysis={<RunAnalysis httpBase={brain.httpBase} runId={digest.runId} />} sessionAnalysis={<SessionAnalysis httpBase={brain.httpBase} />} />;
 }
 
 /** Export the session report; erase the session and start over (asks first). */
@@ -90,8 +92,10 @@ function Empty({ text }: { text: string }) {
   return <main className="flex h-screen items-center justify-center text-lg text-muted-foreground">{text}</main>;
 }
 
-export function ReportView({ d, progress = null, tab = "run", onTab, actions = null }: {
+export function ReportView({ d, progress = null, tab = "run", onTab, actions = null, analysis = null, sessionAnalysis = null }: {
   d: RunDigest; progress?: SessionProgress | null; tab?: ReportTab; onTab?: (t: ReportTab) => void; actions?: ReactNode;
+  /** The swarm reporter's run / session analysis (CoachAnalysis.tsx). */
+  analysis?: ReactNode; sessionAnalysis?: ReactNode;
 }) {
   const total = d.durations.presentationMs + d.durations.qaMs;
   const maxDwell = Math.max(1, ...d.slides.map((s) => s.dwellMs));
@@ -115,6 +119,7 @@ export function ReportView({ d, progress = null, tab = "run", onTab, actions = n
           </div>
           <div className="flex items-center gap-4">{tabs}{actions}<NextButton to="/" label="Back to JJ" /></div>
         </header>
+        {sessionAnalysis}
         <ProgressView p={progress} />
       </main>
     );
@@ -145,7 +150,9 @@ export function ReportView({ d, progress = null, tab = "run", onTab, actions = n
         <p className="text-sm text-muted-foreground">Working on: {d.targets.map((t) => <span key={t} className="ml-2 rounded-full border border-primary/50 px-2 py-0.5 text-foreground">{t.replace("_", " ")}</span>)}</p>
       )}
 
-      <div className="grid min-h-0 flex-1 grid-cols-3 gap-6">
+      {analysis}
+
+      <div className={`grid flex-1 grid-cols-3 gap-6 ${analysis ? "min-h-[28rem]" : "min-h-0"}`}>
         <Section title="What the coach noticed">
           {!d.sources.coach && <p className="text-sm text-muted-foreground">The camera coach wasn't connected during this run, so there are no body or speech observations.</p>}
           {d.sources.coach && d.observations.length === 0 && <p className="text-sm text-muted-foreground">Nothing flagged. A clean run.</p>}

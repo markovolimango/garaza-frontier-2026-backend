@@ -182,3 +182,51 @@ export const SessionProgress = z.object({
   headline: z.string().nullable(),
 });
 export type SessionProgress = z.infer<typeof SessionProgress>;
+
+/**
+ * Narratives (swarm reporter, apps/brain/src/swarm/reporter.ts): the coach's written analysis of a
+ * run and of the session, by an LLM from the board (transcript with fillers, judges' lines, video
+ * notes) and the RunLog, or built deterministically from the same data when the LLM fails
+ * (`source: "fallback"`). `GET /api/swarm/report/run/:runId`, `/api/swarm/report/session`.
+ */
+export const NarrativeSource = z.enum(["llm", "fallback"]);
+export const QaVerdict = z.enum(["strong", "ok", "weak", "no answer"]);
+export type QaVerdict = z.infer<typeof QaVerdict>;
+
+export const RunNarrative = z.object({
+  runId: RunId,
+  index: z.number().int(),
+  headline: z.string(),
+  summary: z.string(),
+  strengths: z.array(z.object({ text: z.string(), evidence: z.string() })),
+  /** Most important first; evidence = a quote, or a time / slide ("1:23, slide 2"). */
+  improvements: z.array(z.object({ title: z.string(), why: z.string(), evidence: z.string(), drill: z.string() })),
+  /** From the listener's phrases. measured false = no transcript for this run (count 0 means nothing heard, not clean). */
+  fillers: z.object({
+    count: z.number().int(), perMin: z.number(), top: z.array(z.object({ word: z.string(), count: z.number().int() })),
+    examples: z.array(z.string()), measured: z.boolean().optional(),
+  }),
+  qa: z.array(z.object({ judge: z.string(), question: z.string(), answerSummary: z.string(), verdict: QaVerdict, tip: z.string() })),
+  body: z.array(z.object({ kind: z.string(), count: z.number().int(), note: z.string() })),
+  nextRun: z.string(),
+  source: NarrativeSource,
+  createdAt: z.number().optional(),
+});
+export type RunNarrative = z.infer<typeof RunNarrative>;
+
+export const SessionNarrative = z.object({
+  headline: z.string(),
+  summary: z.string(),
+  /** First → last run, one line per behaviour ("Filler words: 14 → 5 (3.1 → 1.2/min)"). */
+  progress: z.array(z.string()),
+  strengths: z.array(z.string()),
+  /** Top 3 things to work on next, each with a drill. */
+  focus: z.array(z.object({ title: z.string(), why: z.string(), drill: z.string() })).max(3),
+  runs: z.array(z.object({ runId: RunId, index: z.number().int(), headline: z.string() })),
+  source: NarrativeSource,
+  createdAt: z.number().optional(),
+});
+export type SessionNarrative = z.infer<typeof SessionNarrative>;
+
+/** `GET /api/swarm/report/run/:runId` and `/api/swarm/report/session`. */
+export type NarrativeStatus = "pending" | "ready" | "none";

@@ -29,15 +29,14 @@ export class LlmError extends Error {}
 /** One JSON answer from a text model. `schema` is a JSON Schema object. Rejects with LlmError. */
 export async function llmJson<T>(o: {
   apiKey: string | null; model: string; system: string; prompt: string; schema: Record<string, unknown>;
-  timeoutMs?: number; thinking?: boolean;
+  timeoutMs?: number;
+  /** Extra generateContent config (e.g. thinkingConfig). None by default: some models (gemini-3.5-flash-lite) reject thinkingBudget 0. */
+  config?: Record<string, unknown>;
 }): Promise<T> {
   if (!o.apiKey) throw new LlmError("no GEMINI_API_KEY");
   const call = gemini(o.apiKey).models.generateContent({
     model: o.model, contents: o.prompt,
-    config: {
-      systemInstruction: o.system, responseMimeType: "application/json", responseJsonSchema: o.schema,
-      ...(o.thinking ? {} : { thinkingConfig: { thinkingBudget: 0 } }),
-    },
+    config: { ...(o.config ?? {}), systemInstruction: o.system, responseMimeType: "application/json", responseJsonSchema: o.schema },
   });
   let timer: ReturnType<typeof setTimeout> | null = null;
   const timeout = new Promise<never>((_, reject) => { timer = setTimeout(() => reject(new LlmError(`timeout after ${o.timeoutMs ?? 8000} ms`)), o.timeoutMs ?? 8000); });
