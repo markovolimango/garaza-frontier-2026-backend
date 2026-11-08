@@ -17,6 +17,8 @@ import { appendFileSync, createReadStream, existsSync, mkdirSync, readFileSync, 
 import type { IncomingMessage, ServerResponse } from "node:http";
 import { join } from "node:path";
 import type { BehaviorKind } from "@coach/protocol";
+import { mmss } from "./format.ts";
+import { readBody } from "./http.ts";
 import type { Logger } from "./log.ts";
 import type { RunRecord } from "./runlog.ts";
 
@@ -85,7 +87,6 @@ export interface Clip { url: string; fromS: number; toS: number; tRunMs: number;
 const PAD_S = 1.5;            // context before and after each moment
 const MAX_CLIP_S = 12;        // a long episode shows its first 12 s
 const SPEECH_LOOKBACK_S = 8;  // rule observations (speech) fire after the fact: show the seconds before
-const mmss = (ms: number) => { const s = Math.max(0, Math.round(ms / 1000)); return `${Math.floor(s / 60)}:${String(s % 60).padStart(2, "0")}`; };
 
 /**
  * The moments of one behaviour in one run as clips of its recording: every episode (or, for behaviours
@@ -163,14 +164,4 @@ function serveRange(req: IncomingMessage, res: ServerResponse, file: string, typ
   if (start >= size || start > end) { res.writeHead(416, { ...headers, "content-range": `bytes */${size}` }); res.end(); return; }
   res.writeHead(206, { ...headers, "content-range": `bytes ${start}-${end}/${size}`, "content-length": end - start + 1 });
   createReadStream(file, { start, end }).pipe(res);
-}
-
-function readBody(req: IncomingMessage, maxBytes: number): Promise<Buffer | null> {
-  return new Promise((resolve, reject) => {
-    let n = 0, over = false;
-    const chunks: Buffer[] = [];
-    req.on("data", (c: Buffer) => { n += c.length; if (n > maxBytes) over = true; else chunks.push(c); });
-    req.on("end", () => resolve(over ? null : Buffer.concat(chunks)));
-    req.on("error", reject);
-  });
 }

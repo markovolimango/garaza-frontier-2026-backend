@@ -8,10 +8,9 @@
 import { existsSync } from "node:fs";
 import type { RunNarrative, SessionNarrative, SessionState } from "@coach/protocol";
 import { buildProgress } from "../progress.ts";
+import { esc, mmss } from "../format.ts";
 import type { RunRecord } from "../runlog.ts";
-import { mmss } from "./reportData.ts";
 
-const esc = (v: unknown) => String(v ?? "").replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[c]!);
 /** Fillers marked [[um]] → highlighted. */
 const marked = (s: string) => esc(s).replace(/\[\[(.+?)\]\]/g, '<mark>$1</mark>');
 const MODE = { baseline: "Baseline", training: "Training", test: "Test (no feedback)" } as const;

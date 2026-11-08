@@ -16,6 +16,7 @@ import { existsSync, mkdirSync, readFileSync, rmSync, writeFileSync } from "node
 import type { IncomingMessage, ServerResponse } from "node:http";
 import { homedir } from "node:os";
 import { join } from "node:path";
+import { readBody } from "./http.ts";
 import type { Logger } from "./log.ts";
 
 export const POWERPOINT_APP = "/Applications/Microsoft PowerPoint.app";
@@ -99,14 +100,4 @@ export function pptxHttp(o: { log?: Logger; converter?: PptxConverter } = {}) {
     }
     return true;
   };
-}
-
-function readBody(req: IncomingMessage, maxBytes: number): Promise<Buffer | null> {
-  return new Promise((resolve, reject) => {
-    let n = 0, over = false;
-    const chunks: Buffer[] = [];
-    req.on("data", (c: Buffer) => { n += c.length; if (n > maxBytes) over = true; else chunks.push(c); });
-    req.on("end", () => resolve(over ? null : Buffer.concat(chunks)));
-    req.on("error", reject);
-  });
 }

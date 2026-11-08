@@ -15,13 +15,12 @@
  * Board data per run lives in memory and in SESSION_DIR/<sessionId>/swarm.json (index.ts saves it),
  * so a full reset (which deletes that folder) erases it.
  */
-import type { BehaviorKind, JudgeId, RunId } from "@coach/protocol";
+import { SWARM_AGENTS, type BehaviorKind, type JudgeId, type RunId, type SWARM_AGENT_STATES } from "@coach/protocol";
 import type { Clock } from "../clock.ts";
 import type { Logger } from "../log.ts";
 
-export const AGENT_IDS = ["jj", "listener", "director", "body", "reporter", "feedback"] as const;
-export type AgentId = (typeof AGENT_IDS)[number];
-export type AgentState = "off" | "idle" | "listening" | "watching" | "thinking" | "working" | "speaking" | "error";
+export type AgentId = (typeof SWARM_AGENTS)[number];
+export type AgentState = (typeof SWARM_AGENT_STATES)[number];
 export interface AgentStatus { id: AgentId; state: AgentState; detail: string; at: number }
 
 export const AGENT_LABELS: Record<AgentId, string> = {
@@ -86,7 +85,7 @@ export class SwarmBoard {
 
   constructor(private readonly o: { clock: Clock; log?: Logger }) {
     this.log = o.log ?? (() => {});
-    for (const id of AGENT_IDS) this.statuses.set(id, { id, state: "off", detail: "", at: o.clock.now() });
+    for (const id of SWARM_AGENTS) this.statuses.set(id, { id, state: "off", detail: "", at: o.clock.now() });
   }
 
   // ---------------- status (the agents panel) ----------------
@@ -97,7 +96,7 @@ export class SwarmBoard {
     const all = this.allStatuses();
     for (const fn of this.statusFns) fn(all);
   }
-  allStatuses(): AgentStatus[] { return AGENT_IDS.map((id) => this.statuses.get(id)!); }
+  allStatuses(): AgentStatus[] { return SWARM_AGENTS.map((id) => this.statuses.get(id)!); }
   onStatus(fn: (all: AgentStatus[]) => void): void { this.statusFns.push(fn); }
 
   // ---------------- events ----------------

@@ -14,6 +14,7 @@
  */
 import { existsSync, statSync } from "node:fs";
 import { SENSOR_BEHAVIORS, type BehaviorKind, type RunId } from "@coach/protocol";
+import { mmss } from "../format.ts";
 import type { Recording } from "../media.ts";
 import { BEHAVIOR_WORDS } from "../observedCoach.ts";
 import type { EpisodeRecord, RunRecord } from "../runlog.ts";
@@ -25,7 +26,6 @@ import { geminiVideoClient, type VideoClient, type VideoFile } from "./bodyVideo
 const isBodyKind = (k: unknown): k is (typeof SENSOR_BEHAVIORS)[number] => (SENSOR_BEHAVIORS as readonly unknown[]).includes(k);
 const words = (k: BehaviorKind | null) => (k ? BEHAVIOR_WORDS[k] : "body language");
 const cap = (s: string) => s.charAt(0).toUpperCase() + s.slice(1);
-export const mmss = (ms: number) => { const s = Math.max(0, Math.round(ms / 1000)); return `${Math.floor(s / 60)}:${String(s % 60).padStart(2, "0")}`; };
 const secs = (ms: number) => Math.max(1, Math.round(ms / 1000));
 
 export interface BodyOptions {

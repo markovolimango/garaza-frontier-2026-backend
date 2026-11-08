@@ -11,18 +11,17 @@ import {
   type BehaviorKind, type QaVerdict, type RunDigest, type RunId, type RunNarrative, type SessionNarrative, type SessionState,
 } from "@coach/protocol";
 import { buildDigest } from "../digest.ts";
+import { mmss } from "../format.ts";
 import { BEHAVIOR_WORDS } from "../observedCoach.ts";
 import { buildProgress, compactProgress } from "../progress.ts";
 import type { RunRecord } from "../runlog.ts";
 import type { Phrase, SwarmBoard, VideoNote } from "./board.ts";
 
-export const mmss = (ms: number) => { const s = Math.max(0, Math.round(ms / 1000)); return `${Math.floor(s / 60)}:${String(s % 60).padStart(2, "0")}`; };
 const cap = (s: string) => s.charAt(0).toUpperCase() + s.slice(1);
 const clip = (s: string, n: number) => (s.length > n ? `${s.slice(0, n - 1).trimEnd()}…` : s);
 const plural = (n: number, w: string) => `${n} ${w}${n === 1 ? "" : "s"}`;
 const round1 = (n: number) => Math.round(n * 10) / 10;
 const CAMERA = new Set(["posture", "movement", "gaze"]);
-const MODE = { baseline: "baseline", training: "training", test: "test" } as const;
 
 /** One concrete exercise per behaviour, for the next run. */
 export const DRILLS: Record<BehaviorKind, string> = {
@@ -194,7 +193,7 @@ export function fallbackRun(i: RunInputs, now = Date.now()): RunNarrative {
   const headline = `Run ${i.index}: ${facts.length ? facts.join(", ") : d.sources.coach ? "a clean run" : "done"}${improvements[0] ? `. Fix first: ${improvements[0].title.toLowerCase()}` : ""}`;
 
   const summary = [
-    `A ${MODE[i.mode]} run: ${mmss(d.durations.presentationMs)} presenting${d.durations.qaMs ? ` and ${mmss(d.durations.qaMs)} of Q&A` : ""} over ${plural(d.slides.length, "slide")}.`,
+    `A ${i.mode} run: ${mmss(d.durations.presentationMs)} presenting${d.durations.qaMs ? ` and ${mmss(d.durations.qaMs)} of Q&A` : ""} over ${plural(d.slides.length, "slide")}.`,
     !d.sources.coach ? "The camera coach wasn't connected, so there are no body observations."
       : camera.length ? `The camera coach noticed ${camera.slice(0, 3).map((b) => `${b.label.toLowerCase()} (${b.count}×)`).join(", ")}.` : "The camera coach flagged nothing.",
     f.measured ? `You used ${plural(f.count, "filler word")} (${f.perMin} a minute).` : "",

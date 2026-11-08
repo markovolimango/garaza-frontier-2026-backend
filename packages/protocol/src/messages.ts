@@ -23,6 +23,10 @@ export const EnvelopeBase = z.object({
 export type Envelope<T extends string = string, P = unknown> = { v: 1; type: T; id: string; ts: number; replyTo?: string; payload: P };
 
 // ---------------- downlink payloads (brain → clients) ----------------
+/** The agent swarm: JJ and the agents it leads (`swarm.activity`), and what each can be doing. */
+export const SWARM_AGENTS = ["jj", "listener", "director", "body", "reporter", "feedback"] as const;
+export const SWARM_AGENT_STATES = ["off", "idle", "listening", "watching", "thinking", "working", "speaking", "error"] as const;
+
 export const DOWNLINK = {
   welcome: z.object({ sessionId: SessionId, serverTime: z.number(), protocol: z.literal(PROTOCOL_VERSION) }),
   error: z.object({ code: ErrorCode, message: z.string(), refId: z.string().optional() }),
@@ -80,9 +84,9 @@ export const DOWNLINK = {
    */
   "swarm.activity": z.object({
     agents: z.array(z.object({
-      id: z.enum(["jj", "listener", "director", "body", "reporter", "feedback"]),
+      id: z.enum(SWARM_AGENTS),
       label: z.string().max(60),
-      state: z.enum(["off", "idle", "listening", "watching", "thinking", "working", "speaking", "error"]),
+      state: z.enum(SWARM_AGENT_STATES),
       detail: z.string().max(160),
       at: z.number(),
     })).max(10),

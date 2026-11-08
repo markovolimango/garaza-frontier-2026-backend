@@ -10,14 +10,12 @@
  *   JJ's own row on the agents panel follows `jj.state` (speaking / listening / idle / off).
  */
 import type { RunId } from "@coach/protocol";
+import { mmss } from "../format.ts";
 import { behaviorCounts } from "../runlog.ts";
 import { agentNoteText } from "../jj/messages.ts";
 import { briefSummary, createSwarmTools, type AskableAgent } from "../jj/tools.ts";
 import type { AgentId, AgentStatus } from "./board.ts";
 import type { SwarmContext } from "./context.ts";
-
-/** m:ss from ms. */
-const clockText = (ms: number) => `${Math.floor(ms / 60_000)}:${String(Math.floor(ms / 1000) % 60).padStart(2, "0")}`;
 
 /** How long JJ's row shows what it just told an agent before going back to its state. */
 const COMMAND_DETAIL_MS = 8000;
@@ -83,7 +81,7 @@ export function installOrchestrator(ctx: SwarmContext): void {
         const rec = ctx.runLog.get(runId!);
         return {
           ...base,
-          video_notes: notes.slice(-8).map((n) => ({ at: clockText(n.atMs), kind: n.kind, text: n.text })),
+          video_notes: notes.slice(-8).map((n) => ({ at: mmss(n.atMs), kind: n.kind, text: n.text })),
           episodes: rec ? Object.fromEntries(behaviorCounts(rec)) : {},
           camera: rec ? (rec.coachConnected ? "on" : "off during this run") : "unknown",
         };
