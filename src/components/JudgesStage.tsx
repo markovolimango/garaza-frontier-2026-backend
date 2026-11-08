@@ -31,15 +31,15 @@ export function JudgesStage() {
       <JudgesScene ref={judges} />
       <div className="absolute left-4 top-4 z-20 flex flex-wrap items-center gap-2">
         {!live.audioOn && (
-          <Button onClick={() => {
+          <Button variant="outline" onClick={() => {
             setAudioError(false);
             void live.enableAudio().catch(() => setAudioError(true));
           }}>
             <Volume2 /> Enable audio
           </Button>
         )}
-        {live.audioOn && <span className="rounded-md bg-background/80 px-3 py-2 text-xs text-foreground">Audio on</span>}
-        {audioError && <span role="alert" className="rounded-md bg-background/80 px-3 py-2 text-xs text-foreground">Audio unavailable. Try again.</span>}
+        {live.audioOn && <span className="px-1 py-2 text-xs text-muted-foreground">Audio on</span>}
+        {audioError && <span role="alert" className="px-1 py-2 text-xs text-muted-foreground">Audio unavailable. Try again.</span>}
       </div>
       <div className="absolute bottom-6 left-4 z-20">
         <NextButton to="/report" label="Report" />

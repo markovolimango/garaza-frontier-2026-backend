@@ -1,60 +1,30 @@
-import { Suspense, useImperativeHandle, useRef, type Ref } from "react";
-import { Canvas } from "@react-three/fiber";
+import { Suspense, useEffect, useImperativeHandle, useRef, type Ref } from "react";
+import { Canvas, useThree } from "@react-three/fiber";
+import * as THREE from "three";
 import { Judge, type JudgeHandle } from "./Judge";
+import { Room } from "./Room";
 import type { JudgeConfig, JudgesHandle } from "./types";
 
 const SEAT_Z = -0.75;
 
 export const DEFAULT_JUDGES: JudgeConfig[] = [
-  { position: [-1.65, 0, SEAT_Z], height: 0.97, tint: "#1b1f2a", idle: "sitting-idle" },
-  { position: [-0.55, 0, SEAT_Z], height: 1.05, tint: "#22252b", idle: "sitting-idle-2" },
-  { position: [0.55, 0, SEAT_Z], height: 0.94, tint: "#1d2620", idle: "sitting-idle" },
-  { position: [1.65, 0, SEAT_Z], height: 1.01, tint: "#2a1f22", idle: "sitting-idle-2" },
+  { position: [-1.65, 0, SEAT_Z], height: 0.97, tint: "#2d6cdf", idle: "sitting-idle" },
+  { position: [-0.55, 0, SEAT_Z], height: 1.05, tint: "#d9488f", idle: "sitting-idle-2" },
+  { position: [0.55, 0, SEAT_Z], height: 0.94, tint: "#2fb68a", idle: "sitting-idle" },
+  { position: [1.65, 0, SEAT_Z], height: 1.01, tint: "#e3923a", idle: "sitting-idle-2" },
 ];
 
-const MATTE = { roughness: 0.95, metalness: 0 };
-
-function Room({ judges }: { judges: JudgeConfig[] }) {
-  return (
-    <group>
-      {/* floor */}
-      <mesh rotation-x={-Math.PI / 2} receiveShadow>
-        <planeGeometry args={[20, 20]} />
-        <meshStandardMaterial color="#14161c" {...MATTE} />
-      </mesh>
-      {/* back wall */}
-      <mesh position={[0, 2.5, -2.4]}>
-        <planeGeometry args={[20, 5]} />
-        <meshStandardMaterial color="#1b1e27" {...MATTE} />
-      </mesh>
-      {/* table: top + front modesty panel */}
-      <mesh position={[0, 0.74, 0]} castShadow>
-        <boxGeometry args={[4.6, 0.05, 0.9]} />
-        <meshStandardMaterial color="#2b2e37" roughness={0.6} />
-      </mesh>
-      <mesh position={[0, 0.37, 0.42]}>
-        <boxGeometry args={[4.6, 0.72, 0.03]} />
-        <meshStandardMaterial color="#20232b" {...MATTE} />
-      </mesh>
-      {/* chairs */}
-      {judges.map((j, i) => (
-        <group key={i} position={[j.position[0], 0, j.position[2] - 0.1]}>
-          <mesh position={[0, 0.45, 0]}>
-            <boxGeometry args={[0.5, 0.06, 0.5]} />
-            <meshStandardMaterial color="#22252d" {...MATTE} />
-          </mesh>
-          <mesh position={[0, 0.85, -0.24]}>
-            <boxGeometry args={[0.5, 0.8, 0.05]} />
-            <meshStandardMaterial color="#22252d" {...MATTE} />
-          </mesh>
-          <mesh position={[0, 0.22, 0]}>
-            <cylinderGeometry args={[0.03, 0.03, 0.44]} />
-            <meshStandardMaterial color="#0a0a0d" {...MATTE} />
-          </mesh>
-        </group>
-      ))}
-    </group>
-  );
+/** Keeps all four judges in frame on narrow/tall viewports by widening the vertical FOV. */
+function FitCamera() {
+  const camera = useThree((s) => s.camera) as THREE.PerspectiveCamera;
+  const aspect = useThree((s) => s.size.width / Math.max(1, s.size.height));
+  useEffect(() => {
+    const hfov = THREE.MathUtils.degToRad(70);
+    const vfov = THREE.MathUtils.radToDeg(2 * Math.atan(Math.tan(hfov / 2) / aspect));
+    camera.fov = THREE.MathUtils.clamp(vfov, 42, 85);
+    camera.updateProjectionMatrix();
+  }, [camera, aspect]);
+  return null;
 }
 
 export interface JudgesSceneProps {
@@ -77,12 +47,24 @@ export function JudgesScene({ ref, judges = DEFAULT_JUDGES, className }: JudgesS
   );
 
   return (
-    <div className={className} style={{ position: "relative", width: "100%", height: "100%", background: "#07080b" }}>
-      <Canvas camera={{ position: [0, 1.62, 3.6], fov: 42 }} onCreated={({ camera }) => camera.lookAt(0, 0.95, -0.4)}>
-        <color attach="background" args={["#07080b"]} />
-        <fog attach="fog" args={["#07080b", 5, 11]} />
-        <ambientLight intensity={0.6} />
-        <spotLight position={[0, 4, 2]} angle={0.7} penumbra={0.8} intensity={45} />
+    <div className={className} style={{ position: "relative", width: "100%", height: "100%", background: "#e9eaeb" }}>
+      <Canvas shadows camera={{ position: [0, 1.62, 3.6], fov: 42 }} onCreated={({ camera }) => camera.lookAt(0, 0.95, -0.4)}>
+        <color attach="background" args={["#e9eaeb"]} />
+        <fog attach="fog" args={["#e9eaeb", 9, 20]} />
+        <hemisphereLight args={["#ffffff", "#b9bbc0", 1.3]} />
+        <ambientLight intensity={0.25} />
+        <directionalLight
+          position={[1.8, 3.2, 3.2]}
+          intensity={1.2}
+          castShadow
+          shadow-mapSize={[1024, 1024]}
+          shadow-camera-left={-5}
+          shadow-camera-right={5}
+          shadow-camera-top={4}
+          shadow-camera-bottom={-3}
+          shadow-bias={-0.0005}
+        />
+        <FitCamera />
         <Room judges={judges} />
         <Suspense fallback={null}>
           {judges.map((cfg, i) => (

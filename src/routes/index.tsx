@@ -1,7 +1,9 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import type { CSSProperties } from "react";
 import { Orb } from "@/components/Orb";
+import { JjLyrics } from "@/components/JjLyrics";
 import { NextButton } from "@/components/NextButton";
+import { Button } from "@/components/ui/button";
 import { moodOrbPalette } from "@/signals/mood";
 import { useJjMood } from "@/signals/useJjMood";
 import { useSignal } from "@/signals/useSignal";
@@ -40,17 +42,12 @@ function JJScreen() {
         "--orb-hi": palette.hi,
       } as CSSProperties}
     >
-      <span className="absolute left-8 top-6 font-mono text-xs tracking-widest text-muted-foreground">JJ</span>
+      <span className="absolute left-8 top-6 font-serif text-sm text-muted-foreground">JJ</span>
       <Orb />
-      <p className="max-w-xl text-center text-lg text-muted-foreground">
-        “Hi, I'm JJ. Whenever you're ready, start your run and I'll listen in.”
-      </p>
-      <Link
-        to="/presenter"
-        className="rounded-full bg-primary px-8 py-3 font-medium text-primary-foreground shadow-[var(--shadow-glow)] transition-transform hover:scale-105"
-      >
-        Start run
-      </Link>
+      <JjLyrics />
+      <Button size="lg" asChild>
+        <Link to="/presenter">Start run</Link>
+      </Button>
       <div className="absolute bottom-6 left-8">
         <NextButton to="/presenter" label="Presenter" />
       </div>

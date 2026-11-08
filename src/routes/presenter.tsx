@@ -1,5 +1,6 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useCallback, useEffect, useRef, useState } from "react";
+import { ChevronLeft, ChevronRight } from "lucide-react";
 import type { PDFDocumentProxy } from "pdfjs-dist";
 import { publish } from "@/signals";
 import { loadPdf } from "@/lib/pdf";
@@ -7,6 +8,7 @@ import { readPptxTimings } from "@/lib/pptxTimings";
 import { PdfPage } from "@/components/presenter/PdfPage";
 import { Btn, Timer, fmt } from "@/components/presenter/Timer";
 import { NextButton } from "@/components/NextButton";
+import { Button } from "@/components/ui/button";
 
 export const Route = createFileRoute("/presenter")({
   head: () => ({
@@ -113,27 +115,32 @@ function Presenter() {
     <main className="flex h-screen gap-6 p-6">
       {/* left: slides */}
       <section className="flex min-w-0 flex-1 flex-col gap-3">
-        <div className="relative flex-1 overflow-hidden rounded-xl border border-border bg-card">
+        <div className="relative flex-1 overflow-hidden">
           {doc ? (
             <PdfPage doc={doc} index={slide} className="absolute inset-4" />
           ) : (
-            <label className="absolute inset-0 flex cursor-pointer flex-col items-center justify-center gap-2 text-muted-foreground hover:text-foreground">
+            <label className="absolute inset-0 flex cursor-pointer flex-col items-center justify-center gap-2 rounded-md border border-dashed border-border text-muted-foreground hover:text-foreground">
               <span className="text-2xl">Upload your deck (PDF)</span>
               <span className="text-sm">click to choose a file</span>
               <input type="file" accept="application/pdf" className="hidden" onChange={(e) => e.target.files?.[0] && onPdf(e.target.files[0])} />
             </label>
           )}
         </div>
-        <div className="h-1 overflow-hidden rounded-full bg-muted">
+        <div className="h-px overflow-hidden bg-border">
           <div className="h-full bg-primary transition-[width] duration-100" style={{ width: `${progress * 100}%` }} />
         </div>
-        <div className="flex items-center gap-2">
-          <Btn onClick={() => go(slide - 1)}>← Prev</Btn>
-          <Btn onClick={() => go(slide + 1)}>Next →</Btn>
-          <span className="font-mono text-sm text-muted-foreground">
-            {count ? `${slide + 1} / ${count}` : "—"} · {fmt(slideElapsed)} / {fmt(cur)}
+        <div className="flex items-center gap-1">
+          <Button variant="ghost" size="icon" aria-label="Previous slide" onClick={() => go(slide - 1)}>
+            <ChevronLeft />
+          </Button>
+          <Button variant="ghost" size="icon" aria-label="Next slide" onClick={() => go(slide + 1)}>
+            <ChevronRight />
+          </Button>
+          <span className="px-2 text-sm tabular-nums text-muted-foreground">
+            {count ? `${slide + 1} / ${count}` : "—"}
+            {doc ? ` · ${fmt(slideElapsed)} / ${fmt(cur)}` : ""}
           </span>
-          <div className="ml-auto flex items-center gap-2">
+          <div className="ml-auto flex items-center gap-1">
             <Btn onClick={() => setAuto((a) => !a)} active={auto}>Auto-advance</Btn>
             <NextButton to="/judges" label="Judges" />
           </div>
@@ -141,37 +148,43 @@ function Presenter() {
       </section>
 
       {/* right: side panel */}
-      <aside className="flex w-[440px] shrink-0 flex-col gap-4">
-        <div className="h-[220px] rounded-xl border border-border bg-card p-2">
-          <div className="px-1 text-xs uppercase tracking-widest text-muted-foreground">Next</div>
+      <aside className="flex w-[440px] shrink-0 flex-col divide-y divide-border overflow-y-auto">
+        <section className="pb-5">
+          <h2 className="pb-2 text-sm text-muted-foreground">Next slide</h2>
           {doc ? <PdfPage doc={doc} index={slide + 1} className="h-[180px]" /> : null}
-        </div>
-        <Timer totalSec={totalSec} onTotalChange={setTotalSec} />
-        <textarea
-          value={notes}
-          onChange={(e) => setNotes(e.target.value)}
-          placeholder="Speaker notes…"
-          className="h-28 resize-none rounded-xl border border-border bg-card p-3 text-sm outline-none focus:border-ring"
-        />
-        <div className="flex min-h-0 flex-1 flex-col rounded-xl border border-border bg-card">
-          <div className="flex items-center gap-2 border-b border-border p-3 text-sm">
-            <span className="font-medium">Timings</span>
-            <label className="ml-auto cursor-pointer rounded-md border border-border bg-secondary px-2 py-1 text-xs hover:bg-accent">
+        </section>
+        <section className="py-5">
+          <h2 className="pb-2 text-sm text-muted-foreground">Time</h2>
+          <Timer totalSec={totalSec} onTotalChange={setTotalSec} />
+        </section>
+        <section className="py-5">
+          <h2 className="pb-2 text-sm text-muted-foreground">Notes</h2>
+          <textarea
+            value={notes}
+            onChange={(e) => setNotes(e.target.value)}
+            placeholder="Speaker notes…"
+            className="h-28 w-full resize-none rounded-md border border-input bg-background p-3 text-sm outline-none focus:border-ring"
+          />
+        </section>
+        <section className="flex min-h-0 flex-1 flex-col py-5">
+          <div className="flex items-center gap-2 pb-2 text-sm">
+            <h2 className="text-muted-foreground">Slide timings</h2>
+            <label className="ml-auto cursor-pointer rounded-md border border-input px-2.5 py-1 text-xs text-muted-foreground hover:bg-accent hover:text-foreground">
               Import .pptx
               <input type="file" accept=".pptx" className="hidden" disabled={!doc} onChange={(e) => e.target.files?.[0] && onPptx(e.target.files[0])} />
             </label>
-            <button onClick={resetDefaults} className="rounded-md border border-border bg-secondary px-2 py-1 text-xs hover:bg-accent">Reset</button>
+            <button onClick={resetDefaults} className="rounded-md border border-input px-2.5 py-1 text-xs text-muted-foreground hover:bg-accent hover:text-foreground">Reset</button>
             {doc && (
-              <label className="cursor-pointer rounded-md border border-border bg-secondary px-2 py-1 text-xs hover:bg-accent">
+              <label className="cursor-pointer rounded-md border border-input px-2.5 py-1 text-xs text-muted-foreground hover:bg-accent hover:text-foreground">
                 New PDF
                 <input type="file" accept="application/pdf" className="hidden" onChange={(e) => e.target.files?.[0] && onPdf(e.target.files[0])} />
               </label>
             )}
           </div>
-          {status && <div className="px-3 pt-2 text-xs text-muted-foreground">{status}</div>}
-          <ol className="flex-1 overflow-y-auto p-2 text-sm">
+          {status && <div className="pb-2 text-xs text-muted-foreground">{status}</div>}
+          <ol className="flex-1 overflow-y-auto text-sm">
             {timings.map((t, i) => (
-              <li key={i} className={`flex items-center gap-2 rounded px-2 py-1 ${i === slide ? "bg-accent" : ""}`}>
+              <li key={i} className={`flex items-center gap-2 rounded-md px-2 py-1 ${i === slide ? "bg-accent" : ""}`}>
                 <button onClick={() => go(i)} className="w-16 text-left text-muted-foreground hover:text-foreground">Slide {i + 1}</button>
                 <input
                   type="number"
@@ -179,14 +192,14 @@ function Presenter() {
                   step={0.5}
                   value={t}
                   onChange={(e) => setTimings((arr) => arr.map((v, j) => (j === i ? Number(e.target.value) : v)))}
-                  className="ml-auto w-20 rounded border border-input bg-background px-2 py-0.5 text-right font-mono"
+                  className="ml-auto w-20 rounded-md border border-input bg-background px-2 py-0.5 text-right tabular-nums"
                 />
                 <span className="text-xs text-muted-foreground">s</span>
               </li>
             ))}
             {!timings.length && <li className="p-2 text-muted-foreground">Upload a PDF to set timings.</li>}
           </ol>
-        </div>
+        </section>
       </aside>
     </main>
   );

@@ -88,20 +88,22 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
       { name: "viewport", content: "width=device-width, initial-scale=1" },
       { title: "Pitch Practice" },
       { name: "description", content: "Practice your pitch with JJ, a live presenter view and judges." },
-      { name: "author", content: "Lovable" },
       { property: "og:title", content: "Pitch Practice" },
       { property: "og:description", content: "Practice your pitch with JJ, a live presenter view and judges." },
       { property: "og:type", content: "website" },
       { name: "twitter:card", content: "summary_large_image" },
-      { name: "twitter:site", content: "@Lovable" },
     ],
     links: [
+      { rel: "preconnect", href: "https://fonts.googleapis.com" },
+      { rel: "preconnect", href: "https://fonts.gstatic.com", crossOrigin: "anonymous" },
+      {
+        rel: "stylesheet",
+        href: "https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600&family=Instrument+Serif:ital@0;1&family=JetBrains+Mono:wght@400;500&display=swap",
+      },
       {
         rel: "stylesheet",
         href: appCss,
       },
-      { rel: "preconnect", href: "https://fonts.googleapis.com" },
-      { rel: "stylesheet", href: "https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" },
       { rel: "icon", href: "/favicon.ico", type: "image/x-icon" },
     ],
   }),
@@ -113,7 +115,7 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
 
 function RootShell({ children }: { children: ReactNode }) {
   return (
-    <html lang="en" className="dark">
+    <html lang="en">
       <head>
         <HeadContent />
       </head>
@@ -132,6 +134,13 @@ function RootComponent() {
 
   useEffect(() => startSignals(), []);
   useEffect(() => {
+    // Browser-only imports keep WebGL code out of SSR; share the scene's loader cache.
+    void Promise.all([
+      import("../lib/preloadJudges").then(({ preloadJudges }) => preloadJudges()),
+      import("../components/JudgesStage"),
+    ]).catch((error: unknown) => console.warn("Judges preload unavailable; loading on visit instead.", error));
+  }, []);
+  useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
       if ((e.target as HTMLElement).closest("input,textarea,select")) return;
       const i = Number(e.key) - 1;
@@ -144,7 +153,9 @@ function RootComponent() {
   return (
     <QueryClientProvider client={queryClient}>
       {/* Required: nested routes render here. Removing <Outlet /> breaks all child routes. */}
-      <Outlet />
+      <div key={pathname} className="scene">
+        <Outlet />
+      </div>
       <Vignette active={pathname === "/presenter" || pathname === "/judges"} />
       <DebugPanel />
     </QueryClientProvider>

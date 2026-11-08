@@ -22,7 +22,9 @@
  * - Subtitles use z-index 0..10, so app overlays (e.g. the feedback vignette) must sit above 10.
  * - Assets: public/judges/character.fbx + public/judges/animations/*.fbx.
  * - Optional prop `judges` (JudgeConfig[]) overrides positions/heights/tints/idles; default DEFAULT_JUDGES.
+ * - CHARACTER_URL / CLIP_URLS: asset URLs, e.g. for preloading. Import them from "@/judges", not internal files.
  */
 export { JudgesScene, DEFAULT_JUDGES, type JudgesSceneProps } from "./JudgesScene";
 export { JUDGE_REACTIONS, type JudgesHandle, type JudgeIndex, type JudgeReaction, type JudgeConfig } from "./types";
 export { useJudgesLive, readLiveParams, GESTURE_TO_REACTION, type LiveMode } from "./live/useJudgesLive";
+export { CHARACTER_URL, CLIP_URLS } from "./Judge";
