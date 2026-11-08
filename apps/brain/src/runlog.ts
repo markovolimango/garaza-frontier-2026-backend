@@ -122,6 +122,18 @@ export class RunLog {
     return rec && (rec.run.phase === "presentation" || rec.run.phase === "qa") ? rec : null;
   }
 
+  /** An observation made in the brain itself (e.g. the swarm listener's `speech.fillers` bursts), added
+   *  to a run's record like a coach.observation. Accepted while the run is live and up to `lateMs` after
+   *  it ended (the listener reports a phrase ~2 s after it was said). Returns false when not recorded. */
+  addObservation(runId: RunId, o: Observation, lateMs = 10_000): boolean {
+    const rec = this.runs.get(runId);
+    if (!rec) return false;
+    if (rec.endedAt !== null && this.o.clock.now() - rec.endedAt > lateMs) return false;
+    rec.observations.push({ ...o });
+    this.changed();
+    return true;
+  }
+
   recordQa(runId: RunId, turn: QaTurnRecord): void {
     const rec = this.runs.get(runId);
     if (!rec) return;
