@@ -37,7 +37,9 @@ export function uiActionNote(caller: string, tool: string, args: unknown, result
 
 /** A swarm agent's note to JJ: `[DIRECTOR] the VC judge pressed on pricing twice`. */
 export function agentNoteText(from: string, text: string): string {
-  return `[${from.toUpperCase()}] ${text.replace(/\s+/g, " ").trim().slice(0, 600)}`;
+  // Some agents already start their notes with "[BODY] …": don't double the tag.
+  const body = text.replace(/\s+/g, " ").trim().replace(/^\[[A-Z]+\]\s*/, "");
+  return `[${from.toUpperCase()}] ${body.slice(0, 600)}`;
 }
 
 /**
