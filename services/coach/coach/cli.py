@@ -112,6 +112,17 @@ def cmd_stream(args) -> int:
     return 0
 
 
+def cmd_brain_bridge(args) -> int:
+    from coach.brain_bridge import run_bridge
+    from coach.client import operator_token
+
+    try:
+        run_bridge(args.url, args.brain, operator_token, vignette=not args.no_vignette, force=args.force)
+    except KeyboardInterrupt:
+        pass
+    return 0
+
+
 def cmd_request(args) -> int:
     from coach.client import ApiError, CoachClient, operator_token
 
@@ -220,6 +231,13 @@ def main(argv: list[str] | None = None) -> int:
     p.add_argument("--after", type=int, default=None, help="resume after this cursor")
     p.add_argument("--full", action="store_true", help="print full JSON messages")
     p.set_defaults(func=cmd_stream)
+
+    p = sub.add_parser("brain-bridge", help="forward coaching to the brain (garaza-frontier-2026-backend) over WebSockets")
+    client_args(p)
+    p.add_argument("--brain", default="http://127.0.0.1:8787", help="brain base URL")
+    p.add_argument("--no-vignette", action="store_true", help="don't take the brain's operator role (operator panel open)")
+    p.add_argument("--force", action="store_true", help="vignette on every coaching feedback during a run (demo)")
+    p.set_defaults(func=cmd_brain_bridge)
 
     p = sub.add_parser("request", help="authenticated REST request, e.g. request GET /v1/sessions")
     client_args(p)

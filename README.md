@@ -58,6 +58,26 @@ bash scripts/coach-stream.sh    # tok događaja
 bash scripts/apple-check.sh     # Swift paket: build, testovi, Vision na slikama, Apple dostupnosti
 ```
 
+#### Most ka brainu (coach → brain preko WebSocketa)
+
+Coach (`services/coach`, Python) i brain (`apps/brain`, Node) su odvojeni procesi.
+`coach-brain-bridge.sh` ih povezuje preko WebSocketa: prati poslednju
+aktivnu coach sesiju (`/v1/stream`) i šalje brainu (`/ws/control`):
+
+- `body.metrics` → `sensor.status` (kamera ok / nema osobe, fps), uloga `sensor`;
+- `body.torso_movement_high` → `behavior sway` start/end, uloga `sensor`;
+- coaching predlozi o ponašanju (ruke, kretanje, tempo, pauze, poštapalice) → crvena vinjeta na
+  ekranu (`operator.override`), samo dok traje run, kad JJ ne sluša i kad run ima uključen feedback
+  (baseline i test run su namerno bez feedbacka). Puls i gubitak praćenja ne pale vinjetu.
+
+```bash
+JJ_FAKE=1 corepack pnpm dev:brain             # brain → :8787
+bash scripts/coach-serve.sh                    # coach → :8765
+bash scripts/coach-brain-bridge.sh             # most; sam se ponovo povezuje ako nešto restartuješ
+bash scripts/coach-brain-bridge.sh --force     # demo: vinjeta na svaki predlog tokom runa
+bash scripts/coach-brain-bridge.sh --no-vignette   # kad je otvoren pravi operator panel (brain dozvoljava jednog)
+```
+
 Dokumentacija:
 
 - [docs/api.md](docs/api.md): ugovor (REST, WebSocket, koordinate, vreme, greške, autentifikacija);
