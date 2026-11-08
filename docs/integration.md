@@ -37,11 +37,16 @@ apps/brain/src/
     playground/                     browser playground + headless smoke test
 apps/brain/prompts/jj.md            JJ system prompt (lint:vocab)
 apps/web/src/net/client.ts          ControlClient: shared /ws/control client for every page
+apps/frontend/                      Lovable app (git subtree of the frontend repo) — see §14
+  src/brain/                        brain integration layer (ours): BrainSource, BrainBridge, audio, deck upload
+apps/brain/src/context/uploads.ts   deck/docs upload endpoints, slide images
+e2e/frontend-brain.mjs              headless-Chrome e2e: frontend ⇄ real brain
+fixtures/decks/                     sample decks for tests
 fixtures/messages/                  one valid + one invalid sample per message type
 docs/                               this guide, extensions.md
 ```
 
-Not built yet: `packages/rules`, `apps/web/src/{app,sensor,operator,strings}`, `apps/brain/src/{events,reports,recorder,replay}.ts`, `apps/brain/src/{context,director,llm,tts,stt}/`.
+Not built yet: `packages/rules`, the sensor and operator pages, `apps/brain/src/{events,reports,recorder,replay}.ts`, `apps/brain/src/{context,director,llm,tts,stt}/`.
 
 ## 2. Runtime picture
 
@@ -256,3 +261,71 @@ JJ depends only on the narrow ports in `jj/ports.ts` (`SessionPort`, `HubPort`, 
 | `pnpm dev:brain` | brain with tsx watch on :8787 (`JJ_FAKE=1` to run without Gemini) |
 | `pnpm --filter @coach/brain jj:playground [--fake]` | JJ playground on :8790 |
 | `pnpm --filter @coach/brain jj:smoke` | headless live JJ test |
+| `pnpm dev:frontend` | Lovable app on :5174 wired to the brain (`VITE_SIGNAL_SOURCE=brain`) |
+| `pnpm test:frontend` | frontend unit tests + BrainSource integration tests against a real brain |
+| `pnpm e2e:browser` | headless-Chrome e2e (needs a fresh `pnpm dev:brain` with `JJ_FAKE=1` and `pnpm dev:frontend`); screenshots in `data/e2e/` |
+| `pnpm frontend:pull` | pull new Lovable commits into `apps/frontend` (git subtree) |
+
+## 14. The Lovable frontend (`apps/frontend`)
+
+The main app is built in Lovable by a teammate, in its own repo
+(<https://github.com/markovolimango/garaza-frontier-2026-frontend>), because Lovable syncs
+poorly with a monorepo. This repo carries it as a **git subtree** at `apps/frontend`.
+
+**Updating from Lovable:**
+
+```bash
+git remote add frontend https://github.com/markovolimango/garaza-frontier-2026-frontend.git   # once
+pnpm frontend:pull        # = git subtree pull --prefix=apps/frontend frontend main --squash
+pnpm test:frontend && pnpm e2e:browser
+```
+
+Never push our changes back to the frontend repo's `main` (it syncs straight into Lovable).
+
+**How it connects.** Lovable built the app around a typed bus (`src/signals/bus.ts`) with
+swappable sources (`src/signals/index.ts`). Our integration is a real source plus a bridge,
+all in **`src/brain/` (new files only, never touched by Lovable)**:
+
+| File | Does |
+| --- | --- |
+| `BrainSource.ts` | `SignalSource` over `/ws/control` (role `stage`), `/ws/audio`, `/ws/mic`; maps downlinks onto the bus; acks `scene.apply` |
+| `BrainBridge.tsx` | brain-driven navigation, Next buttons → loop actions, hold `J` = push-to-talk, audio unlock, overlay (countdown, toasts, status) |
+| `mapping.ts` | pure protocol ⇄ bus/screen mapping (unit tested) |
+| `audio.ts` | JJ playback (24 kHz, flush on `audio.stop`, `audio.playback` reports) and mic capture (16 kHz worklet) |
+| `deck.ts` | PDF → 1920 px PNGs + text (pdf.js) → `POST /api/uploads/deck` |
+| `judges.ts` | `JudgeRelay`: `actor.say` / `actor.gesture` / judge audio → bus `judgeCommand` for the judges screen |
+| `brain-integration.itest.ts` | BrainSource against a real brain (`vitest.brain.config.ts`) |
+
+| Brain | Bus / screen |
+| --- | --- |
+| `feedback.set` warn / reward / none | `feedback` red / green / neutral (Vignette) |
+| `ui.state.orb.score` | `jjMood` (0 red … 1 green) |
+| JJ audio level (speaking) / mic level (listening) | `orbLevel` |
+| `ui.state.view` setup, jj, slides, room, report, final | `/presenter`, `/`, `/presenter`, `/judges`, `/report`, `/report` |
+| `slide.show` | `slideCommand` → presenter jumps |
+| `actor.say` judge_1..4 + its audio | `judgeCommand` `speak` (subtitle, glow from that source's level, until the audio ends); no audio within 2.5 s → `say` |
+| `actor.gesture` judge_1..4 | `judgeCommand` `react` (Marko's gesture table) |
+| presenter `slide` (during the presentation) | `slide.changed` |
+| PDF loaded in the presenter (`deckFile`) | deck upload, then `session.start` |
+| Next / keys 1–4: JJ→Presenter, Presenter→Judges, Judges→Report | `start_run`, `presentation.done`, `end_run`; other moves snap back with a hint |
+
+**Edits inside Lovable's files** are kept tiny and tagged `brain integration`, so a subtree
+pull conflicts rarely and obviously: `package.json` (`@coach/protocol`, `@coach/web`,
+`zod` 4.6.6), `src/signals/bus.ts` (+`slideCommand`, `deckFile`), `src/signals/index.ts`
+(source switch on `VITE_SIGNAL_SOURCE`), `src/routes/__root.tsx` (mount `<BrainBridge/>`),
+`src/routes/presenter.tsx` (publish `deckFile`, follow `slideCommand`, re-open the deck on
+mount), `src/signals/judges.ts` (+`speak` command), `src/components/JudgesStage.tsx` (play `speak`). The mock stays the default, so the Lovable preview keeps working.
+
+**Rules for the Lovable side** (pass these to Lovable when prompting):
+
+- Keep `zod` at 4.x. With zod 3 in the frontend, the SSR bundle resolves `@coach/protocol` to
+  zod 3 and every server render crashes.
+- Components read live data only from the bus; add new data as bus channels.
+- The judges screen (`JudgesStage`, Marko's scene) plays bus `judgeCommand`s; under the brain,
+  BrainSource feeds them (`judges.ts`). Keep it in its default mock mode there: `?source=backend`
+  opens `src/judges/live/BackendSource`, a second stage connection that replaces BrainSource's.
+  When scene ops matter, the room must apply `scene.apply` in one frame before acking (today
+  BrainSource acks immediately). The report screen is still a placeholder: it should fetch
+  `GET /api/runs/:runId/report` on `report.ready`.
+- The presenter forgets its PDF when the screen unmounts; BrainSource re-feeds it, but a
+  persistent deck (kept above the routes) would remove the reload during the countdown.

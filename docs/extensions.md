@@ -19,11 +19,53 @@ Lanes: `lead` (protocol), `brain`, `sensing`, `agents`, `stage`, `report`.
 
 ---
 
+### 2026-11-08T01:44+01:00 · stage · Brain judges on the real judges screen (`JudgeRelay`, `judgeCommand` `speak`)
+- **Where:** `apps/frontend/src/brain/judges.ts` (new), `BrainSource.ts`; tagged edits in `apps/frontend/src/signals/judges.ts` and `src/components/JudgesStage.tsx`; `e2e/frontend-brain.mjs`
+- **What:** BrainSource turns `actor.say` / `actor.gesture` for judge_1..4 into bus `judgeCommand`s: `speak` (new variant: `level()` from that source's audio, `done` when its playback ends) once the judge's audio starts, `say` when none comes within 2.5 s, `react` for gestures. The e2e finds Chrome on macOS, warms Vite up before the first click, and adds a second run that checks the 3D judges and a `POST /debug/judge-say` subtitle (30 checks).
+- **Why:** Lovable put Marko's scene on `/judges` with its own `BackendSource`, which would take the stage role from BrainSource (one connection per role); under the brain the judges got no brain messages.
+- **Impact:** stage: keep `JudgesStage` in mock mode under the brain. Director: judge lines reach the screen through `speakJudge` with no further wiring. Lovable: keep the `speak` branch when editing `JudgesStage`.
+
+### 2026-11-08T01:44+01:00 · lead · pnpm lockfile includes the 3D judges dependencies
+- **Where:** `pnpm-lock.yaml`
+- **What:** `three`, `@types/three`, `@react-three/fiber`, `@react-three/drei` (added to `apps/frontend/package.json` by hand) are now in the lockfile.
+- **Why:** `pnpm install --frozen-lockfile` failed after the frontend subtree pull.
+- **Impact:** none.
+
 ### 2026-11-08T00:30+01:00 · agents · Judge voices (ElevenLabs) + `POST /debug/judge-say`
 - **Where:** `apps/brain/src/voices/judgeVoice.ts` (`JudgeVoices`, `speakJudge`, `judgeVoicesHttp`, `DEFAULT_JUDGE_VOICE_IDS`), wired in `apps/brain/src/server.ts` via the `http` option; config keys `ELEVENLABS_API_KEY`, `JUDGE_VOICE_IDS` in `apps/brain/src/config.ts`
 - **What:** `speakJudge(judge_N, text)` queues one utterance at a time: `actor.gesture talk` → `actor.say {utteranceId: judge_N_uK, source: N}` → ElevenLabs streaming TTS (`eleven_flash_v2_5`, `pcm_24000`) forwarded on `/ws/audio` with JJ's framing (start flag on the first frame, empty end-flagged frame) → waits for the stage's `audio.playback` ended/stopped (fallback: audio length + 1.5 s) → `actor.gesture idle`. `JUDGE_VOICE_IDS` (comma-separated, judge_1..4) defaults to premade Rachel, Adam, Antoni, Sarah. No key → say + gestures only, audio skipped and logged; independent of `JJ_FAKE`. Debug: `POST /debug/judge-say {judge: 1-4, text}` → 202 `{ok, actorId, utteranceId, voiceId}`.
 - **Why:** hear and stage-test judge voices before the director lands.
 - **Impact:** director: call `JudgeVoices.speakJudge` instead of its own TTS. Stage: `judge_4` needs a judge in the scene (the default scene has 3). `JUDGE_VOICES` (JJ config, scene `voiceId`) is not read by this module.
+
+### 2026-11-07T23:23+01:00 · stage · Lovable frontend integrated (subtree + brain layer)
+- **Where:** `apps/frontend` (git subtree of the frontend repo), `apps/frontend/src/brain/*`, tagged edits in `bus.ts`, `signals/index.ts`, `__root.tsx`, `presenter.tsx`
+- **What:** `BrainSource` (real `SignalSource`) and `BrainBridge`; new bus channels `slideCommand` and `deckFile`; `VITE_SIGNAL_SOURCE=brain` + `VITE_BRAIN_URL` select the brain; brain views map to Lovable's four routes; forward Next/keys 1–4 become `start_run` / `presentation.done` / `end_run`; brain-driven navigation waits ~300 ms after mount for hydration; overlay renders client-only.
+- **Why:** the Lovable app had only a mock bus and a placeholder WebSocket with an invented format.
+- **Impact:** Lovable side: keep the bus contract and zod 4 (docs/integration.md §14).
+
+### 2026-11-07T23:23+01:00 · lead · One zod (4.6.6) across the repo
+- **Where:** `apps/frontend/package.json`
+- **What:** the frontend moved from zod 3.25 to 4.6.6.
+- **Why:** the SSR (nitro) bundle collapsed `zod` to the frontend's copy, so `@coach/protocol` ran on zod 3 and crashed server renders.
+- **Impact:** Lovable must not downgrade zod.
+
+### 2026-11-07T23:23+01:00 · agents · Upload endpoints and CORS
+- **Where:** `apps/brain/src/context/uploads.ts`, `brain.ts`, `config.ts` (`CORS_ORIGINS`)
+- **What:** `POST /api/uploads/deck` (multipart: `manifest` + `slide_<n>.png`, PNG magic checked, indexes 0..n-1, ≤ 60 slides), `POST /api/uploads/docs` (≤ 10 docs, 50k/150k chars), `GET /api/decks/:deckId/:n.png`; files under `SESSION_DIR/<sessionId>/uploads/`; refused with 409 `wrong_phase` during a run. CORS allows localhost/127.0.0.1 on any port plus `CORS_ORIGINS`.
+- **Why:** the frontend dev server is on another origin; session.start needs a deck.
+- **Impact:** setup UIs post here.
+
+### 2026-11-07T23:23+01:00 · brain · `SessionAction` is inferred from its schema
+- **Where:** `apps/brain/src/session.ts`
+- **What:** `export type SessionAction = z.infer<typeof ActionSchema>`; brain code also compiles under `exactOptionalPropertyTypes` (the frontend's setting).
+- **Why:** spec rule "types are z.infer of the schema"; the frontend's typecheck follows the integration test into brain sources.
+- **Impact:** none.
+
+### 2026-11-07T23:23+01:00 · lead · Spec gap: no protocol path for "reset"
+- **Where:** spec "Operator panel" lists a reset button; neither `ToolName` nor `operator.override` can reset.
+- **What:** open, not implemented. Proposal: `operator.override {action: "reset"}`.
+- **Why:** found while writing the e2e (it needs a fresh session; today: restart the brain).
+- **Impact:** operator panel.
 
 ### 2026-11-07T21:53+01:00 · brain · Repo layout: JJ code lives only under `apps/brain/src/jj/`
 - **Where:** `apps/brain/src/jj/tools.ts` (was `apps/brain/src/tools.ts`), `apps/brain/src/jj/VERIFY.md` (was `docs/jj-verification.md`), JJ scripts moved from the root `package.json` to `@coach/brain` (`pnpm --filter @coach/brain jj:playground | jj:smoke`)
