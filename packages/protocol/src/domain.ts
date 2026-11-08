@@ -131,6 +131,9 @@ export const RunState = z.object({
   presentationStartedAt: z.number().optional(),
   presentationEndedAt: z.number().optional(),
   endedAt: z.number().optional(),
+  /** Pitch mode (stage demo): the presenter just talks; no countdown, no Q&A, no deck needed, JJ stays silent
+   *  and "Hey JJ" doesn't pause it. Ends with end_run; the stage shows the pitch dashboard. */
+  pitch: z.boolean().optional(),
 });
 export type RunState = z.infer<typeof RunState>;
 

@@ -29,7 +29,8 @@ export type SessionCause = SessionAction | SessionEvent | SceneOp[];
 const ActionSchema = z.discriminatedUnion("type", [
   z.object({ type: z.literal("session_start") }),
   z.object({ type: z.literal("save_brief"), brief: PresentationBrief }),
-  z.object({ type: z.literal("start_run"), mode: RunMode.optional(), level: FeedbackLevel.optional() }),
+  /** pitch: a pitch-mode run (RunState.pitch): also from setup, no deck, no countdown, baseline, ends with end_run. */
+  z.object({ type: z.literal("start_run"), mode: RunMode.optional(), level: FeedbackLevel.optional(), pitch: z.boolean().optional() }),
   z.object({ type: z.literal("slide"), index: z.number().int().min(0), from: z.enum(["stage", "brain"]).optional() }),
   z.object({ type: z.literal("presentation_done") }), z.object({ type: z.literal("qa_done") }),
   z.object({ type: z.literal("end_run") }), z.object({ type: z.literal("abort_run") }), z.object({ type: z.literal("run_it_back") }),
@@ -155,6 +156,11 @@ export class SessionStore {
         return ok;
 
       case "start_run": {
+        if (a.pitch) {
+          if (!["setup", "intro", "debrief", "final"].includes(s.phase)) return wrong();
+          this.beginRun("baseline", "off", s.scene.version, true);
+          return ok;
+        }
         if (!["intro", "debrief", "final"].includes(s.phase)) return wrong();
         if (!s.context.deck) return { ok: false, reason: "no_deck", hint: "upload the slides (PDF) on the presenter screen first" };
         const rec = this.o.coach.recommend(s.coach);
@@ -184,7 +190,7 @@ export class SessionStore {
       case "presentation_done":
         if (!live || live.phase !== "presentation") return wrong();
         live.presentationEndedAt = now;
-        if (s.scene.qa.questions === 0) { this.finishRun(live); return ok; }
+        if (s.scene.qa.questions === 0 || live.pitch) { this.finishRun(live); return ok; }
         live.phase = "qa";
         return ok;
 
@@ -210,6 +216,7 @@ export class SessionStore {
 
       case "wake":
         if (!live || live.phase === "ended") return ok;          // outside runs JJ already listens: no-op
+        if (live.pitch) return ok;                               // pitch mode: nothing pauses the talk
         if (live.paused) return ok;
         live.paused = true;
         s.wake = { active: true, via: a.via, since: now };
@@ -307,7 +314,7 @@ export class SessionStore {
     return state;
   }
 
-  private beginRun(mode: RunMode, level: FeedbackLevel, sceneVersion: number): void {
+  private beginRun(mode: RunMode, level: FeedbackLevel, sceneVersion: number, pitch = false): void {
     const s = this.s;
     const index = (s.run?.index ?? 0) + 1;
     const run: RunState = {
@@ -320,7 +327,13 @@ export class SessionStore {
     s.phase = "running";
     s.introDone = true;
     s.wake = { active: false, via: null, since: null };
-    this.startCountdown();
+    if (!pitch) { this.startCountdown(); return; }
+    // Pitch mode: listening starts with the click (the presenter is already on stage).
+    this.stopCountdown();
+    run.pitch = true;
+    run.phase = "presentation";
+    run.presentationStartedAt = run.startedAt;
+    this.emitLater({ type: "presentation_started" });
   }
 
   private finishRun(run: RunState): void {

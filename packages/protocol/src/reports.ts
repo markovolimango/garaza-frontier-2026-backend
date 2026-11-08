@@ -230,3 +230,36 @@ export type SessionNarrative = z.infer<typeof SessionNarrative>;
 
 /** `GET /api/swarm/report/run/:runId` and `/api/swarm/report/session`. */
 export type NarrativeStatus = "pending" | "ready" | "none";
+
+/**
+ * PitchDashboard: one pitch-mode run (RunState.pitch) as the stage's dashboard. `GET /api/pitch/dashboard`.
+ * Times (`tMs`, `fromMs`, …) are ms from the start of the talk. The written analysis comes from the
+ * reporter (`GET /api/swarm/report/run/:runId`), the same as for any run.
+ */
+export const PitchDashboard = z.object({
+  runId: RunId, index: z.number().int(),
+  /** The talk is still going (the stage shows live counters). */
+  live: z.boolean(),
+  durationMs: z.number(),
+  speech: z.object({
+    /** false = no transcript (listener off or nothing heard): the numbers below are not measurements. */
+    measured: z.boolean(),
+    words: z.number().int(),
+    wpm: z.number().nullable(),
+    fillers: z.object({
+      count: z.number().int(), perMin: z.number().nullable(),
+      top: z.array(z.object({ word: z.string(), count: z.number().int() })),
+      at: z.array(z.object({ tMs: z.number(), words: z.array(z.string()) })),
+    }),
+    phrases: z.array(z.object({ tMs: z.number(), endMs: z.number(), text: z.string(), fillers: z.array(z.string()) })),
+  }),
+  body: z.object({
+    /** false = the camera coach wasn't connected. */
+    measured: z.boolean(),
+    rows: z.array(z.object({
+      kind: BehaviorKind, label: z.string(), count: z.number().int(), totalMs: z.number(), longestMs: z.number(), pct: z.number(),
+      episodes: z.array(z.object({ fromMs: z.number(), toMs: z.number() })),
+    })),
+  }),
+});
+export type PitchDashboard = z.infer<typeof PitchDashboard>;

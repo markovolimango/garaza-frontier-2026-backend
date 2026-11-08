@@ -21,6 +21,7 @@ import { buildProgress, compactProgress, progressHttp } from "./progress.ts";
 import { MediaStore, mediaHttp, momentsOf } from "./media.ts";
 import { pptxHttp } from "./pptx.ts";
 import { SensorMonitor, sensorsHttp } from "./sensors.ts";
+import { PitchMode, pitchHttp } from "./pitch.ts";
 import { BEHAVIOR_WORDS } from "./observedCoach.ts";
 import { RunLog } from "./runlog.ts";
 import { installSwarm, type Swarm } from "./swarm/index.ts";
@@ -45,6 +46,7 @@ let media: MediaStore | null = null;
 let pptxRoutes: ReturnType<typeof pptxHttp> | null = null;
 let sensors: SensorMonitor | null = null;
 let sensorRoutes: ReturnType<typeof sensorsHttp> | null = null;
+let pitchRoutes: ReturnType<typeof pitchHttp> | null = null;
 let swarm: Swarm | null = null;
 
 // The session saved before the last stop (runs, reports, coach, deck), unless a fresh start was asked for.
@@ -87,6 +89,7 @@ const brain = createBrain({
     || (mediaRoutes ? await mediaRoutes(req, res) : false)
     || (pptxRoutes ? await pptxRoutes(req, res) : false)
     || (sensorRoutes ? sensorRoutes(req, res) : false)
+    || (pitchRoutes ? pitchRoutes(req, res) : false)
     || (sessionRoutes ? await sessionRoutes(req, res) : false) || (judgesHttp ? judgesHttp(req, res) : false),
 });
 const clock = new RealClock();
@@ -120,6 +123,11 @@ swarm = installSwarm({
     listener: config.brain.SWARM_LISTENER_MODEL, video: config.brain.SWARM_VIDEO_MODEL,
   },
 });
+// Pitch mode (the stage demo): JJ silent, the presenter just talks, one click → the dashboard.
+pitchRoutes = pitchHttp(new PitchMode({
+  session: brain.session, runLog, jj: brain.jj, clock,
+  phrases: (runId) => swarm?.board.phrases(runId as Parameters<Swarm["board"]["phrases"]>[0]) ?? [],
+}));
 async function swarmRoutes(sw: Swarm, req: IncomingMessage, res: ServerResponse): Promise<boolean> {
   for (const route of sw.routes) if (await route(req, res)) return true;
   return false;
