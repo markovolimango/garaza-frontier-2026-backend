@@ -74,6 +74,19 @@ export const DOWNLINK = {
       tRunMs: z.number().min(0), slideIndex: z.number().int().min(0), label: z.string().max(80),
     })).max(10),
   }),
+  /**
+   * The agent swarm's live state, for the agents panel: JJ and the agents it leads (listener,
+   * director, body, reporter, feedback), each with what it is doing right now. Sent on change.
+   */
+  "swarm.activity": z.object({
+    agents: z.array(z.object({
+      id: z.enum(["jj", "listener", "director", "body", "reporter", "feedback"]),
+      label: z.string().max(60),
+      state: z.enum(["off", "idle", "listening", "watching", "thinking", "working", "speaking", "error"]),
+      detail: z.string().max(160),
+      at: z.number(),
+    })).max(10),
+  }),
   "calibrate.prompt": z.object({ judgeId: JudgeId.nullable() }),
   "sensor.config": z.object({ enabledCategories: z.array(FeedbackCategory), neutralPitchDeg: z.number().nullable(), debug: z.boolean() }),
   "hud.toast": z.object({ text: z.string().min(1).max(120), level: z.enum(["info", "warn"]) }),

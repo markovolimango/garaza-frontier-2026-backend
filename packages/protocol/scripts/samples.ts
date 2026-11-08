@@ -76,6 +76,14 @@ export const DOWNLINK_SAMPLES: Down = {
     ],
     invalid: [{ why: "a clip must end after 0 s", payload: { title: "x", kind: null, runId: null, clips: [{ url: "/v", fromS: 0, toS: 0, tRunMs: 0, slideIndex: 0, label: "" }] } }],
   },
+  "swarm.activity": {
+    valid: [{ agents: [
+      { id: "jj", label: "JJ · coach", state: "idle", detail: "run in progress: quiet", at: 1_762_540_000_000 },
+      { id: "listener", label: "Listener · transcript + fillers", state: "listening", detail: "slide 3 · 2 fillers so far", at: 1_762_540_000_000 },
+      { id: "director", label: "Director · judges", state: "thinking", detail: "planning a pricing question for the VC", at: 1_762_540_000_000 },
+    ] }],
+    invalid: [{ why: "unknown agent", payload: { agents: [{ id: "intern", label: "x", state: "idle", detail: "", at: 0 }] } }],
+  },
   "calibrate.prompt": { valid: [{ judgeId: "judge_1" }, { judgeId: null }], invalid: [{ why: "missing judgeId", payload: {} }] },
   "sensor.config": { valid: [{ enabledCategories: ["posture", "gaze"], neutralPitchDeg: null, debug: false }], invalid: [{ why: "unknown category", payload: { enabledCategories: ["mood"], neutralPitchDeg: null, debug: false } }] },   // vocab-allow
   "hud.toast": { valid: [{ text: "Judges set to tough", level: "info" }], invalid: [{ why: "empty text", payload: { text: "", level: "info" } }] },

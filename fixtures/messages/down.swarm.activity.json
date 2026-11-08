@@ -1,0 +1,59 @@
+{
+  "type": "swarm.activity",
+  "direction": "down",
+  "valid": [
+    {
+      "v": 1,
+      "type": "swarm.activity",
+      "id": "fx_swarm_activity_0",
+      "ts": 1762540000000,
+      "payload": {
+        "agents": [
+          {
+            "id": "jj",
+            "label": "JJ · coach",
+            "state": "idle",
+            "detail": "run in progress: quiet",
+            "at": 1762540000000
+          },
+          {
+            "id": "listener",
+            "label": "Listener · transcript + fillers",
+            "state": "listening",
+            "detail": "slide 3 · 2 fillers so far",
+            "at": 1762540000000
+          },
+          {
+            "id": "director",
+            "label": "Director · judges",
+            "state": "thinking",
+            "detail": "planning a pricing question for the VC",
+            "at": 1762540000000
+          }
+        ]
+      }
+    }
+  ],
+  "invalid": [
+    {
+      "why": "unknown agent",
+      "message": {
+        "v": 1,
+        "type": "swarm.activity",
+        "id": "fx_swarm_activity_100",
+        "ts": 1762540000100,
+        "payload": {
+          "agents": [
+            {
+              "id": "intern",
+              "label": "x",
+              "state": "idle",
+              "detail": "",
+              "at": 0
+            }
+          ]
+        }
+      }
+    }
+  ]
+}

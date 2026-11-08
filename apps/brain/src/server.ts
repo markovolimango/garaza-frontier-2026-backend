@@ -5,6 +5,7 @@
  * BRAIN_PORT (8787).
  */
 import { existsSync } from "node:fs";
+import type { IncomingMessage, ServerResponse } from "node:http";
 import { dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { createBrain } from "./brain.ts";
@@ -14,7 +15,6 @@ import { consoleLogger } from "./log.ts";
 import { RealClock } from "./clock.ts";
 import { JudgeVoices, judgeVoicesHttp } from "./voices/judgeVoice.ts";
 import { buildDigest, digestHttp } from "./digest.ts";
-import { Director } from "./director/director.ts";
 import { observedCoach } from "./observedCoach.ts";
 import { loadLatest, SessionPersistence, sessionHttp } from "./persist.ts";
 import { buildProgress, compactProgress, progressHttp } from "./progress.ts";
@@ -22,6 +22,7 @@ import { exportHttp } from "./export.ts";
 import { MediaStore, mediaHttp, momentsOf } from "./media.ts";
 import { BEHAVIOR_WORDS } from "./observedCoach.ts";
 import { RunLog } from "./runlog.ts";
+import { installSwarm, type Swarm } from "./swarm/index.ts";
 
 const REPO = resolve(dirname(fileURLToPath(import.meta.url)), "../../..");
 if (existsSync(join(REPO, ".env"))) process.loadEnvFile(join(REPO, ".env"));
@@ -41,6 +42,7 @@ let sessionRoutes: ReturnType<typeof sessionHttp> | null = null;
 let exportRoutes: ReturnType<typeof exportHttp> | null = null;
 let mediaRoutes: ReturnType<typeof mediaHttp> | null = null;
 let media: MediaStore | null = null;
+let swarm: Swarm | null = null;
 
 // The session saved before the last stop (runs, reports, coach, deck), unless a fresh start was asked for.
 const sessionDir = resolve(REPO, config.brain.SESSION_DIR);
@@ -77,7 +79,7 @@ const brain = createBrain({
     const title = `${words.charAt(0).toUpperCase()}${words.slice(1)} · run ${rec.run.index} · ${total} time${total === 1 ? "" : "s"}`;
     return { ok: true, runId: rec.runId, runIndex: rec.run.index, title, total, clips };
   } },
-  http: async (req, res) => (digestRoutes ? digestRoutes(req, res) : false) || (progressRoutes ? progressRoutes(req, res) : false)
+  http: async (req, res) => (swarm ? await swarmRoutes(swarm, req, res) : false) || (digestRoutes ? digestRoutes(req, res) : false) || (progressRoutes ? progressRoutes(req, res) : false)
     || (exportRoutes ? exportRoutes(req, res) : false)
     || (mediaRoutes ? await mediaRoutes(req, res) : false)
     || (sessionRoutes ? await sessionRoutes(req, res) : false) || (judgesHttp ? judgesHttp(req, res) : false),
@@ -101,11 +103,23 @@ const judges = new JudgeVoices({
   voiceIds: config.brain.JUDGE_VOICE_IDS,
 });
 judgesHttp = judgeVoicesHttp(judges);
-new Director({ session: brain.session, hub: brain.hub, voices: judges, clock, log, runLog, speechRms: config.jj.JJ_SPEECH_RMS });
+// The agent swarm JJ leads: listener, director (owns the Q&A Director), body, reporter, feedback (swarm/).
+swarm = installSwarm({
+  brain, runLog, judges, media, clock, log, sessionDir, speechRms: config.jj.JJ_SPEECH_RMS,
+  models: {
+    apiKey: config.brain.JJ_FAKE === "1" ? null : config.jj.GEMINI_API_KEY,
+    text: config.brain.SWARM_TEXT_MODEL, report: config.brain.SWARM_REPORT_MODEL,
+    listener: config.brain.SWARM_LISTENER_MODEL, video: config.brain.SWARM_VIDEO_MODEL,
+  },
+});
+async function swarmRoutes(sw: Swarm, req: IncomingMessage, res: ServerResponse): Promise<boolean> {
+  for (const route of sw.routes) if (await route(req, res)) return true;
+  return false;
+}
 const port = await brain.listen(config.brain.BRAIN_PORT, config.brain.BRAIN_HOST);
 log("info", "brain.listening", { url: `http://${config.brain.BRAIN_HOST}:${port}`, jj: config.brain.JJ_FAKE === "1" ? "fake" : config.jj.GEMINI_LIVE_MODEL });
 
 persistence.saveNow();
-const shutdown = () => { persistence.saveNow(); void brain.close().finally(() => process.exit(0)); };
+const shutdown = () => { persistence.saveNow(); swarm?.save(); void brain.close().finally(() => process.exit(0)); };
 process.on("SIGINT", shutdown);
 process.on("SIGTERM", shutdown);
