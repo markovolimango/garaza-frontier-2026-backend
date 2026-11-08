@@ -21,6 +21,7 @@ import { buildProgress, compactProgress, progressHttp } from "./progress.ts";
 import { exportHttp } from "./export.ts";
 import { MediaStore, mediaHttp, momentsOf } from "./media.ts";
 import { pptxHttp } from "./pptx.ts";
+import { SensorMonitor, sensorsHttp } from "./sensors.ts";
 import { BEHAVIOR_WORDS } from "./observedCoach.ts";
 import { RunLog } from "./runlog.ts";
 import { installSwarm, type Swarm } from "./swarm/index.ts";
@@ -44,6 +45,8 @@ let exportRoutes: ReturnType<typeof exportHttp> | null = null;
 let mediaRoutes: ReturnType<typeof mediaHttp> | null = null;
 let media: MediaStore | null = null;
 let pptxRoutes: ReturnType<typeof pptxHttp> | null = null;
+let sensors: SensorMonitor | null = null;
+let sensorRoutes: ReturnType<typeof sensorsHttp> | null = null;
 let swarm: Swarm | null = null;
 
 // The session saved before the last stop (runs, reports, coach, deck), unless a fresh start was asked for.
@@ -67,6 +70,7 @@ const brain = createBrain({
   },
   // JJ's final narration: per behaviour, first run → last (counts, per minute, share of time), targets' status.
   sessionProgress: () => (runLog ? compactProgress(buildProgress(runLog.list(), brain.session.get())) : null),
+  preRunCheck: () => sensors?.check() ?? { ready: true, hints: [] },
   // JJ's show_moments: one behaviour's moments in the last (or first) finished run, as clips of its recording.
   moments: (kind, which) => {
     const runs = brain.session.get().completedRuns;
@@ -85,6 +89,7 @@ const brain = createBrain({
     || (exportRoutes ? exportRoutes(req, res) : false)
     || (mediaRoutes ? await mediaRoutes(req, res) : false)
     || (pptxRoutes ? await pptxRoutes(req, res) : false)
+    || (sensorRoutes ? sensorRoutes(req, res) : false)
     || (sessionRoutes ? await sessionRoutes(req, res) : false) || (judgesHttp ? judgesHttp(req, res) : false),
 });
 const clock = new RealClock();
@@ -96,6 +101,8 @@ exportRoutes = exportHttp(runLog, () => brain.session.get());
 media = new MediaStore({ dir: sessionDir, sessionId: () => brain.session.get().sessionId, hasRun: (id) => !!runLog?.get(id), log });
 mediaRoutes = mediaHttp(media);
 pptxRoutes = pptxHttp({ log });   // .pptx decks → PDF via PowerPoint on this Mac
+sensors = new SensorMonitor({ hub: brain.hub, clock });   // the pre-run check (camera coach, microphone)
+sensorRoutes = sensorsHttp(sensors);
 sessionRoutes = sessionHttp({ session: brain.session, runLog, persistence });
 runLog.onRunEnded((rec) => { brain.hub.send("stage", { type: "report.ready", payload: { kind: "run", runId: rec.runId } }); });
 brain.session.subscribe((s, cause) => {

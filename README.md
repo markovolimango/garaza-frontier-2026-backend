@@ -46,6 +46,11 @@ ponašanje, bez ličnih ciljeva.
 ~3 s; prvi put macOS pita da li terminal sme da upravlja PowerPoint-om) i zadržava trajanja slajdova iz `.pptx`
 (Transitions → After) kao tajminge prezentera. Bez PowerPoint-a: File → Export → PDF. Test: `pnpm e2e:pptx`.
 
+**Pre runa:** kartica "Before you start" (JJ-ov ekran i izveštaj, između runova) pokazuje da li te kamera vidi
+(bridge između runova drži "standby" coach sesiju samo za status kamere), da li mikrofon radi (nivo) i da li se
+snima. Ne blokira run; ako nešto ne radi, `start_run` JJ-u vrati `not_measured` i on to kaže u jednoj rečenici.
+API: `GET /api/sensors/check`.
+
 **Snimanje:** posle pristanka na ekranu ("Record runs") browser snima kameru i mikrofon tokom runa i šalje
 ih brainu (`data/sessions/<id>/media/`, samo na ovom računaru). JJ posle runa kaže npr. "prekrstio si ruke
 5 puta" i alatom `show_moments` pusti te trenutke na ekranu (±1,5 s oko svake epizode, najviše 5);

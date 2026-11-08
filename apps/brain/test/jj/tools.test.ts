@@ -115,6 +115,16 @@ describe("coach tools", () => {
     expect(session.actions.at(-1)).toEqual({ type: "start_run", mode: "training", level: "gentle" });
   });
 
+  it("start_run tells JJ what the run won't measure (the pre-run check), and starts anyway", async () => {
+    const { tools, session, reports } = setup();
+    session.dispatch({ type: "session_start" });
+    reports.preRunCheck = () => ({ ready: false, hints: ["The camera doesn't see you: step into the frame."] });
+    expect(await tools.invoke("start_run", {}, "jj")).toMatchObject({ ok: true, run_id: "run_1", not_measured: ["The camera doesn't see you: step into the frame."] });
+    session.dispatch({ type: "end_run" });
+    reports.preRunCheck = () => ({ ready: true, hints: [] });
+    expect(await tools.invoke("start_run", {}, "jj")).not.toHaveProperty("not_measured");
+  });
+
   it("set_judge resolves left/center/right by seat and patches one judge", async () => {
     const { tools, session } = setup();
     expect(await tools.invoke("set_judge", { judge: "right", toughness: 1 }, "jj")).toMatchObject({ ok: true, version: 2 });

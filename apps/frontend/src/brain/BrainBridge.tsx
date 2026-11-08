@@ -17,6 +17,7 @@ import { useEffect, useRef, useState, useSyncExternalStore } from "react";
 import { activeSource } from "../signals";
 import { publish } from "../signals/bus";
 import { AgentsPanel } from "./AgentsPanel";
+import { PreRunCheck } from "./PreRunCheck";
 import { BrainSource, type BrainSnapshot } from "./BrainSource";
 import { JJCaptions } from "./JJCaptions";
 import { DECK_ACCEPT, isPptx, pptxToPdf } from "./pptx";
@@ -139,6 +140,9 @@ function Overlay({ snap, brain, jjScreen }: { snap: BrainSnapshot; brain: BrainS
         {snap.recording && <Chip tone="warn">● REC</Chip>}
       </div>
       {snap.moments && <MomentsPlayer m={snap.moments} httpBase={brain.httpBase} onClose={() => brain.closeMoments()} />}
+      {!offline && !snap.moments && (snap.sessionPhase === "intro" || snap.sessionPhase === "debrief") && (
+        <PreRunCheck brain={brain} recording={snap.recordConsent} />
+      )}
       {!offline && snap.countdown === null && <AgentsPanel agents={snap.agents} jjScreen={jjScreen} />}
       {!offline && snap.recordConsent === null && (snap.sessionPhase === "intro" || snap.sessionPhase === "debrief") && RunRecorder.supported() && (
         <div className="pointer-events-auto absolute bottom-6 left-6 w-[min(90vw,26rem)] rounded-xl border border-border bg-card/95 p-4 font-sans text-sm shadow-xl backdrop-blur">

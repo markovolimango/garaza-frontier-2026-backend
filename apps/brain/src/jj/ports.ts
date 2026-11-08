@@ -54,6 +54,8 @@ export interface ReportsPort {
   sessionProgress?(): unknown | null;
   /** One behaviour's moments in a run's recording (the run just finished, or the first one); optional. */
   moments?(kind: BehaviorKind, which: "last" | "first"): MomentsFound | Result;
+  /** Camera coach + microphone right now (the stage's "Before you start" card); optional. */
+  preRunCheck?(): { ready: boolean; hints: string[] };
 }
 
 export interface MomentsFound {

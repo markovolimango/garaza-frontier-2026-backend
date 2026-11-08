@@ -66,6 +66,11 @@ try {
 
   await page.getByRole("button", { name: "Record runs" }).click();
   check("consent card → recording allowed", !!(await waitFor(() => page.evaluate(() => sessionStorage.getItem("coach.recordConsent") === "yes"))));
+  const card = page.getByTestId("pre-run-check");
+  check("pre-run check: camera not seen yet", !!(await waitFor(async () => (await card.textContent())?.includes("no frames yet"))), (await card.textContent().catch(() => ""))?.slice(0, 90));
+  for (let i = 0; i < 3; i++) { void sensor.send("sensor.status", { camera: "ok", fps: 12, posePresent: true }); await sleep(300); }
+  check("pre-run check: the camera sees you", !!(await waitFor(async () => (await card.textContent())?.includes("sees you · 12 fps"))));
+  check("pre-run check: recording on", (await card.textContent())?.includes("on (camera + mic)") === true);
   await page.setInputFiles('input[type=file][accept*="application/pdf"]', join(REPO, "fixtures", "decks", "sample-3-slides.pdf"));
   check("Upload slides on JJ's screen → 3-slide deck", !!(await waitFor(() => op.state.snap?.session?.context?.deck?.slides?.length === 3, 20000)));
   await shot("1-intro");

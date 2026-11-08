@@ -124,6 +124,7 @@ export class FakeContext implements ContextPort {
 export class FakeReports implements ReportsPort {
   reports = new Map<string, unknown>();
   compactRunReport(id: RunId) { return this.reports.get(id) ?? null; }
+  preRunCheck?: () => { ready: boolean; hints: string[] };
 }
 
 export const voiced = (n = 320, amp = 3000) => new Int16Array(n).map((_, i) => (i % 2 ? amp : -amp));

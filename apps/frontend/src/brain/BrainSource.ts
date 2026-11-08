@@ -236,6 +236,9 @@ export class BrainSource implements SignalSource {
 
   closeMoments(): void { this.set({ moments: null }); }
 
+  /** The microphone's current level (0..1), or null before the mic is on. */
+  micLevel(): number | null { return this.micIn ? this.micIn.level : null; }
+
   /** Record while a run is under way (countdown → Q&A) and the presenter agreed; a reset forgets the answer. */
   private syncRecorder(): void {
     const { run, sessionPhase, recordConsent } = this.snap;

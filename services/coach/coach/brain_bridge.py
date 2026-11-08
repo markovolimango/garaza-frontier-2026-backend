@@ -5,7 +5,8 @@ It follows the coach's latest active session and forwards, to the brain
 (github.com/markovolimango/garaza-frontier-2026-backend, default http://127.0.0.1:8787):
 
   body.metrics       -> sensor.status   (role "sensor": camera ok / no_person / error, fps), on change or 1 Hz
-  brain run          -> coach session: created and started when the presentation starts, paused
+  brain run          -> coach session: a standby session between runs (intro, debrief: camera status for
+                        the stage's pre-run check), then one created and started when the presentation starts, paused
                         while JJ is listening, stopped when the run ends, so `vision/run.sh --coach`
                         (or the iPhone app) has a running session to send pose frames to. The session
                         config comes from services/coach/tuning.json (--tuning), re-read for every run.
@@ -175,12 +176,32 @@ def vignette_for(feedback: dict, run: dict | None, session_phase: str | None, *,
             "holdMs": hold_ms(feedback, now)}
 
 
+STANDBY = "standby"
+STANDBY_PHASES = {"intro", "debrief"}
+
+
+def session_target(run: dict | None, session_phase: str | None) -> str | None:
+    """Which coach session the brain's state wants: the live run's id, STANDBY (between runs: the
+    camera check before the next run), or None (no session)."""
+    if run and session_phase == "running" and run.get("phase") in LIVE_RUN_PHASES:
+        return run.get("runId")
+    return STANDBY if session_phase in STANDBY_PHASES else None
+
+
 def coach_session_plan(current: dict | None, run: dict | None, session_phase: str | None) -> list[str]:
     """Brain run -> actions on the coach session the bridge owns ({"id", "run_id", "state"} or None).
-    The session spans the presentation and the Q&A, and pauses while JJ is listening."""
+    The session spans the presentation and the Q&A, and pauses while JJ is listening. Between runs
+    (intro, debrief) a standby session keeps pose frames flowing, so the stage's pre-run check knows
+    whether the camera sees the presenter; it reports camera status only (behaviours, observations and
+    vignettes are sent for live runs only)."""
     alive = bool(current) and current["state"] != "ended"
-    if not (run and session_phase == "running" and run.get("phase") in LIVE_RUN_PHASES):
+    target = session_target(run, session_phase)
+    if target is None:
         return ["stop"] if alive else []
+    if target == STANDBY:
+        if alive and current["run_id"] == STANDBY:
+            return ["resume"] if current["state"] == "paused" else []
+        return (["stop"] if alive else []) + ["create", "start"]
     want = "paused" if run.get("paused") else "running"
     if not alive or current["run_id"] != run.get("runId"):
         return (["stop"] if alive else []) + ["create", "start"] + (["pause"] if want == "paused" else [])
@@ -332,7 +353,7 @@ class Bridge:
             client = CoachClient(self.coach_url, self.token())
             try:
                 if action == "create":
-                    label = f"brain {(self.run_state or {}).get('runId', '')}"
+                    label = f"brain {session_target(self.run_state, self.session_phase) or ''}"
                     config = load_tuning(self.tuning, log) if self.tuning else None   # invalid -> logged, defaults
                     try:
                         return client.create_session(label=label, timeline="live", config=config)
@@ -352,7 +373,7 @@ class Bridge:
                 self.coach_session["state"] = "ended"   # gone or already ended: don't keep retrying
             return False
         if action == "create":
-            self.coach_session = {"id": session["session_id"], "run_id": (self.run_state or {}).get("runId"),
+            self.coach_session = {"id": session["session_id"], "run_id": session_target(self.run_state, self.session_phase),
                                   "state": session.get("state", "created")}
             self._created.append(session["session_id"])
         else:

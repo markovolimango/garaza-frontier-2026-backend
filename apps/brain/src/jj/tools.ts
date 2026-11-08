@@ -211,7 +211,11 @@ export function createCoachTools(deps: CoachToolDeps, registry: ToolRegistry): T
   reg("start_run",
     "Start a run (countdown, slides, then Q&A). Omit mode and level to follow the coach recommendation; pass them only when the user asks to deviate.",
     "BLOCKING",
-    async (a) => toTool(dispatch({ type: "start_run", ...(a.mode ? { mode: a.mode } : {}), ...(a.level ? { level: a.level } : {}) }), runInfo()));
+    async (a) => {
+      const check = reports.preRunCheck?.();   // the run starts anyway; JJ says what isn't measured
+      const r = dispatch({ type: "start_run", ...(a.mode ? { mode: a.mode } : {}), ...(a.level ? { level: a.level } : {}) });
+      return toTool(r, { ...runInfo(), ...(r.ok && check && !check.ready ? { not_measured: check.hints } : {}) });
+    });
 
   reg("end_run", "End the current run early. The partial run is kept and reported.", "BLOCKING", async () => {
     const id = session.get().run?.runId;

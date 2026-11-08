@@ -119,9 +119,18 @@ def test_coach_session_follows_the_brain_run():
     assert coach_session_plan(mine(), run(paused=True), "running") == ["pause"]       # JJ is listening
     assert coach_session_plan(mine("paused"), run(), "running") == ["resume"]
     assert coach_session_plan(mine(), run("ended"), "running") == ["stop"]
-    assert coach_session_plan(mine(), None, "debrief") == ["stop"]
-    assert coach_session_plan(mine("ended"), None, "debrief") == []
     assert coach_session_plan(mine(), run(run_id="run_2"), "running") == ["stop", "create", "start"]
+    # between runs: a standby session for the pre-run camera check; none in setup / final
+    standby = lambda state="running": mine(state, run_id="standby")
+    assert coach_session_plan(mine(), None, "debrief") == ["stop", "create", "start"]
+    assert coach_session_plan(mine("ended"), None, "debrief") == ["create", "start"]
+    assert coach_session_plan(None, None, "intro") == ["create", "start"]
+    assert coach_session_plan(standby(), None, "intro") == []
+    assert coach_session_plan(standby("paused"), None, "debrief") == ["resume"]
+    assert coach_session_plan(standby(), run("countdown"), "running") == ["stop"]       # the run's own comes next
+    assert coach_session_plan(standby(), run(), "running") == ["stop", "create", "start"]
+    assert coach_session_plan(standby(), None, "setup") == ["stop"]
+    assert coach_session_plan(standby(), None, "final") == ["stop"]
 
 
 def test_bridge_runs_session_actions_in_order_and_once():
@@ -270,7 +279,7 @@ def test_run_sessions_use_the_tuning_file(tmp_path, monkeypatch, caplog):
 
     async def create(path):
         b = Bridge("http://coach", "http://brain", lambda: "t", tuning=path)
-        b.run_state = {"runId": "run_3"}
+        b.run_state, b.session_phase = {"runId": "run_3", "phase": "presentation"}, "running"
         return await b._session_action("create")
 
     FakeCoach.created = []
@@ -309,10 +318,10 @@ def test_a_reset_brain_session_deletes_its_coach_sessions(monkeypatch):
             await b._session_task
             b._on_brain({"type": "run.state", "payload": {"run": {**LIVE, "runId": run_id, "phase": "ended"}, "sessionPhase": "debrief"}})
             await b._session_task
-        assert Coach.deleted == [] and b._created == ["ses_1", "ses_2"]
+        assert Coach.deleted == [] and b._created == ["ses_1", "ses_2", "ses_3", "ses_4"]   # run, standby, run, standby
         b._on_brain({"type": "run.state", "payload": {"run": None, "sessionPhase": "setup"}})   # "Delete and start over"
         await b._session_task
         return b
 
     b = asyncio.run(scenario())
-    assert Coach.deleted == ["ses_2"] and b._created == [] and b.coach_session is None
+    assert Coach.deleted == ["ses_2", "ses_3", "ses_4"] and b._created == [] and b.coach_session is None
