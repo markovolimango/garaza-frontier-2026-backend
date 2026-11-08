@@ -25,6 +25,9 @@ export const BrainConfig = z.object({
   SWARM_REPORT_MODEL: z.string().default("gemini-3.5-flash-lite"),
   SWARM_LISTENER_MODEL: z.string().default("gemini-3.1-flash-live-preview"),
   SWARM_VIDEO_MODEL: z.string().default("gemini-3.5-flash-lite"),
+  /** 1 = after each run the body agent uploads the recording to Gemini (Files API), asks once, deletes it
+   *  there right after (swarm/body.ts reads it from the env). 0 = recordings never leave this computer. */
+  SWARM_VIDEO_ANALYSIS: z.enum(["0", "1"]).default("1"),
   /** Judge TTS (voices/judgeVoice.ts). Empty = judges send actor.say/gestures but no audio. Independent of JJ_FAKE. */
   ELEVENLABS_API_KEY: z.string().default(""),
   /** Comma-separated ElevenLabs voiceIds for judge_1..judge_4; empty entries fall back to premade defaults. */

@@ -139,7 +139,7 @@ function Overlay({ snap, brain, jjScreen }: { snap: BrainSnapshot; brain: BrainS
       {!offline && snap.recordConsent === null && (snap.sessionPhase === "intro" || snap.sessionPhase === "debrief") && RunRecorder.supported() && (
         <div className="pointer-events-auto absolute bottom-6 left-6 w-[min(90vw,26rem)] rounded-xl border border-border bg-card/95 p-4 font-sans text-sm shadow-xl backdrop-blur">
           <p className="font-medium text-foreground">Record your runs so JJ can show you moments?</p>
-          <p className="mt-1 text-muted-foreground">Camera and microphone, only during runs. It stays on this computer; "Delete and start over" erases it.</p>
+          <p className="mt-1 text-muted-foreground">Camera and microphone, only during runs. It is kept on this computer ("Delete and start over" erases it); after each run it is sent to Google Gemini for analysis and deleted there right after.</p>
           <div className="mt-3 flex gap-2">
             <button type="button" onClick={() => brain.setRecordConsent("yes")} className="rounded-full bg-primary px-3 py-1 text-primary-foreground hover:bg-primary/90">Record runs</button>
             <button type="button" onClick={() => brain.setRecordConsent("no")} className="rounded-full border border-border px-3 py-1 hover:bg-accent">Not now</button>
