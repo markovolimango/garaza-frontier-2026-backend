@@ -1,5 +1,7 @@
-import { createFileRoute } from "@tanstack/react-router";
-import { NextButton } from "@/components/NextButton";
+import { ClientOnly, createFileRoute } from "@tanstack/react-router";
+import { lazy, Suspense } from "react";
+
+const JudgesStage = lazy(() => import("@/components/JudgesStage").then((m) => ({ default: m.JudgesStage })));
 
 export const Route = createFileRoute("/judges")({
   head: () => ({
@@ -8,12 +10,15 @@ export const Route = createFileRoute("/judges")({
       { name: "description", content: "Face the judges after your pitch." },
       { property: "og:title", content: "Judges — Pitch Practice" },
       { property: "og:description", content: "Face the judges after your pitch." },
+      { property: "og:type", content: "website" },
+      { name: "twitter:card", content: "summary_large_image" },
     ],
   }),
   component: () => (
-    <main className="flex h-screen flex-col items-center justify-center gap-10">
-      <h1 className="text-8xl font-semibold tracking-tight">JUDGES</h1>
-      <NextButton to="/report" label="Report" />
-    </main>
+    <ClientOnly>
+      <Suspense fallback={null}>
+        <JudgesStage />
+      </Suspense>
+    </ClientOnly>
   ),
 });

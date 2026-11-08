@@ -32,3 +32,5 @@ use the editor.
 - Live data flows only through the typed bus in src/signals; components subscribe to it and never import a source directly, so sources can be swapped in src/signals/index.ts.
 - Screen-scoped colors are sampled once on mount and applied as inline custom properties (see src/signals/useJjMood.ts and moodOrbPalette), so a screen keeps one color for its whole visit instead of following a live channel.
 - Debug reloads JJ by publishing a selected mood followed by a typed reload signal that remounts the screen, preserving the sample-on-mount behavior without reloading the whole app.
+- Never create or modify anything under src/judges/ or public/judges/: a teammate builds the 3D judges directly in GitHub, so edits there collide with their commits. The JUDGES screen now integrates their handed-off scene; preserve /judges-demo.
+- JudgesStage is a client-only adapter for the teammate's scene and useJudgesLive hook; Debug sends typed judgeCommand signals, keeping controls decoupled from the scene. The app defaults to mock/WebSpeech unless source=backend explicitly opts into the brain.
