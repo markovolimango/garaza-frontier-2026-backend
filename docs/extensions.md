@@ -19,6 +19,18 @@ Lanes: `lead` (protocol), `brain`, `sensing`, `agents`, `stage`, `report`.
 
 ---
 
+### 2026-11-08T01:44+01:00 · stage · Brain judges on the real judges screen (`JudgeRelay`, `judgeCommand` `speak`)
+- **Where:** `apps/frontend/src/brain/judges.ts` (new), `BrainSource.ts`; tagged edits in `apps/frontend/src/signals/judges.ts` and `src/components/JudgesStage.tsx`; `e2e/frontend-brain.mjs`
+- **What:** BrainSource turns `actor.say` / `actor.gesture` for judge_1..4 into bus `judgeCommand`s: `speak` (new variant: `level()` from that source's audio, `done` when its playback ends) once the judge's audio starts, `say` when none comes within 2.5 s, `react` for gestures. The e2e finds Chrome on macOS, warms Vite up before the first click, and adds a second run that checks the 3D judges and a `POST /debug/judge-say` subtitle (30 checks).
+- **Why:** Lovable put Marko's scene on `/judges` with its own `BackendSource`, which would take the stage role from BrainSource (one connection per role); under the brain the judges got no brain messages.
+- **Impact:** stage: keep `JudgesStage` in mock mode under the brain. Director: judge lines reach the screen through `speakJudge` with no further wiring. Lovable: keep the `speak` branch when editing `JudgesStage`.
+
+### 2026-11-08T01:44+01:00 · lead · pnpm lockfile includes the 3D judges dependencies
+- **Where:** `pnpm-lock.yaml`
+- **What:** `three`, `@types/three`, `@react-three/fiber`, `@react-three/drei` (added to `apps/frontend/package.json` by hand) are now in the lockfile.
+- **Why:** `pnpm install --frozen-lockfile` failed after the frontend subtree pull.
+- **Impact:** none.
+
 ### 2026-11-08T00:30+01:00 · agents · Judge voices (ElevenLabs) + `POST /debug/judge-say`
 - **Where:** `apps/brain/src/voices/judgeVoice.ts` (`JudgeVoices`, `speakJudge`, `judgeVoicesHttp`, `DEFAULT_JUDGE_VOICE_IDS`), wired in `apps/brain/src/server.ts` via the `http` option; config keys `ELEVENLABS_API_KEY`, `JUDGE_VOICE_IDS` in `apps/brain/src/config.ts`
 - **What:** `speakJudge(judge_N, text)` queues one utterance at a time: `actor.gesture talk` → `actor.say {utteranceId: judge_N_uK, source: N}` → ElevenLabs streaming TTS (`eleven_flash_v2_5`, `pcm_24000`) forwarded on `/ws/audio` with JJ's framing (start flag on the first frame, empty end-flagged frame) → waits for the stage's `audio.playback` ended/stopped (fallback: audio length + 1.5 s) → `actor.gesture idle`. `JUDGE_VOICE_IDS` (comma-separated, judge_1..4) defaults to premade Rachel, Adam, Antoni, Sarah. No key → say + gestures only, audio skipped and logged; independent of `JJ_FAKE`. Debug: `POST /debug/judge-say {judge: 1-4, text}` → 202 `{ok, actorId, utteranceId, voiceId}`.

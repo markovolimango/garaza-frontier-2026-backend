@@ -17,6 +17,10 @@ export function JudgesStage() {
   useEffect(() => {
     const unsubscribe = subscribe("judgeCommand", (command) => {
       if (command.type === "say") sayRef.current(command.judge, command.text);
+      else if (command.type === "speak") {   // brain integration: judge audio from the brain
+        const stop = judges.current?.speak(command.judge, command.text, command.level);
+        void command.done.then(() => stop?.());
+      }
       else judges.current?.react(command.judge, command.reaction);
     });
     publish("judgesReady", true);

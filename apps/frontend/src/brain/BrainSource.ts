@@ -7,7 +7,8 @@
  *   slide.show     → bus "slideCommand" (presenter jumps)
  *   bus "slide"    → slide.changed (only during the presentation)
  *   bus "deckFile" → POST /api/uploads/deck, then session.start
- *   scene.apply    → ack (no room view yet, so applying is immediate)
+ *   scene.apply    → ack (the room has no scene ops yet, so applying is immediate)
+ *   actor.say / actor.gesture / judge audio → bus "judgeCommand" (JudgeRelay, judges screen)
  *   JJ audio level → bus "orbLevel"
  */
 import type { Deck, DownlinkPayload, JJState, RunState, SessionPhase, ToolName, ToolResult, UplinkPayload, UplinkType } from "@coach/protocol";
@@ -16,6 +17,7 @@ import { getLast, publish, subscribe } from "../signals/bus";
 import type { SignalSource } from "../signals/sources/types";
 import { AudioOut, MicIn } from "./audio";
 import { pdfToSlides, uploadDeck } from "./deck";
+import { JudgeRelay } from "./judges";
 import { feedbackToBus, orbTarget, reportsSlides } from "./mapping";
 
 export interface BrainSourceOptions {
@@ -65,6 +67,8 @@ export class BrainSource implements SignalSource {
   private toastId = 0;
   private paused = false;
   private started = false;
+  /** Judge messages → bus judgeCommand (the judges screen must not open a second stage connection). */
+  private readonly judges = new JudgeRelay({ publish: (c) => publish("judgeCommand", c), level: (s) => this.audioOut?.level(s) ?? 0 });
 
   constructor(private readonly o: BrainSourceOptions) {
     const ws = o.httpBase.replace(/^http/, "ws");
@@ -91,7 +95,8 @@ export class BrainSource implements SignalSource {
     c.on("scene.sync", (p) => this.set({ deck: p.deck }));
     c.on("scene.apply", (p) => { c.send("ack", { batchId: p.batchId, version: p.version, ok: true }); });
     c.on("jj.state", (p) => this.set({ jj: p }));
-    c.on("actor.say", (p) => { this.audioOut?.utterances.set(p.source, p.utteranceId); this.set({ lastSay: p }); });
+    c.on("actor.say", (p) => { this.audioOut?.utterances.set(p.source, p.utteranceId); this.set({ lastSay: p }); this.judges.say(p); });
+    c.on("actor.gesture", (p) => this.judges.gesture(p));
     c.on("audio.stop", (p) => this.audioOut?.stop(p.source));
     c.on("hud.toast", (p) => this.toast(p.text, p.level));
     c.on("error", (p) => this.toast(p.message, "warn"));
@@ -118,6 +123,7 @@ export class BrainSource implements SignalSource {
     this.client.close();
     this.audioOut?.close();
     this.micIn?.close();
+    this.judges.clear();
     this.started = false;
   }
 
@@ -161,7 +167,7 @@ export class BrainSource implements SignalSource {
   unlockAudio(): void {
     if (this.o.audio === false || typeof window === "undefined" || typeof AudioContext === "undefined") return;
     if (!this.audioOut) {
-      this.audioOut = new AudioOut(`${this.wsBase}/ws/audio`, (p) => this.send("audio.playback", p));
+      this.audioOut = new AudioOut(`${this.wsBase}/ws/audio`, (p) => { this.send("audio.playback", p); this.judges.playback(p); });
       this.micIn = new MicIn(`${this.wsBase}/ws/mic`);
       void this.micIn.start().catch((err) => this.toast(`Microphone unavailable: ${String(err)}`, "warn"));
     }

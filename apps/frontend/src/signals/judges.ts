@@ -2,7 +2,9 @@ import type { JudgeIndex, JudgeReaction } from "@/judges/types";
 
 export type JudgeCommand =
   | { type: "say"; judge: JudgeIndex; text: string }
-  | { type: "react"; judge: JudgeIndex; reaction: JudgeReaction };
+  | { type: "react"; judge: JudgeIndex; reaction: JudgeReaction }
+  /** brain integration: the brain's judge audio is playing; level() drives the scene until done. */
+  | { type: "speak"; judge: JudgeIndex; text: string; level: () => number; done: Promise<void> };
 
 export const JUDGE_TEST_LINES = [
   "Who is paying for this today, and how much?",

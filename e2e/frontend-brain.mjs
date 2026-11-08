@@ -3,13 +3,13 @@
 // Needs, already running:
 //   brain:     JJ_FAKE=1 pnpm dev:brain                       (fresh session, port 8787)
 //   frontend:  pnpm dev:frontend                               (VITE_SIGNAL_SOURCE=brain, port 5174)
-// Then:        pnpm e2e:browser   (CHROME=/path/to/chrome to override the browser)
+// Then:        pnpm e2e:browser   (Chrome on macOS or /usr/bin/google-chrome; CHROME=/path/to/chrome overrides)
 // Screenshots: data/e2e/shot-*.png
 import { chromium } from "playwright-core";
 import WebSocket from "ws";
 import { fileURLToPath } from "node:url";
 import { dirname, join } from "node:path";
-import { mkdirSync } from "node:fs";
+import { existsSync, mkdirSync } from "node:fs";
 
 const HERE = dirname(fileURLToPath(import.meta.url));
 const REPO = join(HERE, "..");
@@ -33,11 +33,25 @@ await new Promise((r) => op.on("open", r));
 op.send(JSON.stringify(env("hello", { role: "operator", clientId: "e2e", protocol: 1 })));
 const opSend = (type, payload) => { const e = env(type, payload); op.send(JSON.stringify(e)); return new Promise((r) => { replies.set(e.id, r); setTimeout(() => r(null), 5000); }); };
 
+const CHROMES = ["/Applications/Google Chrome.app/Contents/MacOS/Google Chrome", "/usr/bin/google-chrome"];
 const browser = await chromium.launch({
-  executablePath: process.env.CHROME ?? "/usr/bin/google-chrome", headless: true,
-  args: ["--use-fake-ui-for-media-stream", "--use-fake-device-for-media-stream", "--autoplay-policy=no-user-gesture-required"],
+  executablePath: process.env.CHROME ?? CHROMES.find((p) => existsSync(p)) ?? CHROMES[1], headless: true,
+  args: ["--use-fake-ui-for-media-stream", "--use-fake-device-for-media-stream", "--autoplay-policy=no-user-gesture-required",
+    "--enable-unsafe-swiftshader", "--ignore-gpu-blocklist"],   // WebGL for the 3D judges
 });
 const ctx = await browser.newContext({ viewport: { width: 1920, height: 1080 }, permissions: ["microphone"] });
+
+// Vite optimizes dependencies on the first visit and then reloads the page, which drops the audio
+// and mic unlocked by the first click. Load the app's modules on a throwaway page first.
+{
+  const warm = await ctx.newPage();
+  await warm.goto(FE + "/", { waitUntil: "load" });
+  await warm.evaluate(() => Promise.all(["/src/components/JudgesStage.tsx", "/src/routes/presenter.tsx"]
+    .map((m) => import(/* @vite-ignore */ m).catch(() => null))));
+  await sleep(3000);
+  await warm.close();
+  await waitFor(async () => !(await health()).connected.includes("stage"), 5000);
+}
 const page = await ctx.newPage();
 const errors = [];
 page.on("pageerror", (e) => errors.push(`pageerror: ${e.message}`));
@@ -104,6 +118,22 @@ try {
 
   await page.reload({ waitUntil: "networkidle" });
   check("reload restores the brain's view (/report)", !!(await waitFor(() => path() === "/report")), path());
+
+  // second run, straight to the judges: the 3D scene runs on BrainSource's connection (bus judgeCommand)
+  await page.mouse.click(960, 540);   // unlock audio again after the reload
+  await page.keyboard.press("2");
+  check("run 2 → presentation", !!(await waitFor(() => snap?.session?.run?.index === 2 && snap?.session?.run?.phase === "presentation", 10000)));
+  await page.keyboard.press("3");
+  check("run 2 → Q&A room (/judges)", !!(await waitFor(async () => snap?.session?.run?.phase === "qa" && path() === "/judges")), path());
+  check("judges screen renders the 3D scene", !!(await waitFor(async () => (await page.locator("canvas").count()) > 0, 20000)));
+  const line = "What does your retention look like after a week?";
+  const said = await waitFor(async () => {   // the scene loads its models first; the brain queues lines one at a time
+    await fetch(`${BRAIN}/debug/judge-say`, { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ judge: 2, text: line }) });
+    return waitFor(async () => (await page.locator(`text=${line}`).count()) > 0, 5000);
+  }, 45000, 200);
+  check("brain judge line (actor.say) → subtitle on the judges screen", !!said);
+  await shot("7-judges");
+  check("judges screen keeps the single stage connection", (await health()).connected.includes("stage") && (await page.locator("text=Opened in another tab").count()) === 0);
 } catch (e) {
   check("script", false, String(e));
 } finally {

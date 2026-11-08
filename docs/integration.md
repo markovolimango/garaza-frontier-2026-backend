@@ -293,6 +293,7 @@ all in **`src/brain/` (new files only, never touched by Lovable)**:
 | `mapping.ts` | pure protocol ⇄ bus/screen mapping (unit tested) |
 | `audio.ts` | JJ playback (24 kHz, flush on `audio.stop`, `audio.playback` reports) and mic capture (16 kHz worklet) |
 | `deck.ts` | PDF → 1920 px PNGs + text (pdf.js) → `POST /api/uploads/deck` |
+| `judges.ts` | `JudgeRelay`: `actor.say` / `actor.gesture` / judge audio → bus `judgeCommand` for the judges screen |
 | `brain-integration.itest.ts` | BrainSource against a real brain (`vitest.brain.config.ts`) |
 
 | Brain | Bus / screen |
@@ -302,6 +303,8 @@ all in **`src/brain/` (new files only, never touched by Lovable)**:
 | JJ audio level (speaking) / mic level (listening) | `orbLevel` |
 | `ui.state.view` setup, jj, slides, room, report, final | `/presenter`, `/`, `/presenter`, `/judges`, `/report`, `/report` |
 | `slide.show` | `slideCommand` → presenter jumps |
+| `actor.say` judge_1..4 + its audio | `judgeCommand` `speak` (subtitle, glow from that source's level, until the audio ends); no audio within 2.5 s → `say` |
+| `actor.gesture` judge_1..4 | `judgeCommand` `react` (Marko's gesture table) |
 | presenter `slide` (during the presentation) | `slide.changed` |
 | PDF loaded in the presenter (`deckFile`) | deck upload, then `session.start` |
 | Next / keys 1–4: JJ→Presenter, Presenter→Judges, Judges→Report | `start_run`, `presentation.done`, `end_run`; other moves snap back with a hint |
@@ -311,15 +314,18 @@ pull conflicts rarely and obviously: `package.json` (`@coach/protocol`, `@coach/
 `zod` 4.6.6), `src/signals/bus.ts` (+`slideCommand`, `deckFile`), `src/signals/index.ts`
 (source switch on `VITE_SIGNAL_SOURCE`), `src/routes/__root.tsx` (mount `<BrainBridge/>`),
 `src/routes/presenter.tsx` (publish `deckFile`, follow `slideCommand`, re-open the deck on
-mount). The mock stays the default, so the Lovable preview keeps working.
+mount), `src/signals/judges.ts` (+`speak` command), `src/components/JudgesStage.tsx` (play `speak`). The mock stays the default, so the Lovable preview keeps working.
 
 **Rules for the Lovable side** (pass these to Lovable when prompting):
 
 - Keep `zod` at 4.x. With zod 3 in the frontend, the SSR bundle resolves `@coach/protocol` to
   zod 3 and every server render crashes.
 - Components read live data only from the bus; add new data as bus channels.
-- The judges and report screens are still placeholders: when built, the room must apply
-  `scene.apply` ops in one frame before acking (today BrainSource acks immediately), and the
-  report screen fetches `GET /api/runs/:runId/report` on `report.ready`.
+- The judges screen (`JudgesStage`, Marko's scene) plays bus `judgeCommand`s; under the brain,
+  BrainSource feeds them (`judges.ts`). Keep it in its default mock mode there: `?source=backend`
+  opens `src/judges/live/BackendSource`, a second stage connection that replaces BrainSource's.
+  When scene ops matter, the room must apply `scene.apply` in one frame before acking (today
+  BrainSource acks immediately). The report screen is still a placeholder: it should fetch
+  `GET /api/runs/:runId/report` on `report.ready`.
 - The presenter forgets its PDF when the screen unmounts; BrainSource re-feeds it, but a
   persistent deck (kept above the routes) would remove the reload during the countdown.
