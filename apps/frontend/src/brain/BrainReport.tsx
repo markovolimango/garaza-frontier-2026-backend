@@ -5,12 +5,13 @@
  *   judges' questions, strengths and the next run;
  * - Progress: run 1 → 2 → 3 (`GET /api/progress`, SessionProgress, BrainProgress.tsx). The brain's
  *   final view opens on it; after two runs the run tab shows its headline.
+ * The behaviour JJ is talking about (report.focus) lights up on both tabs.
  * The progress tab also has "Export report" (the brain's printable page, GET /api/session/export.html)
  * and "Delete and start over" (POST /api/session/reset: erases the session from the brain's disk).
  * The "Next run" bar comes from BrainBridge.
  */
-import type { RunDigest, SessionProgress } from "@coach/protocol";
-import { useEffect, useState, useSyncExternalStore, type ReactNode } from "react";
+import type { BehaviorKind, RunDigest, SessionProgress } from "@coach/protocol";
+import { useEffect, useRef, useState, useSyncExternalStore, type ReactNode } from "react";
 import { NextButton } from "../components/NextButton";
 import { activeSource } from "../signals";
 import { ProgressView } from "./BrainProgress";
@@ -59,7 +60,7 @@ function Report({ brain }: { brain: BrainSource }) {
   if (!runId) return <Empty text="No run yet. Start one from JJ's screen." />;
   if (error) return <Empty text={`Couldn't load the report (${error}).`} />;
   if (!digest) return <Empty text="Loading the report…" />;
-  return <ReportView d={digest} progress={progress} tab={tab} onTab={setTab} actions={<SessionActions brain={brain} />}
+  return <ReportView d={digest} progress={progress} tab={tab} onTab={setTab} focus={snap.focus} actions={<SessionActions brain={brain} />}
     analysis={<RunAnalysis httpBase={brain.httpBase} runId={digest.runId} />} sessionAnalysis={<SessionAnalysis httpBase={brain.httpBase} />} />;
 }
 
@@ -92,11 +93,17 @@ function Empty({ text }: { text: string }) {
   return <main className="flex h-screen items-center justify-center text-lg text-muted-foreground">{text}</main>;
 }
 
-export function ReportView({ d, progress = null, tab = "run", onTab, actions = null, analysis = null, sessionAnalysis = null }: {
+export function ReportView({ d, progress = null, tab = "run", onTab, focus = null, actions = null, analysis = null, sessionAnalysis = null }: {
   d: RunDigest; progress?: SessionProgress | null; tab?: ReportTab; onTab?: (t: ReportTab) => void; actions?: ReactNode;
+  /** The behaviour JJ is talking about (report.focus, JJ's highlight_pattern): its card lights up. */
+  focus?: BehaviorKind | null;
   /** The swarm reporter's run / session analysis (CoachAnalysis.tsx). */
   analysis?: ReactNode; sessionAnalysis?: ReactNode;
 }) {
+  const main = useRef<HTMLElement>(null);
+  useEffect(() => {
+    if (focus) main.current?.querySelector("[data-focus]")?.scrollIntoView?.({ block: "nearest", behavior: "smooth" });
+  }, [focus, tab]);
   const total = d.durations.presentationMs + d.durations.qaMs;
   const maxDwell = Math.max(1, ...d.slides.map((s) => s.dwellMs));
   const tabs = progress && progress.runs.length > 0 && onTab ? (
@@ -111,7 +118,7 @@ export function ReportView({ d, progress = null, tab = "run", onTab, actions = n
   ) : null;
   if (tab === "progress" && progress) {
     return (
-      <main className="mx-auto flex h-screen max-w-[1760px] flex-col gap-6 overflow-y-auto px-10 pb-36 pt-10">
+      <main ref={main} className="mx-auto flex h-screen max-w-[1760px] flex-col gap-6 overflow-y-auto px-10 pb-36 pt-10">
         <header className="flex flex-wrap items-end justify-between gap-4">
           <div>
             <p className="font-mono text-xs uppercase tracking-widest text-muted-foreground">Report · progress</p>
@@ -120,12 +127,12 @@ export function ReportView({ d, progress = null, tab = "run", onTab, actions = n
           <div className="flex items-center gap-4">{tabs}{actions}<NextButton to="/" label="Back to JJ" /></div>
         </header>
         {sessionAnalysis}
-        <ProgressView p={progress} />
+        <ProgressView p={progress} focus={focus} />
       </main>
     );
   }
   return (
-    <main className="mx-auto flex h-screen max-w-[1760px] flex-col gap-6 overflow-y-auto px-10 pb-36 pt-10">
+    <main ref={main} className="mx-auto flex h-screen max-w-[1760px] flex-col gap-6 overflow-y-auto px-10 pb-36 pt-10">
       <header className="flex flex-wrap items-end justify-between gap-4">
         <div>
           <p className="font-mono text-xs uppercase tracking-widest text-muted-foreground">Report · run {d.index}</p>
@@ -158,7 +165,8 @@ export function ReportView({ d, progress = null, tab = "run", onTab, actions = n
           {d.sources.coach && d.observations.length === 0 && <p className="text-sm text-muted-foreground">Nothing flagged. A clean run.</p>}
           <ul className="space-y-3">
             {d.observations.map((o) => (
-              <li key={o.rule} className="rounded-lg border border-border bg-background/40 p-3">
+              <li key={o.rule} data-focus={focus !== null && o.kind === focus ? "" : undefined}
+                className={`rounded-lg border p-3 transition-shadow ${focus !== null && o.kind === focus ? "border-primary bg-primary/10 ring-2 ring-primary" : "border-border bg-background/40"}`}>
                 <div className="flex items-center justify-between gap-2">
                   <span className="font-medium">{o.label}</span>
                   <span className="flex items-center gap-2">

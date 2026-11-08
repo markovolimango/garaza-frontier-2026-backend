@@ -41,6 +41,16 @@ describe("brain report screen", () => {
     expect(screen.getByText("Next run with gentle live feedback on swaying.")).toBeTruthy();
   });
 
+  it("lights up the behaviour JJ is talking about (report.focus), and nothing for null", () => {
+    const { container, rerender } = render(<ReportView d={digest} focus="sway" />);
+    const lit = container.querySelectorAll("[data-focus]");
+    expect(lit).toHaveLength(1);
+    expect(lit[0]!.textContent).toContain("Moving around / swaying");
+    expect(lit[0]!.className).toContain("ring-2");
+    rerender(<ReportView d={digest} focus={null} />);
+    expect(container.querySelectorAll("[data-focus]")).toHaveLength(0);
+  });
+
   it("says when the camera coach was not connected", () => {
     render(<ReportView d={{ ...digest, observations: [], strengths: [], sources: { coach: false } }} />);
     expect(screen.getByText(/camera coach wasn't connected/)).toBeTruthy();
@@ -75,6 +85,13 @@ describe("progress across runs", () => {
     expect(screen.getByText("—")).toBeTruthy();                             // run 2 without the camera coach
     expect(screen.getByText("90")).toBeTruthy();                            // coach score after run 3
     expect(screen.getByText(/Fading the feedback out/)).toBeTruthy();
+  });
+
+  it("lights up the row of the behaviour JJ is talking about", () => {
+    const { container } = render(<ProgressView p={progress} focus="sway" />);
+    const lit = container.querySelectorAll("[data-focus]");
+    expect(lit).toHaveLength(1);
+    expect(lit[0]!.textContent).toContain("Moving around / swaying");
   });
 
   it("the run report links to it after two runs", () => {

@@ -5,7 +5,7 @@
  * per minute and the share of the run it took, the trend from the first measured run to the last
  * (per minute), and the targets' status.
  */
-import type { ProgressRow, ProgressRun, SessionProgress } from "@coach/protocol";
+import type { BehaviorKind, ProgressRow, ProgressRun, SessionProgress } from "@coach/protocol";
 import { fmtMs } from "./BrainReport";
 
 const MODE: Record<ProgressRun["mode"], string> = { baseline: "Baseline", training: "Training", test: "Test" };
@@ -19,7 +19,8 @@ const TREND: Record<ProgressRow["trend"], { icon: string; text: string; cls: str
   worse: { icon: "↑", text: "worse", cls: "text-amber-400" },
 };
 
-export function ProgressView({ p }: { p: SessionProgress }) {
+/** `focus`: the behaviour JJ is talking about (report.focus): its row lights up. */
+export function ProgressView({ p, focus = null }: { p: SessionProgress; focus?: BehaviorKind | null }) {
   if (p.runs.length === 0) return <p className="text-muted-foreground">No finished run yet. Progress appears after the first run.</p>;
   const max = Math.max(1, ...p.rows.flatMap((r) => r.counts.map((c) => c ?? 0)));
   const cols = { gridTemplateColumns: `minmax(14rem, 1.4fr) repeat(${p.runs.length}, minmax(6rem, 1fr)) 7rem` };
@@ -49,7 +50,7 @@ export function ProgressView({ p }: { p: SessionProgress }) {
             </p>
           )}
           {p.rows.map((row) => (
-            <Row key={row.rule} row={row} max={max} />
+            <Row key={row.rule} row={row} max={max} lit={focus !== null && row.kind === focus} />
           ))}
 
           <span className="border-t border-border pt-3 text-sm text-muted-foreground">Coach score</span>
@@ -70,11 +71,11 @@ export function ProgressView({ p }: { p: SessionProgress }) {
   );
 }
 
-function Row({ row, max }: { row: ProgressRow; max: number }) {
+function Row({ row, max, lit }: { row: ProgressRow; max: number; lit: boolean }) {
   const trend = TREND[row.trend];
   return (
     <>
-      <div className="flex items-center gap-2 border-t border-border py-3">
+      <div data-focus={lit ? "" : undefined} className={`flex items-center gap-2 border-t py-3 ${lit ? "rounded-md border-primary bg-primary/10 px-2 ring-2 ring-primary" : "border-border"}`}>
         <span className="font-medium">{row.label}</span>
         {row.isTarget && <span className="rounded-full border border-primary/60 px-2 text-xs text-primary">target</span>}
         {row.status === "fixed" && <span className="rounded-full border border-emerald-500/60 px-2 text-xs text-emerald-400">fixed</span>}

@@ -9,8 +9,8 @@
  * - Hold J = push-to-talk ("Hey JJ" fallback); Esc or the chip resumes the run. First click or
  *   key unlocks audio + mic.
  * - Overlay: countdown, toasts, connection and wake state (with JJ's captions over the slides or the
- *   room); after a run, next-run buttons; JJ's team (AgentsPanel: large on JJ's screen, a corner
- *   card elsewhere, key A toggles).
+ *   room, and over the report while JJ debriefs); after a run, next-run buttons; JJ's team (AgentsPanel:
+ *   large on JJ's screen, a corner card elsewhere, key A toggles).
  */
 import { useLocation, useNavigate } from "@tanstack/react-router";
 import { useEffect, useRef, useState, useSyncExternalStore } from "react";
@@ -108,6 +108,8 @@ function Overlay({ snap, brain, jjScreen }: { snap: BrainSnapshot; brain: BrainS
   const offline = snap.status !== "open";
   const woken = snap.run?.paused;
   const afterRun = !offline && (snap.ui?.view === "report" || snap.ui?.view === "final");
+  // JJ talks the report through: its captions sit above the "Next run" bar, clear of the report's header
+  const debriefCaptions = !jjScreen && !woken && (snap.sessionPhase === "debrief" || snap.sessionPhase === "final");
   const startRun = (args: Record<string, unknown>) => {
     brain.unlockAudio();
     void brain.invoke("start_run", args).then((r) => { if (!r.ok) brain.toast(r.hint ?? r.reason, "warn"); });
@@ -165,6 +167,7 @@ function Overlay({ snap, brain, jjScreen }: { snap: BrainSnapshot; brain: BrainS
         </div>
       )}
       <div className="absolute bottom-6 left-1/2 flex -translate-x-1/2 flex-col items-center gap-2">
+        {debriefCaptions && <div className="w-[min(90vw,48rem)]"><JJCaptions compact /></div>}
         {afterRun && (
           <div className="pointer-events-auto mb-16 flex items-center gap-2 rounded-full border border-border bg-card/90 p-1.5 pl-4 backdrop-blur">
             <span className="text-muted-foreground">Next run</span>
