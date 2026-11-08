@@ -8,6 +8,7 @@
  * - After a run, JJ's screen is allowed too (JJ debriefs); other moves snap back with a hint.
  * - Hold J = push-to-talk ("Hey JJ" fallback); Esc or the chip resumes the run. First click or
  *   key unlocks audio + mic.
+ * - /pitch (pitch mode, PitchMode.tsx) is left alone: no screen changes, no overlay.
  * - Overlay: countdown, toasts, connection and wake state (with JJ's captions over the slides or the
  *   room, and over the report while JJ debriefs); after a run, next-run buttons; JJ's team (AgentsPanel:
  *   large on JJ's screen, a corner card elsewhere, key A toggles).
@@ -43,7 +44,8 @@ function Bridge({ brain }: { brain: BrainSource }) {
   // still hydrating makes the server HTML mismatch (React hydration warning).
   const [hydrated, setHydrated] = useState(false);
   useEffect(() => { const t = setTimeout(() => setHydrated(true), 300); return () => clearTimeout(t); }, []);
-  const view = hydrated ? snap.ui?.view ?? null : null;
+  const pitch = pathname === "/pitch";   // pitch mode owns its screen
+  const view = hydrated && !pitch ? snap.ui?.view ?? null : null;
 
   /** A user move to `to`: perform the loop action it means, or snap back. Reads the live snapshot. */
   const handleMove = (to: string) => {
@@ -78,7 +80,7 @@ function Bridge({ brain }: { brain: BrainSource }) {
 
   // user navigation away from the brain's view (Next buttons, keys 1-4)
   useEffect(() => {
-    if (!hydrated) return;
+    if (!hydrated || pitch) return;
     if (snapBack.current) { deferred.current = pathname as ScreenPath; return; }   // previous action still in flight
     handleMove(pathname);
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -101,7 +103,7 @@ function Bridge({ brain }: { brain: BrainSource }) {
   }, [brain]);
 
   // the overlay's state is client-only, so it renders after hydration (no SSR mismatch)
-  return hydrated ? <Overlay snap={snap} brain={brain} jjScreen={pathname === "/"} /> : null;
+  return hydrated && !pitch ? <Overlay snap={snap} brain={brain} jjScreen={pathname === "/"} /> : null;
 }
 
 function Overlay({ snap, brain, jjScreen }: { snap: BrainSnapshot; brain: BrainSource; jjScreen: boolean }) {

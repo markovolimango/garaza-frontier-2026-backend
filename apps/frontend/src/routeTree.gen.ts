@@ -12,6 +12,7 @@ import { Route as rootRouteImport } from './routes/__root'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as JudgesRouteImport } from './routes/judges'
 import { Route as JudgesDemoRouteImport } from './routes/judges-demo'
+import { Route as PitchRouteImport } from './routes/pitch'
 import { Route as PresenterRouteImport } from './routes/presenter'
 import { Route as ReportRouteImport } from './routes/report'
 
@@ -30,6 +31,11 @@ const JudgesDemoRoute = JudgesDemoRouteImport.update({
   path: '/judges-demo',
   getParentRoute: () => rootRouteImport,
 } as any)
+const PitchRoute = PitchRouteImport.update({
+  id: '/pitch',
+  path: '/pitch',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const PresenterRoute = PresenterRouteImport.update({
   id: '/presenter',
   path: '/presenter',
@@ -45,6 +51,7 @@ export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/judges': typeof JudgesRoute
   '/judges-demo': typeof JudgesDemoRoute
+  '/pitch': typeof PitchRoute
   '/presenter': typeof PresenterRoute
   '/report': typeof ReportRoute
 }
@@ -52,6 +59,7 @@ export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/judges': typeof JudgesRoute
   '/judges-demo': typeof JudgesDemoRoute
+  '/pitch': typeof PitchRoute
   '/presenter': typeof PresenterRoute
   '/report': typeof ReportRoute
 }
@@ -60,21 +68,31 @@ export interface FileRoutesById {
   '/': typeof IndexRoute
   '/judges': typeof JudgesRoute
   '/judges-demo': typeof JudgesDemoRoute
+  '/pitch': typeof PitchRoute
   '/presenter': typeof PresenterRoute
   '/report': typeof ReportRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
-  fullPaths: '/' | '/judges' | '/judges-demo' | '/presenter' | '/report'
+  fullPaths:
+    '/' | '/judges' | '/judges-demo' | '/pitch' | '/presenter' | '/report'
   fileRoutesByTo: FileRoutesByTo
-  to: '/' | '/judges' | '/judges-demo' | '/presenter' | '/report'
-  id: '__root__' | '/' | '/judges' | '/judges-demo' | '/presenter' | '/report'
+  to: '/' | '/judges' | '/judges-demo' | '/pitch' | '/presenter' | '/report'
+  id:
+    | '__root__'
+    | '/'
+    | '/judges'
+    | '/judges-demo'
+    | '/pitch'
+    | '/presenter'
+    | '/report'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
   JudgesRoute: typeof JudgesRoute
   JudgesDemoRoute: typeof JudgesDemoRoute
+  PitchRoute: typeof PitchRoute
   PresenterRoute: typeof PresenterRoute
   ReportRoute: typeof ReportRoute
 }
@@ -102,6 +120,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof JudgesDemoRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/pitch': {
+      id: '/pitch'
+      path: '/pitch'
+      fullPath: '/pitch'
+      preLoaderRoute: typeof PitchRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/presenter': {
       id: '/presenter'
       path: '/presenter'
@@ -123,6 +148,7 @@ const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   JudgesRoute: JudgesRoute,
   JudgesDemoRoute: JudgesDemoRoute,
+  PitchRoute: PitchRoute,
   PresenterRoute: PresenterRoute,
   ReportRoute: ReportRoute,
 }
