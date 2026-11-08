@@ -8,6 +8,8 @@ export const Route = createFileRoute("/report")({
       { name: "description", content: "Review how your pitch practice went." },
       { property: "og:title", content: "Report Dashboard — Pitch Practice" },
       { property: "og:description", content: "Review how your pitch practice went." },
+      { property: "og:type", content: "website" },
+      { name: "twitter:card", content: "summary_large_image" },
     ],
   }),
   component: () => (

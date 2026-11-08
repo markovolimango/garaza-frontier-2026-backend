@@ -15,6 +15,8 @@ export const Route = createFileRoute("/presenter")({
       { name: "description", content: "Presenter view with slides, notes, timer and per-slide timings." },
       { property: "og:title", content: "Presenter — Pitch Practice" },
       { property: "og:description", content: "Presenter view with slides, notes, timer and per-slide timings." },
+      { property: "og:type", content: "website" },
+      { name: "twitter:card", content: "summary_large_image" },
     ],
   }),
   component: Presenter,

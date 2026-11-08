@@ -1,3 +1,5 @@
+import type { JudgeCommand } from "./judges";
+
 export type FeedbackColor = "red" | "green" | "neutral";
 export interface Feedback {
   color: FeedbackColor;
@@ -14,6 +16,8 @@ export interface Channels {
   jjMoodSampled: number;
   /** Explicit debug request to reload JJ with a selected mood. */
   jjReload: number;
+  judgeCommand: JudgeCommand;
+  judgesReady: boolean;
 }
 
 export type Channel = keyof Channels;
@@ -26,6 +30,8 @@ const listeners: { [C in Channel]: Set<Listener<C>> } = {
   jjMood: new Set(),
   jjMoodSampled: new Set(),
   jjReload: new Set(),
+  judgeCommand: new Set(),
+  judgesReady: new Set(),
 };
 const last: Partial<Channels> = {};
 

@@ -1,12 +1,17 @@
 import { useState } from "react";
+import { useLocation } from "@tanstack/react-router";
+import type { JudgeIndex, JudgeReaction } from "@/judges/types";
+import { JUDGE_TEST_LINES } from "@/signals/judges";
 import { activeSource, getLast, publish } from "@/signals";
-import { RotateCw } from "lucide-react";
+import { RotateCw, Volume2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useSignal } from "@/signals/useSignal";
 import { MOOD_HUE_GREEN, MOOD_HUE_RED, clamp01, moodColor, moodLabel } from "@/signals/mood";
 
 export function DebugPanel() {
   const [open, setOpen] = useState(false);
+  const { pathname } = useLocation();
+  const judgesReady = useSignal("judgesReady");
   const [paused, setPaused] = useState(false);
   const orb = useSignal("orbLevel");
   const fb = useSignal("feedback");
@@ -17,7 +22,7 @@ export function DebugPanel() {
   const chosenMood = selectedMood ?? loadMood ?? mood ?? 0.5;
 
   return (
-    <div className="fixed bottom-4 right-4 z-[110] w-64 rounded-lg border border-border bg-card/90 font-mono text-xs text-card-foreground backdrop-blur">
+    <div className="fixed bottom-4 right-4 z-[110] max-h-[calc(100dvh-2rem)] w-64 overflow-y-auto rounded-lg border border-border bg-card/90 font-mono text-xs text-card-foreground backdrop-blur">
       <button
         onClick={() => setOpen((o) => !o)}
         className="flex w-full items-center justify-between px-3 py-2 text-muted-foreground hover:text-foreground"
@@ -92,8 +97,40 @@ export function DebugPanel() {
             ))}
           </div>
           <p className="text-muted-foreground">Keys 1–4 switch screens</p>
+          {pathname === "/judges" && (
+            <div className="space-y-2 border-t border-border pt-2">
+              {JUDGE_TEST_LINES.map((line, index) => (
+                <JudgeControls key={index} judge={index as JudgeIndex} line={line} ready={judgesReady === true} />
+              ))}
+            </div>
+          )}
         </div>
       )}
+    </div>
+  );
+}
+
+function JudgeControls({ judge, line, ready }: { judge: JudgeIndex; line: string; ready: boolean }) {
+  const [reaction, setReaction] = useState<JudgeReaction>("nod");
+  return (
+    <div className="space-y-1.5">
+      <div className="flex items-center justify-between">
+        <span>Judge {judge + 1}</span>
+        <Button size="sm" variant="outline" disabled={!ready} title={line}
+          aria-label={`Judge ${judge + 1} say`}
+          onClick={() => publish("judgeCommand", { type: "say", judge, text: line })}>
+          <Volume2 /> Say
+        </Button>
+      </div>
+      <div className="flex gap-1">
+        <select aria-label={`Judge ${judge + 1} reaction`} value={reaction}
+          onChange={(e) => setReaction(e.target.value as JudgeReaction)}
+          className="min-w-0 flex-1 rounded-md border border-input bg-background px-2 text-foreground">
+          {(["nod", "shake", "disapprove", "clap", "think", "texting", "talking", "idle", "idle-alt"] as const).map((r) => <option key={r} value={r}>{r}</option>)}
+        </select>
+        <Button size="sm" variant="outline" disabled={!ready} aria-label={`Judge ${judge + 1} react`}
+          onClick={() => publish("judgeCommand", { type: "react", judge, reaction })}>React</Button>
+      </div>
     </div>
   );
 }
