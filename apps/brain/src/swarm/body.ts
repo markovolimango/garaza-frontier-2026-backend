@@ -171,8 +171,8 @@ export function fallbackNotes(rec: RunRecord, episodes: EpisodeRecord[], recordi
   return episodes.map((e) => {
     const durationMs = Math.max(0, endOf(e, rec) - e.startAt);
     const atMs = Math.max(0, e.startAt - start);
-    const where = e.segment === "qa" ? "during Q&A" : `slide ${e.slideIndex + 1}`;
-    return { runId: rec.runId, kind: e.kind, atMs, durationMs, text: `${cap(words(e.kind))} for ${secs(durationMs)} s at ${mmss(atMs)} (${where}).` };
+    const where = rec.run.pitch ? "" : ` (${e.segment === "qa" ? "during Q&A" : `slide ${e.slideIndex + 1}`})`;   // a pitch has no slides
+    return { runId: rec.runId, kind: e.kind, atMs, durationMs, text: `${cap(words(e.kind))} for ${secs(durationMs)} s at ${mmss(atMs)}${where}.` };
   });
 }
 
@@ -222,8 +222,8 @@ export function videoQuestion(rec: RunRecord, recording: Recording, episodes: Ep
   const length = (recording.endedAt ?? rec.endedAt ?? t0) - t0;
   const pres = rec.run.presentationStartedAt;
   const lines = episodes.map((e, i) => {
-    const where = e.segment === "qa" ? "during Q&A" : `slide ${e.slideIndex + 1}`;
-    return `${i + 1}. ${e.kind} (${words(e.kind)}) from ${stamp(e.startAt - t0)} to ${stamp(endOf(e, rec) - t0)}, ${where}`;
+    const where = rec.run.pitch ? "" : `, ${e.segment === "qa" ? "during Q&A" : `slide ${e.slideIndex + 1}`}`;
+    return `${i + 1}. ${e.kind} (${words(e.kind)}) from ${stamp(e.startAt - t0)} to ${stamp(endOf(e, rec) - t0)}${where}`;
   });
   const prompt = [
     `The recording is about ${Math.round(length / 1000)} s long.${pres ? ` The presentation itself starts at ${stamp(pres - t0)} (before that: a countdown).` : ""}${rec.qaStartedAt ? ` The judges' Q&A starts at ${stamp(rec.qaStartedAt - t0)}.` : ""}`,

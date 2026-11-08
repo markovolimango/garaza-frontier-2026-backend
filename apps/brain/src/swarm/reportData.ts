@@ -44,6 +44,8 @@ export interface QaItem { judge: string; question: string; answer: string; answe
 export interface BodyItem { kind: BehaviorKind | null; label: string; count: number; totalMs: number; longestMs: number; pct: number | null; first: string | null; notes: string[] }
 export interface RunInputs {
   runId: RunId; index: number; mode: RunDigest["mode"];
+  /** Pitch mode (RunState.pitch): one talk, no slides tracked, no Q&A. */
+  pitch: boolean;
   digest: RunDigest; runMs: number; start: number;
   /** Transcript, one phrase per line, `[1:23 s2]` prefix, fillers marked as [[um]]. */
   transcript: string;
@@ -114,7 +116,7 @@ export function gatherRun(o: { board: SwarmBoard; rec: RunRecord; session: Reado
     const e = ob.examples[0];
     return {
       kind: ob.kind, label: ob.label, count: ob.count, totalMs: ob.time?.totalMs ?? 0, longestMs: ob.time?.longestMs ?? 0, pct: ob.time?.pct ?? null,
-      first: e ? `${mmss(e.tRunMs)}, ${e.segment === "qa" ? "Q&A" : `slide ${e.slideIndex + 1}`}` : null,
+      first: e ? `${mmss(e.tRunMs)}${rec.run.pitch ? "" : `, ${e.segment === "qa" ? "Q&A" : `slide ${e.slideIndex + 1}`}`}` : null,
       notes: videoNotes.filter((n) => n.kind && n.kind === ob.kind).map((n) => `${mmss(n.atMs)}: ${n.text}`),
     };
   });
@@ -129,7 +131,7 @@ export function gatherRun(o: { board: SwarmBoard; rec: RunRecord; session: Reado
 
   const ended = o.records.filter((r) => r.run.phase === "ended");
   return {
-    runId, index: rec.run.index, mode: rec.run.mode, digest, runMs, start, transcript,
+    runId, index: rec.run.index, mode: rec.run.mode, pitch: !!rec.run.pitch, digest, runMs, start, transcript,
     fillers: fillerStats(phrases, runMs), qa, body, videoNotes,
     progress: ended.length >= 2 ? compactProgress(buildProgress(o.records, s)) : null,
     focus: o.focus ?? null,
@@ -150,7 +152,7 @@ function bodyNote(b: BodyItem): string {
   if (b.totalMs > 0) parts.push(`${Math.round(b.totalMs / 1000)} s in total${b.pct !== null ? ` (${b.pct}% of the run)` : ""}`);
   if (b.longestMs > 0 && b.count > 1) parts.push(`longest ${Math.round(b.longestMs / 1000)} s`);
   if (b.first) parts.push(`first at ${b.first}`);
-  const seen = b.notes[0] ? `. On the recording: ${clip(b.notes[0], 140)}` : "";
+  const seen = b.notes[0] ? `. On the recording: ${clip(b.notes[0], 140).replace(/\.+$/, "")}` : "";
   return `${parts.join(", ")}${seen}`;
 }
 
@@ -188,10 +190,11 @@ export function fallbackRun(i: RunInputs, now = Date.now()): RunNarrative {
   const topBody = camera[0];
   if (topBody) facts.push(`${topBody.label.toLowerCase()} ${topBody.count}×`);
   if (qa.length) facts.push(`${qa.length - weak.length}/${qa.length} questions answered well`);
-  const headline = `Run ${i.index}: ${facts.length ? facts.join(", ") : d.sources.coach ? "a clean run" : "done"}${improvements[0] ? `. Fix first: ${improvements[0].title.toLowerCase()}` : ""}`;
+  const headline = `${i.pitch ? "Pitch" : "Run"} ${i.index}: ${facts.length ? facts.join(", ") : d.sources.coach ? "a clean run" : "done"}${improvements[0] ? `. Fix first: ${improvements[0].title.toLowerCase()}` : ""}`;
 
   const summary = [
-    `A ${i.mode} run: ${mmss(d.durations.presentationMs)} presenting${d.durations.qaMs ? ` and ${mmss(d.durations.qaMs)} of Q&A` : ""} over ${plural(d.slides.length, "slide")}.`,
+    i.pitch ? `A pitch: ${mmss(d.durations.presentationMs)} of talk.`
+      : `A ${i.mode} run: ${mmss(d.durations.presentationMs)} presenting${d.durations.qaMs ? ` and ${mmss(d.durations.qaMs)} of Q&A` : ""}${d.slides.length ? ` over ${plural(d.slides.length, "slide")}` : ""}.`,
     !d.sources.coach ? "The camera coach wasn't connected, so there are no body observations."
       : camera.length ? `The camera coach noticed ${camera.slice(0, 3).map((b) => `${b.label.toLowerCase()} (${b.count}×)`).join(", ")}.` : "The camera coach flagged nothing.",
     f.measured ? `You used ${plural(f.count, "filler word")} (${f.perMin} a minute).` : "",
@@ -245,9 +248,9 @@ export interface RunLlmOut {
 export function runPrompt(i: RunInputs): string {
   const d = i.digest;
   const data = {
-    run: { index: i.index, mode: i.mode, targets: d.targets, presentation: mmss(d.durations.presentationMs), qa: mmss(d.durations.qaMs), slides: d.slides.length, cameraCoach: d.sources.coach },
+    run: { index: i.index, mode: i.pitch ? "pitch (one talk on stage: no slides tracked, no Q&A, no live feedback)" : i.mode, targets: d.targets, presentation: mmss(d.durations.presentationMs), qa: mmss(d.durations.qaMs), slides: d.slides.length, cameraCoach: d.sources.coach },
     coachNoticed: d.observations.map((o) => ({ label: o.label, count: o.count, target: o.isTarget, time: o.time ?? null,
-      moments: o.examples.map((e) => `${mmss(e.tRunMs)}, ${e.segment === "qa" ? "Q&A" : `slide ${e.slideIndex + 1}`}${e.durationMs ? ` (${Math.round(e.durationMs / 1000)} s)` : ""}`) })),
+      moments: o.examples.map((e) => `${mmss(e.tRunMs)}${i.pitch ? "" : `, ${e.segment === "qa" ? "Q&A" : `slide ${e.slideIndex + 1}`}`}${e.durationMs ? ` (${Math.round(e.durationMs / 1000)} s)` : ""}`) })),
     notFlagged: d.strengths,
     fillers: i.fillers.measured ? { count: i.fillers.count, perMin: i.fillers.perMin, top: i.fillers.top } : "no transcript for this run",
     qa: i.qa.map((q, index) => ({ index, judge: q.judge, question: q.question, answer: q.answer || null, answerSeconds: Math.round(q.answerMs / 1000), judgeReaction: q.reaction })),
