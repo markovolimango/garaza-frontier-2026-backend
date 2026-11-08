@@ -2,7 +2,7 @@
  * Body agent: the camera's eye in the swarm.
  *
  * Live: keeps its status current from the RunLog (episodes, observations) and the sensor role
- *   (services/coach bridge): "off · no camera", "watching · arms crossed now · 2 episodes so far".
+ *   (services/coach bridge): "off · no camera", "watching · crossed arms now · 2 episodes so far".
  * After a run (RunLog.onRunEnded): when the run has a recording (media.ts), a key and
  *   SWARM_VIDEO_ANALYSIS=1, Gemini (ctx.models.video) watches the recording (Files API: uploaded,
  *   asked once, deleted right after) and writes one sentence per body episode (≤ 8, the longest) plus
@@ -13,19 +13,17 @@
  * The vignette for body behaviours is the bridge's job, not this agent's.
  */
 import { existsSync, statSync } from "node:fs";
-import type { BehaviorKind, RunId } from "@coach/protocol";
+import { SENSOR_BEHAVIORS, type BehaviorKind, type RunId } from "@coach/protocol";
 import type { Recording } from "../media.ts";
+import { BEHAVIOR_WORDS } from "../observedCoach.ts";
 import type { EpisodeRecord, RunRecord } from "../runlog.ts";
 import type { VideoNote } from "./board.ts";
 import type { SwarmContext } from "./context.ts";
 import { geminiVideoClient, type VideoClient, type VideoFile } from "./bodyVideo.ts";
 
-export const BODY_KINDS = ["arms_crossed", "face_touch", "looking_down", "sway", "fast_hands", "not_facing_judge"] as const satisfies readonly BehaviorKind[];
-const WORDS: Partial<Record<BehaviorKind, string>> = {
-  arms_crossed: "arms crossed", face_touch: "touching the face", looking_down: "looking down", sway: "swaying",
-  fast_hands: "fast hands", not_facing_judge: "not facing the judges",
-};
-const words = (k: BehaviorKind | null) => (k && WORDS[k]) ?? k ?? "body language";
+/** The camera's behaviours (the sensor role's `behavior` kinds). */
+const isBodyKind = (k: unknown): k is (typeof SENSOR_BEHAVIORS)[number] => (SENSOR_BEHAVIORS as readonly unknown[]).includes(k);
+const words = (k: BehaviorKind | null) => (k ? BEHAVIOR_WORDS[k] : "body language");
 const cap = (s: string) => s.charAt(0).toUpperCase() + s.slice(1);
 export const mmss = (ms: number) => { const s = Math.max(0, Math.round(ms / 1000)); return `${Math.floor(s / 60)}:${String(s % 60).padStart(2, "0")}`; };
 const secs = (ms: number) => Math.max(1, Math.round(ms / 1000));
@@ -153,11 +151,11 @@ export function installBody(ctx: SwarmContext, opts: BodyOptions = {}): void {
 
 // ---------------------------------------------------------------- pure parts (exported for tests)
 
-/** "arms crossed now · 2 episodes so far" for the run under way. */
+/** "crossed arms now · 2 episodes so far" for the run under way. */
 export function liveDetail(rec: RunRecord): string {
   const open = [...new Set(rec.episodes.filter((e) => e.endAt === null).map((e) => words(e.kind)))];
   const n = rec.episodes.length;
-  const body = rec.observations.filter((x) => x.kind && (BODY_KINDS as readonly string[]).includes(x.kind)).length;
+  const body = rec.observations.filter((x) => isBodyKind(x.kind)).length;
   const parts: string[] = [];
   if (open.length) parts.push(`${open.join(" + ")} now`);
   parts.push(n ? `${n} episode${n === 1 ? "" : "s"} so far` : body ? `${body} coach note${body === 1 ? "" : "s"} so far` : "nothing so far");
@@ -173,7 +171,7 @@ export function pickEpisodes(rec: RunRecord, recording: Recording | null, max: n
   return [...eps].sort((a, b) => (endOf(b, rec) - b.startAt) - (endOf(a, rec) - a.startAt)).slice(0, max).sort((a, b) => a.startAt - b.startAt);
 }
 
-/** Deterministic notes: one per episode ("Arms crossed for 7 s at 1:20 (slide 3)."). */
+/** Deterministic notes: one per episode ("Crossed arms for 7 s at 1:20 (slide 3)."). */
 export function fallbackNotes(rec: RunRecord, episodes: EpisodeRecord[], recording: Recording | null): VideoNote[] {
   const start = runStartOf(rec, recording);
   return episodes.map((e) => {
@@ -184,7 +182,7 @@ export function fallbackNotes(rec: RunRecord, episodes: EpisodeRecord[], recordi
   });
 }
 
-/** "arms crossed 3×, longest 7 s at 1:20" per kind, the most frequent (then longest in total) first. */
+/** "crossed arms 3×, longest 7 s at 1:20" per kind, the most frequent (then longest in total) first. */
 export function kindSummaries(rec: RunRecord, recording: Recording | null): { kind: BehaviorKind; text: string; longest: EpisodeRecord }[] {
   const start = runStartOf(rec, recording);
   const by = new Map<BehaviorKind, EpisodeRecord[]>();
@@ -196,7 +194,7 @@ export function kindSummaries(rec: RunRecord, recording: Recording | null): { ki
     .map(({ kind, eps, longest }) => ({ kind, longest, text: `${words(kind)} ${eps.length}×, longest ${secs(dur(longest))} s at ${mmss(longest.startAt - start)}` }));
 }
 
-const EXTRA_KINDS = [...BODY_KINDS, "other"] as const;
+const EXTRA_KINDS = [...SENSOR_BEHAVIORS, "other"] as const;
 export const VIDEO_SCHEMA: Record<string, unknown> = {
   type: "object",
   properties: {
@@ -259,7 +257,7 @@ export function readAnswer(answer: unknown, rec: RunRecord, recording: Recording
   for (const x of (Array.isArray(a.extra) ? a.extra : []).slice(0, 3)) {
     const atS = Number(x?.atS), text = typeof x?.text === "string" ? x.text.trim() : "";
     if (!Number.isFinite(atS) || atS < 0 || atS > lengthS + 5 || !text) continue;
-    const kind = (BODY_KINDS as readonly string[]).includes(String(x.kind)) ? (x.kind as BehaviorKind) : null;
+    const kind = isBodyKind(x.kind) ? x.kind : null;
     const d = Number(x.durationS);
     extras.push({ runId: rec.runId, kind, atMs: Math.max(0, Math.round(atS * 1000 + offset)), ...(Number.isFinite(d) && d > 0 ? { durationMs: Math.round(d * 1000) } : {}), text: text.slice(0, 300) });
   }

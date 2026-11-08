@@ -94,7 +94,7 @@ describe("body agent · live status", () => {
     expect(t.status()).toMatchObject({ state: "watching", detail: "nothing so far" });
     rec.episodes.push(ep("arms_crossed", 5, null));
     t.changed();
-    expect(t.status()).toMatchObject({ state: "watching", detail: "arms crossed now · 1 episode so far" });
+    expect(t.status()).toMatchObject({ state: "watching", detail: "crossed arms now · 1 episode so far" });
     rec.episodes[0]!.endAt = PRES + 9_000; rec.episodes.push(ep("sway", 12, 15));
     t.changed();
     expect(t.status().detail).toBe("2 episodes so far");
@@ -112,17 +112,17 @@ describe("body agent · after a run", () => {
     await t.settle();
     expect(t.calls).toEqual(["upload true video/webm", "active", "ask", "delete files/abc"]);
     expect(t.asked[0]!.model).toBe("video-model");
-    expect(t.asked[0]!.prompt).toContain("1. arms_crossed (arms crossed) from 13.0 s (0:13) to 20.0 s (0:20), slide 2");
+    expect(t.asked[0]!.prompt).toContain("1. arms_crossed (crossed arms) from 13.0 s (0:13) to 20.0 s (0:20), slide 2");
     const notes = t.notes();
     expect(notes).toHaveLength(4);
     expect(notes.map((n) => n.atMs)).toEqual([9_000, 10_000, 25_000, 30_000]);   // in time order
     expect(notes[1]).toEqual({ runId: "run_1", kind: "arms_crossed", atMs: 10_000, durationMs: 7_000, text: "You folded your arms and leaned back." });
     // the extra finding: recording time 12 s → run time 9 s (the presentation started 3 s into the recording)
     expect(notes.find((n) => n.kind === null)).toEqual({ runId: "run_1", kind: null, atMs: 9_000, durationMs: 3_000, text: "You turned your back to the audience to read the slide." });
-    expect(notes.find((n) => n.kind === "face_touch")!.text).toBe("Touching the face for 1 s at 0:30 (slide 2).");   // the model skipped it
+    expect(notes.find((n) => n.kind === "face_touch")!.text).toBe("Touching your face for 1 s at 0:30 (slide 2).");   // the model skipped it
     expect(t.jj).toHaveLength(1);
     expect(t.jj[0]).toContain("[BODY] run_1 (Gemini watched the recording)");
-    expect(t.jj[0]).toContain("arms crossed 2×, longest 7 s at 0:10 — You folded your arms and leaned back.");
+    expect(t.jj[0]).toContain("crossed arms 2×, longest 7 s at 0:10 — You folded your arms and leaned back.");
     expect(t.jj[0]).toContain("at 0:09: You turned your back");
     expect(t.jj[0]).toContain("show_moments arms_crossed");
     expect(t.status()).toMatchObject({ state: "idle", detail: "run_1: 4 video notes (Gemini)" });
@@ -134,8 +134,8 @@ describe("body agent · after a run", () => {
     t.end();
     await t.settle();
     expect(t.calls).toEqual(["upload true video/webm", "active", "delete files/abc"]);
-    expect(t.notes()).toEqual([{ runId: "run_1", kind: "arms_crossed", atMs: 80_000, durationMs: 7_000, text: "Arms crossed for 7 s at 1:20 (slide 3)." }]);
-    expect(t.jj[0]).toBe("[BODY] run_1: 1) arms crossed 1×, longest 7 s at 1:20. Recording available: offer show_moments arms_crossed.");
+    expect(t.notes()).toEqual([{ runId: "run_1", kind: "arms_crossed", atMs: 80_000, durationMs: 7_000, text: "Crossed arms for 7 s at 1:20 (slide 3)." }]);
+    expect(t.jj[0]).toBe("[BODY] run_1: 1) crossed arms 1×, longest 7 s at 1:20. Recording available: offer show_moments arms_crossed.");
   });
 
   it("without a key, a recording or consent to analyse: deterministic notes, nothing uploaded", async () => {
@@ -145,9 +145,24 @@ describe("body agent · after a run", () => {
       t.end();
       await t.settle();
       expect(t.calls).toEqual([]);
-      expect(t.notes().map((n) => n.text)).toEqual(["Arms crossed for 7 s at 1:20 (slide 3).", "Arms crossed for 2 s at 1:30 (slide 2).", "Swaying for 4 s at 1:40 (slide 2)."]);
-      expect(t.jj[0]).toMatch(/^\[BODY\] run_1: 1\) arms crossed 2×, longest 7 s at 1:20 2\) swaying 1×, longest 4 s at 1:40\./);
+      expect(t.notes().map((n) => n.text)).toEqual(["Crossed arms for 7 s at 1:20 (slide 3).", "Crossed arms for 2 s at 1:30 (slide 2).", "Swaying for 4 s at 1:40 (slide 2)."]);
+      expect(t.jj[0]).toMatch(/^\[BODY\] run_1: 1\) crossed arms 2×, longest 7 s at 1:20 2\) swaying 1×, longest 4 s at 1:40\./);
     }
+  });
+
+  it("knows every camera behaviour: head tilt and hands in pockets read as words, and the model may name them", async () => {
+    const prompts: string[] = [];
+    const extra = [{ atS: 20, durationS: 4, kind: "hands_in_pockets", text: "Your hands went into your pockets." }];
+    const t = listenJJ(setup({ client: { ask: async (q) => { prompts.push(q.prompt); return { moments: [], extra }; } } }));
+    t.start(run({ episodes: [ep("head_tilt", 40, 43), ep("hands_in_pockets", 50, 56)] }));
+    t.end();
+    await t.settle();
+    expect(prompts[0]).toContain("1. head_tilt (tilting your head) from 43.0 s (0:43)");
+    expect(t.notes().map((n) => [n.kind, n.text])).toEqual([
+      ["hands_in_pockets", "Your hands went into your pockets."],
+      ["head_tilt", "Tilting your head for 3 s at 0:40 (slide 2)."],
+      ["hands_in_pockets", "Hands in your pockets for 6 s at 0:50 (slide 2)."],
+    ]);
   });
 
   it("SWARM_VIDEO_ANALYSIS defaults to on; 0 turns the upload off", () => {
