@@ -166,6 +166,16 @@ def test_pause_ends_open_episodes_before_the_state_event(manager, clock):
     assert len(episodes_of(s)) == 2
 
 
+def test_closing_episodes_keeps_the_callers_reason_on_the_state_event(manager, clock):
+    s = make_session(manager, clock)
+    d = Device()
+    run_frames(s, clock, d, 4, pose(**CROSSED))
+    s.transition("stop", "replay finished")
+    tail = [(e["event_type"], e["payload"].get("end_reason") or e["payload"].get("reason"))
+            for e in s.log.all_events()][-2:]
+    assert tail == [("behavior.episode", "session_ended"), ("session.state", "replay finished")]
+
+
 def test_losing_the_body_ends_an_episode(manager, clock):
     s = make_session(manager, clock)
     d = Device()

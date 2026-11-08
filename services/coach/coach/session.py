@@ -182,8 +182,8 @@ class Session:
             self.ended_at = now
             self.ended_wall = SystemClock().now()
         if previous == "running":   # open episodes end with the running segment (before the state event)
-            reason = "session_ended" if target == "ended" else "session_paused"
-            for episode in self.episodes.close_all(reason, self.body.mode):
+            end_reason = "session_ended" if target == "ended" else "session_paused"
+            for episode in self.episodes.close_all(end_reason, self.body.mode):
                 self._publish(EventType.behavior_episode, episode)
         self.last_activity_wall = SystemClock().now()
         self._dirty.update({"body", "speech", "heart"})
