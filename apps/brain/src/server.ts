@@ -18,7 +18,6 @@ import { buildDigest, digestHttp } from "./digest.ts";
 import { observedCoach } from "./observedCoach.ts";
 import { loadLatest, SessionPersistence, sessionHttp } from "./persist.ts";
 import { buildProgress, compactProgress, progressHttp } from "./progress.ts";
-import { exportHttp } from "./export.ts";
 import { MediaStore, mediaHttp, momentsOf } from "./media.ts";
 import { pptxHttp } from "./pptx.ts";
 import { SensorMonitor, sensorsHttp } from "./sensors.ts";
@@ -41,7 +40,6 @@ let runLog: RunLog | null = null;
 let digestRoutes: ReturnType<typeof digestHttp> | null = null;
 let progressRoutes: ReturnType<typeof progressHttp> | null = null;
 let sessionRoutes: ReturnType<typeof sessionHttp> | null = null;
-let exportRoutes: ReturnType<typeof exportHttp> | null = null;
 let mediaRoutes: ReturnType<typeof mediaHttp> | null = null;
 let media: MediaStore | null = null;
 let pptxRoutes: ReturnType<typeof pptxHttp> | null = null;
@@ -86,7 +84,6 @@ const brain = createBrain({
     return { ok: true, runId: rec.runId, runIndex: rec.run.index, title, total, clips };
   } },
   http: async (req, res) => (swarm ? await swarmRoutes(swarm, req, res) : false) || (digestRoutes ? digestRoutes(req, res) : false) || (progressRoutes ? progressRoutes(req, res) : false)
-    || (exportRoutes ? exportRoutes(req, res) : false)
     || (mediaRoutes ? await mediaRoutes(req, res) : false)
     || (pptxRoutes ? await pptxRoutes(req, res) : false)
     || (sensorRoutes ? sensorRoutes(req, res) : false)
@@ -97,7 +94,6 @@ runLog = new RunLog({ session: brain.session, hub: brain.hub, clock, ...(saved ?
 const persistence = new SessionPersistence({ dir: sessionDir, session: brain.session, runLog, clock, log });
 digestRoutes = digestHttp(runLog, () => brain.session.get().coach.recommendation);
 progressRoutes = progressHttp(runLog, () => brain.session.get());
-exportRoutes = exportHttp(runLog, () => brain.session.get());
 media = new MediaStore({ dir: sessionDir, sessionId: () => brain.session.get().sessionId, hasRun: (id) => !!runLog?.get(id), log });
 mediaRoutes = mediaHttp(media);
 pptxRoutes = pptxHttp({ log });   // .pptx decks → PDF via PowerPoint on this Mac

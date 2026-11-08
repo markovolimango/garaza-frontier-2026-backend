@@ -158,27 +158,9 @@ describe("episodes are saved", () => {
   });
 });
 
-describe("the end of a session: report export and delete", () => {
+describe("the end of a session: final progress and delete", () => {
   const brief = { title: "Acme seed pitch", audience: "investors", goal: "a second meeting", keyPoints: ["traction"], setting: "investor pitch",
     presenterGoals: ["I freeze up when people stare at me"] };
-
-  it("the export has the numbers run by run, never the presenter's personal goals", async () => {
-    const { buildExportHtml, exportHttp } = await import("../src/export.ts");
-    const t = rig();
-    expect(t.store.dispatch({ type: "save_brief", brief })).toEqual({ ok: true });
-    t.start(); for (let i = 0; i < 3; i++) { t.clock.advance(10_000); t.episode("arms_crossed", 10_000); } t.finish();
-    t.start(); t.clock.advance(30_000); t.episode("arms_crossed", 2_000); t.clock.advance(28_000); t.finish();
-    const html = buildExportHtml(t.store.get(), t.runLog.list(), t.clock.now());
-    expect(html).toContain("Presentation practice: Acme seed pitch");
-    expect(html).toContain("Crossed arms 3 → 1");
-    expect(html).toMatch(/<b>3×<\/b><br><small>3\/min · 50% of time<\/small>/);
-    expect(html).not.toContain("freeze");
-    let headers: Record<string, string> = {};
-    const handled = exportHttp(t.runLog, () => t.store.get())({ method: "GET", url: "/api/session/export.html?download=1" } as never,
-      { writeHead: (_: number, h: Record<string, string>) => { headers = h; }, end: () => {} } as never);
-    expect(handled).toBe(true);
-    expect(headers["content-disposition"]).toBe('attachment; filename="report-Acme-seed-pitch.html"');
-  });
 
   it("JJ's final gets first → last per behaviour", async () => {
     const { compactProgress } = await import("../src/progress.ts");

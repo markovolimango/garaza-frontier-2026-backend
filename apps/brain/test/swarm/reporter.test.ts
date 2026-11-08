@@ -259,6 +259,41 @@ describe("reporter: session narrative and PDF", () => {
     expect(html.headers["content-type"]).toMatch(/text\/html/);
   });
 
+  it("export.html: the same document at once, from the data while the LLM writes; never the personal goals", async () => {
+    const { llm, calls } = deferredLlm();
+    const t = rig({ llm });
+    const brief = { title: "Acme seed pitch", audience: "investors", goal: "a second meeting", keyPoints: ["traction"], setting: "investor pitch",
+      presenterGoals: ["I freeze up when people stare at me"] };
+    expect(t.store.dispatch({ type: "save_brief", brief })).toEqual({ ok: true });
+    const empty = await t.get("/api/session/export.html");
+    expect(empty.code).toBe(200);
+    expect(String(empty.body)).toContain("No finished run yet.");
+    t.run(); t.clock.advance(3_000);
+    expect(calls).toHaveLength(1);                          // the run report is being written
+    const now = await t.get("/api/session/export.html?download=1");
+    expect(now.code).toBe(200);
+    expect(now.headers["content-disposition"]).toBe('attachment; filename="coach-report-Acme-seed-pitch.html"');
+    const html = String(now.body);
+    expect(html).toContain("Presentation practice: Acme seed pitch");
+    expect(html).toContain("Coach's report · from the measurements");
+    expect(html).toMatch(/<td>Crossed arms <span class="tag">target<\/span><\/td><td><b>2×<\/b><br><small>[\d.]+\/min · [\d.]+% of time<\/small><\/td>/);
+    expect(html).toContain("Run by run");
+    expect(html).toContain("Recordings, if any, stay on the practice computer.");
+    expect(html).not.toContain("freeze");
+    expect(html).not.toContain("Google Gemini");
+    calls[0]!.resolve(LLM_RUN); await flush();
+    expect(calls).toHaveLength(2);                          // the export asked for the session narrative
+    calls[1]!.resolve(LLM_SESSION); await flush();
+    (t.ctx.models as { apiKey: string | null }).apiKey = "key";
+    const later = String((await t.get("/api/session/export.html")).body);
+    expect(later).toContain("Fewer fillers, open arms");
+    expect(later).not.toContain("from the measurements");
+    expect(later).toContain("A copy of each recorded run was sent to Google Gemini for the body-language notes and deleted there right after");
+    expect(later).not.toContain("freeze");
+    const pdfPage = String((await t.get("/api/swarm/report/session.html")).body);
+    expect(pdfPage).toBe(later);                            // one document
+  });
+
   it("PDF: a reset while it renders drops it (nothing written) and doesn't end the new session's PDF job", async () => {
     const renders: ((b: Buffer) => void)[] = [];
     const t = rig({ llm: () => Promise.reject(new Error("no key")), renderPdf: () => new Promise((r) => { renders.push(r); }) });

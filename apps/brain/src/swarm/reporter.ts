@@ -11,9 +11,13 @@
  *
  *   GET /api/swarm/report/run/:runId        → { status: "pending" | "ready" | "none", report }
  *   GET /api/swarm/report/session           → same shape (starts building it when missing or stale)
- *   GET /api/swarm/report/session.html      → the printable page (reportPdf.ts)
+ *   GET /api/session/export.html[?download=1] → the printable session report (reportPdf.ts) at once: the
+ *                                              narrative when it is ready, else the one from the data
+ *                                              (never waits for the LLM); ?download=1 → as a file
+ *   GET /api/swarm/report/session.html      → the same page, once the session narrative is written
  *   GET /api/swarm/report/session.pdf[?download=1] → that page as a PDF (local Chrome; 501 without one),
  *                                              saved as SESSION_DIR/<sessionId>/report.pdf (a reset erases it)
+ * The presenter's personal goals (brief.presenterGoals) are never in any of them.
  */
 import { mkdirSync, writeFileSync } from "node:fs";
 import type { IncomingMessage, ServerResponse } from "node:http";
@@ -252,11 +256,24 @@ export function installReporter(ctx: SwarmContext, opts: ReporterOptions = {}): 
     void buildSession();
     return { status: "pending", report: stored };           // the older one, if any, while the new one is written
   };
+  const page = (n: SessionNarrative | null): string => {
+    const now = ctx.clock.now();
+    const runs = endedRuns().map((r) => storedRun(r.runId) ?? fallbackRun(gatherRun({ board, rec: r, session: session(), records: runLog.list() }), now));
+    return buildReportHtml({ s: session(), records: runLog.list(), session: n, runs, now, recordingsSent: ctx.videoAnalysis && !!ctx.models.apiKey });
+  };
+  /** The page with the LLM's session narrative (waits for it). null = no finished run. */
   const pageHtml = async (): Promise<string | null> => {
     const n = await buildSession();
-    if (!n) return null;
-    const runs = endedRuns().map((r) => storedRun(r.runId) ?? fallbackRun(gatherRun({ board, rec: r, session: session(), records: runLog.list() }), ctx.clock.now()));
-    return buildReportHtml({ s: session(), records: runLog.list(), session: n, runs, now: ctx.clock.now() });
+    return n ? page(n) : null;
+  };
+  /** The page right away: the stored narrative when it covers every run, else the one from the data. */
+  const exportHtml = (): string => {
+    if (endedRuns().length === 0) return page(null);
+    const stored = storedSession();
+    if (sessionFresh(stored)) return page(stored);
+    void buildSession();                                    // ready for the next look
+    const now = ctx.clock.now();
+    return page(fallbackSession(gatherSession({ board, session: session(), records: runLog.list(), now }), now));
   };
   /** One PDF at a time, for the session it started in: a reset meanwhile drops it (nothing written, 409). */
   const startPdf = (render: (html: string) => Promise<Buffer>): Promise<Buffer> => {
@@ -283,6 +300,14 @@ export function installReporter(ctx: SwarmContext, opts: ReporterOptions = {}): 
   ctx.http(async (req: IncomingMessage, res: ServerResponse) => {
     if (req.method !== "GET") return false;
     const [path = "/", query = ""] = (req.url ?? "/").split("?");
+    const download = new URLSearchParams(query).get("download") === "1";
+    if (path === "/api/session/export.html") {
+      const headers: Record<string, string> = { "content-type": "text/html; charset=utf-8", "cache-control": "no-store" };
+      if (download) headers["content-disposition"] = `attachment; filename="coach-report-${fileName()}.html"`;
+      res.writeHead(200, headers);
+      res.end(exportHtml());
+      return true;
+    }
     if (!path.startsWith("/api/swarm/report/")) return false;
     const m = /^\/api\/swarm\/report\/run\/([^/]+)$/.exec(path);
     if (m) { json(res, 200, runReply(decodeURIComponent(m[1]!) as RunId)); return true; }
@@ -304,7 +329,7 @@ export function installReporter(ctx: SwarmContext, opts: ReporterOptions = {}): 
       try {
         const pdf = await (pdfJob ?? startPdf(render));
         const headers: Record<string, string> = { "content-type": "application/pdf", "content-length": String(pdf.length), "cache-control": "no-store" };
-        if (new URLSearchParams(query).get("download") === "1") headers["content-disposition"] = `attachment; filename="coach-report-${fileName()}.pdf"`;
+        if (download) headers["content-disposition"] = `attachment; filename="coach-report-${fileName()}.pdf"`;
         res.writeHead(200, headers);
         res.end(pdf);
       } catch (err) {
