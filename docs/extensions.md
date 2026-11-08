@@ -19,6 +19,66 @@ Lanes: `lead` (protocol), `brain`, `sensing`, `agents`, `stage`, `report`.
 
 ---
 
+### 2026-11-08T11:40+01:00 · sensing · Posture rules merged with behaviour episodes (`behavior.episode`)
+- **Where:** coach part of `e5d7bb9` (branch `worktree-agent-a042012a57c5cf65b`: `metrics/body.py` posture measures, `coaching.py` rules `body.arms_crossed` / `body.face_touch` / `body.looking_down`, `config.py`, `tuning.py`, `tuning.json`, `cli.py` `coach tune`, `scripts/coach-tune.sh`, tests) applied to the working tree; on top: `services/coach/coach/metrics/episodes.py` (new), `config.py` (`episodes` timing), `wire.py` (`BehaviorEpisodePayload`, server event `behavior.episode`), `session.py`, `brain_bridge.py`; `contracts/` regenerated
+- **What:** the coach records every occurrence of `arms_crossed`, `face_touch`, `looking_down`, `sway` and `fast_hands` with a start and an end (several at once, not throttled like `coaching.feedback`; start back-dated to the onset, end = last sighting, open episodes close on pause/stop/tracking loss). Episodes use the rules' measures and thresholds (one set, tuned by `tuning.json`); only their timing is separate. The bridge forwards each episode as the brain's `behavior` uplink (`phase` start/end, `clientTs` = the episode's own time, epoch ms) instead of the rule-driven start/end with a hold timer, and sends `operator.override` `reward` (green) when an episode of one of the run's targets clears during a live run with feedback on. `body.hand_movement_high` → `fast_hands` in `RULE_KIND`.
+- **Why:** reports and JJ need "when exactly did it happen" (00:24–00:31), later replay of the matching video/audio; the throttled rules lose repeats and start late; JJ promised green edges that nothing sent.
+- **Impact:** brain: handle `behavior` (pair start/end per kind, close a dangling start at run end, use `clientTs`). Thresholds are untested heuristics, to tune with `coach tune` and recordings.
+
+### 2026-11-08T11:00+01:00 · lead · `fast_hands` behaviour kind
+- **Where:** `packages/protocol/src/domain.ts` (`BehaviorKind`, `FEEDBACK_ELIGIBLE`, `CATEGORY_OF`), `messages.ts` (`SENSOR_BEHAVIORS`), `tools.ts` (`highlight_pattern.kind` = `BehaviorKind.options` + `"none"`), `scripts/samples.ts`, `fixtures/messages/up.{behavior,coach.observation}.json`; `apps/brain/src/observedCoach.ts` (`BEHAVIOR_WORDS`), `apps/brain/src/digest.ts` (`RULE_LABELS`)
+- **What:** new kind `fast_hands` (category `movement`), feedback-eligible (`set_targets`) and a sensor behaviour (`behavior` uplink from the sensor role). `highlight_pattern`'s enum now derives from `BehaviorKind`. Labels/strengths in the digest for the coach rules `body.arms_crossed`, `body.face_touch`, `body.looking_down`.
+- **Why:** fast hands (`body.hand_movement_high`) had no kind, so the observed coach could never make it a training target.
+- **Impact:** sensing: done, the bridge maps `body.hand_movement_high` → `fast_hands` in `RULE_KIND` (entry 11:40). Feedback controller lane: `behavior fast_hands` may arrive from the sensor role. UIs that label kinds must add `fast_hands` (none in `apps/frontend`).
+
+### 2026-11-08T11:00+01:00 · lead · `jj.transcript` downlink (JJ's captions)
+- **Where:** `packages/protocol/src/messages.ts` (`DOWNLINK["jj.transcript"]`), `scripts/samples.ts`, `fixtures/messages/down.jj.transcript.json`
+- **What:** `jj.transcript {lineId, who: "user"|"jj", text (≤1000), final, utteranceId?}` to stage and operator: one caption line of what JJ or the user said to JJ, re-sent whole under the same lineId as it grows (throttled), `final` once complete. `utteranceId` ties a JJ line to its `actor.say`.
+- **Why:** JJ's transcripts were only logged and `actor.say {actorId:"jj"}` carries `text: ""`; the stage had no way to show what JJ says.
+- **Impact:** stage: captions on JJ's screen. Operator panel can show the same lines.
+
+### 2026-11-08T11:00+01:00 · agents · Transcript relay in the JJ engine
+- **Where:** `apps/brain/src/jj/transcript.ts` (`TranscriptRelay`), `jj/engine.ts`, `jj/ports.ts` (`JJDownlink` + `jj.transcript`)
+- **What:** the agent's transcript chunks are joined per speaker into caption lines: partial updates at most every 250 ms, final on the provider's flag, after 1.5 s without text, on barge-in / run start / reset, or when a line passes 140 chars (split at a sentence end). New lines only while JJ may talk (outside runs, or woken; JJ's still-playing utterance may finish).
+- **Why:** Gemini Live sends many small transcript chunks and rarely marks them finished.
+- **Impact:** another `VoiceAgent` must emit transcript chunks (deltas) through `onTranscript`. Not verified against real Gemini yet (no key): the 1.5 s line end and the stage's 16 chars/s caption pace are guesses to tune live.
+
+### 2026-11-08T11:00+01:00 · brain · Director sends `actor.lookAt`
+- **Where:** `apps/brain/src/director/director.ts` (`DirectorHub.send` accepts `actor.lookAt`; option `thinkMs`, default 700 ms)
+- **What:** at Q&A start everyone looks at the presenter; the next asker looks at its notes for `thinkMs`, then at the presenter while the others look at the asker; during the answer everyone watches the presenter; same for the closing line; all look at their notes while JJ is woken. Sent only when a judge's target changes.
+- **Why:** the protocol had `actor.lookAt` but nobody sent it; the panel stared at the camera.
+- **Impact:** none (stage plays it; `thinkMs` adds 0.7 s before each question).
+
+### 2026-11-08T11:00+01:00 · stage · Gaze, the brain's panel in the room, JJ captions
+- **Where:** `apps/frontend/src/brain/{scene.ts, captions.ts, JJCaptions.tsx, judges.ts, BrainSource.ts, BrainBridge.tsx}`; `src/judges/{Judge.tsx, JudgesScene.tsx, types.ts, index.ts}`; tagged edits in `src/signals/bus.ts` (+`judgePanel`), `src/signals/judges.ts` (+`look`, `JudgeSeat`), `src/components/JudgesStage.tsx`, `src/routes/index.tsx`; `e2e/frontend-brain.mjs` (44 checks)
+- **What:** BrainSource keeps a copy of the scene, applies `scene.apply` before acking (`ok: false` before any `scene.sync`) and publishes `judgePanel`; the room seats exactly those judges (`judge_seat_K` → seat K-1; other seats such as `judge_seat_5` are not shown) with a nameplate per judge, and `judge_N` is addressed by its seat. `actor.lookAt` → `judgeCommand look`. Judges get a per-judge gaze target (presenter / notes / audience / another judge) with a smooth head + chest turn, look at whoever talks, glance at notes or a neighbour and drift slowly (also in mock mode). `jj.transcript` → rolling caption on JJ's screen (JJ's words at speaking pace, older lines dim and fade), compact under "JJ is listening" while woken mid-run.
+- **Why:** judges always stared into the camera, the room ignored the brain's panel (JJ can change it), JJ's screen had no transcript.
+- **Impact:** judges lane: `JudgesHandle.lookAt` (new), `judges` prop is `(JudgeConfig | null)[]` per seat, `JudgeConfig.title`, `seatedJudges()`. Lovable: keep the tagged edits (`JudgesStage` passes `seatedJudges(panel)` and plays `look`; `index.tsx` wraps the greeting in `<JJCaptions>`).
+
+### 2026-11-08T10:45+01:00 · lead · `SessionProgress` (progress across runs)
+- **Where:** `packages/protocol/src/reports.ts` (`ProgressRun`, `ProgressRow`, `SessionProgress`)
+- **What:** per finished run: mode, level, targets, durations, behaviour observations, vignettes, the coach score after it, whether the camera coach was connected; per coach rule (and per target never seen): its count in each run (null without the coach), target / fixed, trend first → last measured run; the coach stage and recommendation; a one-line `headline` ("Moving around / swaying 3 → 0 · …").
+- **Why:** "you got better" is the demo's strongest story; the spec's `FinalReport` needs word and gaze streams that don't exist yet.
+- **Impact:** reports lane: `FinalReport` can be built later next to it.
+
+### 2026-11-08T10:45+01:00 · brain · Session saved to disk, restored on start; reset route; progress route; `report.ready final`
+- **Where:** `apps/brain/src/{persist.ts, progress.ts}` (new), `session.ts` (`SessionStoreOptions.restore`, `reset {full?}`), `runlog.ts` (`restore`, `onChanged`, `coachAfter`, cleared on reset), `brain.ts` (`BrainOptions.restore`), `server.ts`, `config.ts` (`BRAIN_FRESH`), `context/uploads.ts` (slides of decks from earlier processes / sessions found on disk)
+- **What:**
+  - `SESSION_DIR/<sessionId>/session.json` (SessionState + RunLog records) and `SESSION_DIR/latest.json`, written atomically ≤ 500 ms after any change and on shutdown. On start the brain continues the latest session (JJ reconnects as after a restart; already-debriefed runs are not debriefed again). A run under way when the brain stopped is aborted (kept in the log, `endedBy: aborted`); the session continues in the debrief (or the intro without a finished run). `--fresh` / `BRAIN_FRESH=1` starts a new session; an unreadable file is logged and ignored.
+  - `GET /api/session` `{sessionId, phase, runs, savedAt}`; `POST /api/session/reset {full?: boolean = true}`: `full` = a brand-new session (no deck, intro again, the default panel), `full: false` = the existing `reset` (keeps deck, scene, intro done).
+  - `reset` now clears the RunLog (a new session's runs start again at `run_1`, which used to collide with the old records).
+  - `GET /api/progress` → `SessionProgress`. JJ's `compactRunReport` adds `progress` (the headline). `show_final` sends `report.ready {kind: "final", sessionId}` to the stage.
+  - `RunRecord.coachAfter {score, stage}`: the coach right after the run.
+  - `pnpm start:brain`: the brain without watch mode.
+- **Why:** everything lived in memory, so a brain restart (or a code change under `tsx watch`) lost every run and report.
+- **Impact:** operator panel: the reset button can call `POST /api/session/reset` (closes the "reset" spec gap below without a protocol change). Since 12:30 a full reset erases the previous session from disk (`keepData: true` keeps it). Recorder lane: `session.json` is a snapshot, not the JSONL event log.
+
+### 2026-11-08T10:45+01:00 · stage · Progress tab on the report screen
+- **Where:** `apps/frontend/src/brain/{BrainProgress.tsx (new), BrainReport.tsx}`
+- **What:** the report screen has tabs "Run N" and "Progress · N runs" (`GET /api/progress`): one column per run, one row per behaviour with its count per run (bars), trend, target / fixed badges, the coach score per run, the headline. After two runs the run tab shows the headline with a link to the progress tab; the brain's final view opens on it.
+- **Why:** the brain had a final view that nothing showed.
+- **Impact:** Lovable: `report.tsx` keeps rendering `BrainReport` in brain mode.
+
 ### 2026-11-08T03:15+01:00 · lead · `coach.observation` uplink and `RunDigest`
 - **Where:** `packages/protocol/src/messages.ts` (`UPLINK["coach.observation"]`, sender `sensor`), `scripts/samples.ts`, `fixtures/messages/up.coach.observation.json`; `packages/protocol/src/reports.ts` (`RunDigest`, `RunDigestObservation`)
 - **What:** `coach.observation {rule, kind: BehaviorKind|null, category: FeedbackCategory|null, text, clientTs}` carries every coaching observation of the coach backend (not only the 4 sensor behaviours). `RunDigest` is the report the brain can build today (observations, slides, feedback, wakes, Q&A, strengths, next run) without STT or gaze.

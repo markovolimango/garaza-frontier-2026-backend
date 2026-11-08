@@ -7,7 +7,7 @@
  *   POST /api/uploads/docs      JSON { docs: {name, mime, text}[] } → ContextDocMeta[]
  *   GET  /api/decks/:deckId/:n.png
  */
-import { mkdirSync, readFileSync, writeFileSync, existsSync } from "node:fs";
+import { mkdirSync, readFileSync, readdirSync, writeFileSync, existsSync } from "node:fs";
 import type { IncomingMessage, ServerResponse } from "node:http";
 import { join, resolve } from "node:path";
 import { Readable } from "node:stream";
@@ -137,9 +137,23 @@ export class Uploads {
     return { status: 200, body: docs };
   }
 
+  /** A deck's directory: uploaded by this process, or found on disk (a session saved before a restart). */
+  private deckDir(deckId: string): string | undefined {
+    const known = this.decks.get(deckId);
+    if (known) return known;
+    let sessions: string[] = [];
+    try { sessions = readdirSync(this.o.sessionDir); } catch { return undefined; }
+    const current = this.o.session.get().sessionId;
+    for (const sid of [current, ...sessions.filter((x) => x !== current)]) {
+      const dir = resolve(this.o.sessionDir, sid, "uploads", "deck", deckId);
+      if (existsSync(dir)) { this.decks.set(deckId, dir); return dir; }
+    }
+    return undefined;
+  }
+
   private serveSlide(path: string, res: ServerResponse): boolean {
     const m = /^\/api\/decks\/([\w-]+)\/(\d+)\.png$/.exec(path);
-    const dir = m ? this.decks.get(m[1]!) : undefined;
+    const dir = m ? this.deckDir(m[1]!) : undefined;
     const file = dir ? join(dir, `${m![2]}.png`) : null;
     if (!file || !existsSync(file)) {
       res.writeHead(404, { "content-type": "application/json" });

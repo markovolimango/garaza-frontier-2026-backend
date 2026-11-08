@@ -4,8 +4,8 @@
  *   GET /api/runs/:runId/report   → RunDigest (404 for an unknown run)
  */
 import type { IncomingMessage, ServerResponse } from "node:http";
-import type { Recommendation, RunDigest, RunDigestObservation } from "@coach/protocol";
-import type { RunLog, RunRecord } from "./runlog.ts";
+import { CATEGORY_OF, type BehaviorKind, type Recommendation, type RunDigest, type RunDigestObservation } from "@coach/protocol";
+import { episodeTime, RULE_OF_KIND, type EpisodeRecord, type RunLog, type RunRecord } from "./runlog.ts";
 
 /** Coach backend rules (services/coach) → what the presenter reads. */
 export const RULE_LABELS: Record<string, { label: string; strength: string }> = {
@@ -21,6 +21,10 @@ export const RULE_LABELS: Record<string, { label: string; strength: string }> = 
   "body.tracking_lost": { label: "Out of the camera's view", strength: "" },
 };
 const labelFor = (rule: string) => RULE_LABELS[rule]?.label ?? rule;
+const clock = (ms: number) => `${Math.floor(ms / 60_000)}:${String(Math.floor((ms % 60_000) / 1000)).padStart(2, "0")}`;
+
+/** The digest row key of a behaviour: its coach rule, or `kind:<kind>` for one without a rule. */
+export const ruleOfKind = (kind: BehaviorKind) => RULE_OF_KIND[kind] ?? `kind:${kind}`;
 
 export function buildDigest(rec: RunRecord, next: Recommendation | null): RunDigest {
   const run = rec.run;
@@ -44,6 +48,25 @@ export function buildDigest(rec: RunRecord, next: Recommendation | null): RunDig
     g.count++;
     if (g.examples.length < 3) g.examples.push({ tRunMs: Math.max(0, o.at - start), segment: o.segment, slideIndex: o.slideIndex, text: o.text });
     byRule.set(o.rule, g);
+  }
+  // Episodes: every occurrence with its own times; they replace the rule's examples (exact moments).
+  const until = rec.endedAt ?? presEnd;
+  const runMs = presentationMs + qaMs;
+  const epMs = (e: EpisodeRecord) => Math.max(0, (e.endAt ?? until) - e.startAt);
+  const episodes = rec.episodes ?? [];
+  for (const kind of new Set(episodes.map((e) => e.kind))) {
+    const rule = ruleOfKind(kind);
+    const t = episodeTime(rec, kind, until);
+    const g = byRule.get(rule) ?? { rule, kind, category: CATEGORY_OF[kind], label: labelFor(rule), count: 0, examples: [], isTarget: run.targets.includes(kind) };
+    g.count = Math.max(g.count, t.count);
+    g.time = { totalMs: t.totalMs, longestMs: t.longestMs, pct: runMs ? Math.round((t.totalMs / runMs) * 1000) / 10 : 0 };
+    const longest = episodes.filter((e) => e.kind === kind).sort((a, b) => epMs(b) - epMs(a)).slice(0, 3).sort((a, b) => a.startAt - b.startAt);
+    g.examples = longest.map((e) => {
+      const from = Math.max(0, e.startAt - start);
+      return { tRunMs: from, durationMs: epMs(e), segment: e.segment, slideIndex: e.slideIndex,
+        text: `held ${Math.round(epMs(e) / 1000)} s (until ${clock(from + epMs(e))})` };
+    });
+    byRule.set(rule, g);
   }
   const observations = [...byRule.values()].sort((a, b) => Number(b.isTarget) - Number(a.isTarget) || b.count - a.count);
   const strengths = rec.coachConnected

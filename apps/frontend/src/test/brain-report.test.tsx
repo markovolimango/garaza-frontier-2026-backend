@@ -1,9 +1,10 @@
 import { render, screen } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
-import type { RunDigest } from "@coach/protocol";
+import type { RunDigest, SessionProgress } from "@coach/protocol";
 
 vi.mock("../components/NextButton", () => ({ NextButton: ({ label }: { label: string }) => <a>{label} →</a> }));
 const { ReportView, fmtMs } = await import("../brain/BrainReport");
+const { ProgressView } = await import("../brain/BrainProgress");
 const { isWakePhrase } = await import("../brain/wake");
 
 const digest: RunDigest = {
@@ -44,6 +45,42 @@ describe("brain report screen", () => {
     render(<ReportView d={{ ...digest, observations: [], strengths: [], sources: { coach: false } }} />);
     expect(screen.getByText(/camera coach wasn't connected/)).toBeTruthy();
     expect(fmtMs(59_600)).toBe("1:00");
+  });
+});
+
+const run = (index: number, mode: "baseline" | "training", score: number) => ({
+  runId: `run_${index}` as const, index, mode, level: mode === "baseline" ? "off" as const : "strong" as const, targets: [], endedBy: "qa_done" as const,
+  presentationMs: 150_000, qaMs: 40_000, observations: 2, warnings: mode === "baseline" ? 0 : 3, score, coach: true,
+});
+const progress: SessionProgress = {
+  sessionId: "s", runs: [run(1, "baseline", 0.6), run(2, "training", 0.75), run(3, "training", 0.9)],
+  rows: [
+    { rule: "body.torso_movement_high", kind: "sway", label: "Moving around / swaying", counts: [3, 1, 0], isTarget: true, status: "fixed", trend: "better" },
+    { rule: "body.hand_movement_high", kind: null, label: "Fast hand movement", counts: [1, null, 2], isTarget: false, status: null, trend: "worse" },
+  ],
+  coach: { stage: "fading", level: "gentle", score: 0.9, recommendation: { mode: "training", level: "gentle", reason: "Next run with gentle live feedback.", done: false } },
+  headline: "Moving around / swaying 3 → 0 · Fast hand movement 1 → 2",
+};
+
+describe("progress across runs", () => {
+  it("shows each run, each behaviour per run with its trend, the targets and the headline", () => {
+    render(<ProgressView p={progress} />);
+    expect(screen.getByText(progress.headline!)).toBeTruthy();
+    expect(screen.getByText("Run 3")).toBeTruthy();
+    expect(screen.getAllByText("Training · strong feedback")).toHaveLength(2);
+    expect(screen.getByText("3×")).toBeTruthy();
+    expect(screen.getByText("fixed")).toBeTruthy();
+    expect(screen.getByText("↓ better")).toBeTruthy();
+    expect(screen.getByText("↑ worse")).toBeTruthy();
+    expect(screen.getByText("—")).toBeTruthy();                             // run 2 without the camera coach
+    expect(screen.getByText("90")).toBeTruthy();                            // coach score after run 3
+    expect(screen.getByText(/Fading the feedback out/)).toBeTruthy();
+  });
+
+  it("the run report links to it after two runs", () => {
+    render(<ReportView d={digest} progress={progress} tab="run" onTab={() => {}} />);
+    expect(screen.getByText("Progress · 3 runs")).toBeTruthy();
+    expect(screen.getByText(/Since run 1:/)).toBeTruthy();
   });
 });
 

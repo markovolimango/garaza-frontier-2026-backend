@@ -258,6 +258,7 @@ JJ depends only on the narrow ports in `jj/ports.ts` (`SessionPort`, `HubPort`, 
 | `pnpm test` | Vitest across packages |
 | `pnpm typecheck` | `tsc -b` across protocol, web, brain |
 | `pnpm gen:fixtures` | regenerate `fixtures/messages/*.json` from typed samples |
+| `pnpm start:brain` | brain without watch (continues the session saved in `SESSION_DIR`; `--fresh` / `BRAIN_FRESH=1` for a new one) |
 | `pnpm dev:brain` | brain with tsx watch on :8787 (`JJ_FAKE=1` to run without Gemini) |
 | `pnpm --filter @coach/brain jj:playground [--fake]` | JJ playground on :8790 |
 | `pnpm --filter @coach/brain jj:smoke` | headless live JJ test |

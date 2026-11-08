@@ -64,6 +64,7 @@ On sockets, errors arrive as `{"type":"error","error":{"code","message"}}`. Sock
 | GET | `/v1/sessions` | list |
 | POST | `/v1/sessions` | body `SessionCreate`, returns 201 with the session |
 | GET | `/v1/sessions/{id}` | session (state, timeline, mic_source, simulated, effective config, head_cursor) |
+| DELETE | `/v1/sessions/{id}` | erase now: stops it, closes its subscribers, drops its events from memory (the brain bridge calls it when the presenter deletes their practice session); 404 if unknown |
 | POST | `/v1/sessions/{id}/start` `pause` `resume` `stop` | `created→running`, `running→paused`, `paused→running`, `created\|running\|paused→ended`; otherwise 409 |
 | POST | `/v1/sessions/{id}/calibration/start` | `{duration_s?}`: explicit quiet period for the heart-rate session reference |
 | GET | `/v1/sessions/{id}/snapshot` | aggregated state plus `cursor` |
@@ -143,6 +144,7 @@ Formulas: `offset = ((t1-t0)+(t2-t3))/2` and `rtt = (t3-t0)-(t2-t1)`. The sample
 | `heart_rate.sample` | Watch via iPhone | `HeartRateSamplePayload` |
 | `heart_rate.state` | server | `HeartRateStatePayload` |
 | `coaching.feedback` | server | `CoachingFeedbackPayload` |
+| `behavior.episode` | server, at an episode's start and end | `BehaviorEpisodePayload` |
 | `audio.playback` | server (Mac assistant) or device | `AudioPlaybackPayload` |
 | `system.warning` | server or device | `SystemWarningPayload` |
 
@@ -260,6 +262,33 @@ Selection rules:
 | `heart.above_reference` | median of fresh samples ≥ reference + 15 bpm for 30 s | 4 |
 
 Texts state observations ("Heart rate is above your session reference (+18 bpm).") and never claim emotions, stress or health conditions.
+
+**Behaviour episodes (`behavior.episode`)**
+
+The record of what happened, separate from the throttled coaching rules: every occurrence counts, several
+behaviours can be open at once, and each episode has its own times. One event when an episode starts and one
+when it ends, with the same `episode_id`.
+
+- `started_at` is when the condition began to hold (it must hold `min_on_s` before the start event is sent);
+  `ended_at` is when it was last seen (it must be clear `min_off_s` before the end event is sent).
+- `end_reason`: `cleared`, `tracking_lost` (no usable joints for `episodes.unknown_grace_s`, 1.5 s),
+  `session_paused` or `session_ended` (open episodes close before the `session.state` event).
+- Missing measures are unknown, never "not happening": they cannot start an episode.
+- Measures and thresholds are the coaching rules' own (`body.metrics`, `config.pose`, so `tuning.json` tunes
+  both): an episode starts at the rule's condition and ends at its clear threshold. Only the timing is
+  separate (`config.episodes`). Posture measures are 1 s medians, so a start lags the real onset by ≈0.5 s.
+
+| behavior | condition (same as the rule) | episode timing (`config.episodes`) |
+|---|---|---|
+| `arms_crossed` | `body.arms_crossed`: both wrists across the midline in the chest zone | on 1 s, off 1 s |
+| `face_touch` | `body.face_touch`: nearest wrist to a face point | on 0.5 s, off 0.5 s |
+| `looking_down` | `body.looking_down`: head pitch against the head-up reference | on 1.5 s, off 1 s |
+| `sway` | `body.torso_movement_high`: torso-center speed (walking counts too) | on 2 s, off 1.5 s |
+| `fast_hands` | `body.hand_movement_high`: faster wrist, relative to the torso | on 2 s, off 1.5 s |
+
+The session summary has per-behaviour `episodes`, `total_s`, `longest_s`. The brain bridge forwards each
+episode as the brain's `behavior` start/end with the episode's own times, and sends a green reward vignette
+when an episode of one of the run's targets clears.
 
 ## 7. WebSockets
 

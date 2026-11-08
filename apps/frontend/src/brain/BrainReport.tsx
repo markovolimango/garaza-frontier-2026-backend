@@ -1,13 +1,19 @@
 /**
- * BrainReport (Brain integration layer): the report screen under the brain. Fetches the run
- * digest (`GET /api/runs/:runId/report`, protocol RunDigest) for the run that just ended (or the
- * last one after a reload) and shows what the coach noticed, time per slide, the judges'
- * questions, strengths and the next run. The "Next run" bar comes from BrainBridge.
+ * BrainReport (Brain integration layer): the report screen under the brain. Two tabs:
+ * - This run: the run digest (`GET /api/runs/:runId/report`, protocol RunDigest) for the run that
+ *   just ended (or the last one after a reload): what the coach noticed, time per slide, the
+ *   judges' questions, strengths and the next run;
+ * - Progress: run 1 → 2 → 3 (`GET /api/progress`, SessionProgress, BrainProgress.tsx). The brain's
+ *   final view opens on it; after two runs the run tab shows its headline.
+ * The progress tab also has "Export report" (the brain's printable page, GET /api/session/export.html)
+ * and "Delete and start over" (POST /api/session/reset: erases the session from the brain's disk).
+ * The "Next run" bar comes from BrainBridge.
  */
-import type { RunDigest } from "@coach/protocol";
-import { useEffect, useState, useSyncExternalStore } from "react";
+import type { RunDigest, SessionProgress } from "@coach/protocol";
+import { useEffect, useState, useSyncExternalStore, type ReactNode } from "react";
 import { NextButton } from "../components/NextButton";
 import { activeSource } from "../signals";
+import { ProgressView } from "./BrainProgress";
 import { BrainSource } from "./BrainSource";
 
 export const fmtMs = (ms: number) => {
@@ -27,34 +33,92 @@ export function BrainReport() {
   return <Report brain={activeSource} />;
 }
 
+export type ReportTab = "run" | "progress";
+
 function Report({ brain }: { brain: BrainSource }) {
   const snap = useSyncExternalStore(brain.subscribe, brain.getSnapshot, brain.getSnapshot);
   const runId = snap.reportReady?.kind === "run" ? snap.reportReady.runId : snap.run?.runId;
+  const final = snap.ui?.view === "final";
+  const [tab, setTab] = useState<ReportTab>(final ? "progress" : "run");
+  useEffect(() => { if (final) setTab("progress"); }, [final]);
   const [digest, setDigest] = useState<RunDigest | null>(null);
+  const [progress, setProgress] = useState<SessionProgress | null>(null);
   const [error, setError] = useState<string | null>(null);
   useEffect(() => {
     if (!runId) return;
     let live = true;
     setError(null);
-    fetch(`${brain.httpBase}/api/runs/${encodeURIComponent(runId)}/report`)
-      .then((r) => (r.ok ? r.json() : Promise.reject(new Error(`HTTP ${r.status}`))))
-      .then((d: RunDigest) => { if (live) setDigest(d); })
+    const get = <T,>(path: string) => fetch(`${brain.httpBase}${path}`).then((r) => (r.ok ? (r.json() as Promise<T>) : Promise.reject(new Error(`HTTP ${r.status}`))));
+    get<RunDigest>(`/api/runs/${encodeURIComponent(runId)}/report`)
+      .then((d) => { if (live) setDigest(d); })
       .catch((e: unknown) => { if (live) setError(String(e)); });
+    get<SessionProgress>("/api/progress").then((p) => { if (live) setProgress(p); }).catch(() => {});   // optional: the run tab works without it
     return () => { live = false; };
   }, [brain, runId, snap.reportReady]);
   if (!runId) return <Empty text="No run yet. Start one from JJ's screen." />;
   if (error) return <Empty text={`Couldn't load the report (${error}).`} />;
   if (!digest) return <Empty text="Loading the report…" />;
-  return <ReportView d={digest} />;
+  return <ReportView d={digest} progress={progress} tab={tab} onTab={setTab} actions={<SessionActions brain={brain} />} />;
+}
+
+/** Export the session report; erase the session and start over (asks first). */
+function SessionActions({ brain }: { brain: BrainSource }) {
+  const [busy, setBusy] = useState(false);
+  const erase = () => {
+    if (!window.confirm("Delete this practice session (runs, reports and anything you told JJ) from this computer and start over?")) return;
+    setBusy(true);
+    fetch(`${brain.httpBase}/api/session/reset`, { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ full: true }) })
+      .then((r) => r.json() as Promise<{ ok: boolean; hint?: string; reason?: string }>)
+      .then((r) => brain.toast(r.ok ? "Session deleted. Click on JJ's screen to start a new one." : (r.hint ?? r.reason ?? "Couldn't delete the session"), r.ok ? "info" : "warn"))
+      .catch((err: unknown) => brain.toast(`Couldn't delete the session: ${String(err)}`, "warn"))
+      .finally(() => setBusy(false));
+  };
+  const btn = "pointer-events-auto rounded-full border px-4 py-1.5 font-sans text-sm";
+  return (
+    <>
+      <a href={`${brain.httpBase}/api/session/export.html`} target="_blank" rel="noreferrer" className={`${btn} border-primary/60 text-primary hover:bg-primary/10`}>
+        Export report
+      </a>
+      <button type="button" disabled={busy} onClick={erase} className={`${btn} border-destructive/60 text-destructive hover:bg-destructive/10 disabled:opacity-50`}>
+        Delete and start over
+      </button>
+    </>
+  );
 }
 
 function Empty({ text }: { text: string }) {
   return <main className="flex h-screen items-center justify-center text-lg text-muted-foreground">{text}</main>;
 }
 
-export function ReportView({ d }: { d: RunDigest }) {
+export function ReportView({ d, progress = null, tab = "run", onTab, actions = null }: {
+  d: RunDigest; progress?: SessionProgress | null; tab?: ReportTab; onTab?: (t: ReportTab) => void; actions?: ReactNode;
+}) {
   const total = d.durations.presentationMs + d.durations.qaMs;
   const maxDwell = Math.max(1, ...d.slides.map((s) => s.dwellMs));
+  const tabs = progress && progress.runs.length > 0 && onTab ? (
+    <nav className="flex gap-1 rounded-full border border-border bg-card p-1 font-sans text-sm">
+      {(["run", "progress"] as const).map((t) => (
+        <button key={t} type="button" onClick={() => onTab(t)}
+          className={`rounded-full px-4 py-1.5 ${tab === t ? "bg-primary text-primary-foreground" : "text-muted-foreground hover:bg-accent"}`}>
+          {t === "run" ? `Run ${d.index}` : `Progress · ${progress.runs.length} run${progress.runs.length === 1 ? "" : "s"}`}
+        </button>
+      ))}
+    </nav>
+  ) : null;
+  if (tab === "progress" && progress) {
+    return (
+      <main className="mx-auto flex h-screen max-w-[1760px] flex-col gap-6 overflow-y-auto px-10 pb-36 pt-10">
+        <header className="flex flex-wrap items-end justify-between gap-4">
+          <div>
+            <p className="font-mono text-xs uppercase tracking-widest text-muted-foreground">Report · progress</p>
+            <h1 className="mt-1 text-4xl font-semibold tracking-tight">How you changed, run by run</h1>
+          </div>
+          <div className="flex items-center gap-4">{tabs}{actions}<NextButton to="/" label="Back to JJ" /></div>
+        </header>
+        <ProgressView p={progress} />
+      </main>
+    );
+  }
   return (
     <main className="mx-auto flex h-screen max-w-[1760px] flex-col gap-6 overflow-y-auto px-10 pb-36 pt-10">
       <header className="flex flex-wrap items-end justify-between gap-4">
@@ -63,6 +127,7 @@ export function ReportView({ d }: { d: RunDigest }) {
           <h1 className="mt-1 text-4xl font-semibold tracking-tight">{MODE[d.mode]} · {LEVEL[d.level]}</h1>
         </div>
         <div className="flex items-center gap-6 font-mono text-sm text-muted-foreground">
+          {tabs}
           <NextButton to="/" label="Back to JJ" />
           <Stat label="Presentation" value={fmtMs(d.durations.presentationMs)} />
           <Stat label="Q&A" value={fmtMs(d.durations.qaMs)} />
@@ -71,6 +136,11 @@ export function ReportView({ d }: { d: RunDigest }) {
           <Stat label="Talked to JJ" value={`${d.wakes}×`} />
         </div>
       </header>
+      {progress?.headline && progress.runs.length >= 2 && (
+        <button type="button" onClick={() => onTab?.("progress")} className="rounded-lg border border-primary/40 bg-primary/10 px-4 py-3 text-left text-lg">
+          <span className="text-muted-foreground">Since run {progress.runs[0]!.index}: </span>{progress.headline} <span className="text-sm text-muted-foreground">· see progress →</span>
+        </button>
+      )}
       {d.targets.length > 0 && (
         <p className="text-sm text-muted-foreground">Working on: {d.targets.map((t) => <span key={t} className="ml-2 rounded-full border border-primary/50 px-2 py-0.5 text-foreground">{t.replace("_", " ")}</span>)}</p>
       )}
@@ -89,11 +159,17 @@ export function ReportView({ d }: { d: RunDigest }) {
                     <span className="font-mono text-sm text-muted-foreground">{o.count}×</span>
                   </span>
                 </div>
-                {o.examples[0] && (
-                  <p className="mt-1 text-sm text-muted-foreground">
-                    {fmtMs(o.examples[0].tRunMs)}, {o.examples[0].segment === "qa" ? "Q&A" : `slide ${o.examples[0].slideIndex + 1}`}: {o.examples[0].text}
+                {o.time && (
+                  <p className="mt-1 font-mono text-xs text-muted-foreground">
+                    {Math.round(o.time.totalMs / 1000)} s in total · {o.time.pct}% of the run · longest {Math.round(o.time.longestMs / 1000)} s
                   </p>
                 )}
+                {/* episodes: up to three exact moments; rule observations: the first one */}
+                {(o.time ? o.examples : o.examples.slice(0, 1)).map((e) => (
+                  <p key={e.tRunMs} className="mt-1 text-sm text-muted-foreground">
+                    {fmtMs(e.tRunMs)}, {e.segment === "qa" ? "Q&A" : `slide ${e.slideIndex + 1}`}: {e.text}
+                  </p>
+                ))}
               </li>
             ))}
           </ul>

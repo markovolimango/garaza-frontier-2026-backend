@@ -118,8 +118,12 @@ export type FinalReport = z.infer<typeof FinalReport>;
  */
 export const RunDigestObservation = z.object({
   rule: z.string(), kind: BehaviorKind.nullable(), category: FeedbackCategory.nullable(), label: z.string(),
+  /** Occurrences: behaviour episodes when the coach sent them, else rule observations (the larger). */
   count: z.number().int(),
-  examples: z.array(z.object({ tRunMs: z.number(), segment: Segment, slideIndex: z.number().int(), text: z.string() })).max(3),
+  /** Moments; from episodes they carry durationMs ("from 1:24 to 1:31"). */
+  examples: z.array(z.object({ tRunMs: z.number(), durationMs: z.number().optional(), segment: Segment, slideIndex: z.number().int(), text: z.string() })).max(3),
+  /** Episode time (camera behaviours with episodes only): total, longest, and share of the run in %. */
+  time: z.object({ totalMs: z.number(), longestMs: z.number(), pct: z.number() }).optional(),
   isTarget: z.boolean(),
 });
 export type RunDigestObservation = z.infer<typeof RunDigestObservation>;
@@ -138,3 +142,43 @@ export const RunDigest = z.object({
   sources: z.object({ coach: z.boolean() }),
 });
 export type RunDigest = z.infer<typeof RunDigest>;
+
+/**
+ * SessionProgress: how the presenter changed across the session's runs (run 1 → 2 → 3), from the
+ * same observations as RunDigest. `GET /api/progress`; the report screen shows it after two runs
+ * and as the final view. `counts[i]` belongs to `runs[i]`; null = the camera coach wasn't connected.
+ */
+export const ProgressRun = z.object({
+  runId: RunId, index: z.number().int(), mode: RunMode, level: FeedbackLevel, targets: z.array(BehaviorKind),
+  endedBy: RunDigest.shape.endedBy,
+  presentationMs: z.number(), qaMs: z.number(),
+  observations: z.number().int(),          // presenter-behaviour observations (rules with a category)
+  warnings: z.number().int(),              // vignettes shown
+  score: z.number().min(0).max(1).nullable(),
+  coach: z.boolean(),
+});
+export type ProgressRun = z.infer<typeof ProgressRun>;
+
+export const ProgressRow = z.object({
+  rule: z.string(), kind: BehaviorKind.nullable(), label: z.string(),
+  counts: z.array(z.number().int().nullable()),
+  /** counts per minute of the run (presentation + Q&A), so runs of different length compare fairly. */
+  perMin: z.array(z.number().nullable()).optional(),
+  /** Share of the run spent in this behaviour, % (camera behaviours with episodes only). */
+  timePct: z.array(z.number().nullable()).optional(),
+  isTarget: z.boolean(),
+  status: z.enum(["learning", "fixed"]).nullable(),
+  /** First measured run vs the last one, per minute. */
+  trend: z.enum(["better", "same", "worse"]),
+});
+export type ProgressRow = z.infer<typeof ProgressRow>;
+
+export const SessionProgress = z.object({
+  sessionId: z.string(),
+  runs: z.array(ProgressRun),
+  rows: z.array(ProgressRow),
+  coach: z.object({ stage: CoachState.shape.stage, level: FeedbackLevel, score: z.number(), recommendation: Recommendation.nullable() }),
+  /** One line for the screen and JJ, e.g. "Fast hand movement 4 → 1 · Moving around 3 → 0". Null before two measured runs. */
+  headline: z.string().nullable(),
+});
+export type SessionProgress = z.infer<typeof SessionProgress>;

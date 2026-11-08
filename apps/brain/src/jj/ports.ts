@@ -50,6 +50,8 @@ export interface ContextPort {
 /** Reports lane: compact RunReport (patterns, target progress, recommendation, score). */
 export interface ReportsPort {
   compactRunReport(runId: RunId): unknown | null;
+  /** The whole session, first run → last (for the final narration); optional. */
+  sessionProgress?(): unknown | null;
 }
 
 /** P1 gaze calibration flow; optional. */

@@ -11,9 +11,19 @@ brain; see the spec (`AI Presentation Coach — Component & Interface Spec.md`) 
 corepack pnpm install
 cp .env.example .env               # JJ_FAKE=1 runs without a Gemini key
 corepack pnpm test && corepack pnpm typecheck
-corepack pnpm dev:brain            # brain on :8787
+corepack pnpm dev:brain            # brain on :8787 (watch: restarts on every code change)
 corepack pnpm dev:frontend         # Lovable app on :5174, wired to the brain
 ```
+
+**Sesija se čuva na disk** (`data/sessions/`): runovi, izveštaji, coach i deck ostaju posle restarta
+braina. Run koji je bio u toku se prekida, a sesija nastavlja od izveštaja poslednjeg runa. Za novu
+sesiju koristi `--fresh` (stara ostaje na disku) ili dugme **Delete and start over** na kartici Progress
+(= `curl -X POST localhost:8787/api/session/reset`): to **briše** prethodnu sesiju sa diska (runovi,
+izveštaji, lični ciljevi, slajdovi) i njene coach sesije iz memorije. `{"keepData": true}` je zadržava,
+`{"full": false}` zadržava deck i preskače JJ-ov uvod (ništa ne briše).
+
+**Napredak kroz runove:** ekran izveštaja posle drugog runa prikazuje "run 1 → 2 → 3" (karticu Progress)
+i naslov tipa "Moving around / swaying 3 → 0". JJ-ov `show_final` otvara isti prikaz. API: `GET /api/progress`.
 
 The main app is built in Lovable in a separate repo and carried here as a git subtree at
 `apps/frontend`; pull new Lovable commits with `pnpm frontend:pull` (docs/integration.md §14).

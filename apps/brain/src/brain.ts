@@ -6,7 +6,7 @@
 import { createServer, type IncomingMessage, type Server, type ServerResponse } from "node:http";
 import type { AddressInfo } from "node:net";
 import {
-  GREYBOX_VENUE, type ClientRole, type FeedbackCategory, type SceneDef, type ToolResult, type VenueDef,
+  GREYBOX_VENUE, type ClientRole, type FeedbackCategory, type SceneDef, type SessionState, type ToolResult, type VenueDef,
 } from "@coach/protocol";
 import { RealClock, type Clock } from "./clock.ts";
 import { WsHub } from "./hub.ts";
@@ -41,6 +41,8 @@ export interface BrainOptions {
   sessionDir?: string;
   /** Extra allowed CORS origins; localhost / 127.0.0.1 on any port are always allowed. */
   corsOrigins?: string[];
+  /** A session saved before a restart (persist.ts `loadLatest`): the brain continues it. */
+  restore?: SessionState;
 }
 
 export interface Brain {
@@ -81,6 +83,7 @@ export function createBrain(o: BrainOptions): Brain {
     clock, log, venue, coach: o.coach ?? placeholderCoach,
     initialScene: o.initialScene ?? defaultScene(o.jj.JUDGE_VOICES),
     ...(o.enabledCategories ? { enabledCategories: o.enabledCategories } : {}),
+    ...(o.restore ? { restore: o.restore } : {}),
     stage: { isConnected: () => hub.isConnected("stage"), send: (m) => hub.send("stage", m) },
   });
 

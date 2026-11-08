@@ -324,10 +324,11 @@ export function createCoachTools(deps: CoachToolDeps, registry: ToolRegistry): T
   reg("set_lighting", "Set the room lighting: default, stage or dim.", "BLOCKING",
     async (a) => scene([{ op: "lighting.set", preset: a.preset, transitionMs: deps.lightingTransitionMs ?? 1500 }]));
 
-  reg("show_final", "Show the final report: baseline compared with the final run.", "BLOCKING", async () => {
+  reg("show_final", "End the practice and show the final report: where the presenter started and where they are now. Call it when the user says they are done, or when the recommendation says done.", "BLOCKING", async () => {
     const s = session.get();
     const r = dispatch({ type: "show_final" });
-    return toTool(r, { baseline_run_id: s.completedRuns[0] ?? null, final_run_id: s.completedRuns.at(-1) ?? null });
+    return toTool(r, { baseline_run_id: s.completedRuns[0] ?? null, final_run_id: s.completedRuns.at(-1) ?? null,
+      progress: r.ok ? reports.sessionProgress?.() ?? null : null });
   });
 
   reg("calibrate_gaze", "Calibrate where each judge sits, by asking the user to look at each one in turn.", "BLOCKING", async () => {

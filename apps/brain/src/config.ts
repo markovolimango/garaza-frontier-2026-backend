@@ -6,6 +6,8 @@ export const BrainConfig = z.object({
   BRAIN_PORT: z.coerce.number().int().positive().default(8787),
   BRAIN_HOST: z.string().default("127.0.0.1"),
   SESSION_DIR: z.string().default("./data/sessions"),
+  /** 1 = don't continue the session saved in SESSION_DIR (same as `--fresh`). */
+  BRAIN_FRESH: z.enum(["0", "1"]).default("0"),
   RECORD_AUDIO: z.enum(["0", "1"]).default("0"),
   AUDIO_OUTPUT: z.enum(["headphones", "speakers"]).default("headphones"),
   COACH_CLEAN_RUNS: z.coerce.number().int().min(1).default(1),

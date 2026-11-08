@@ -1,19 +1,21 @@
 /**
  * ObservedCoach: a CoachPolicy that works without JJ. It keeps the placeholder's stage table
  * (baseline → training strong → fading gentle → test → done) and decides from what the coach
- * backend observed in each run (RunLog `coach.observation`s that map to a behaviour):
+ * backend observed in each run (RunLog behaviour episodes, and `coach.observation`s that map to a
+ * behaviour for what has no episodes; `behaviorCounts`):
  *
  * - after the baseline: the two most frequent behaviours become the targets, next run is training
  *   (with no mappable behaviour: training without targets, i.e. feedback on everything);
  * - after a training run: a target not seen in that run gets a clean run; `cleanRuns` clean runs
  *   in a row fix it; all targets fixed → the next stage (training → fading → test), streaks reset;
+ * - a run the camera coach did not measure (not connected) changes no streak: "not seen" is not "clean";
  * - `maxTrainingRuns` training runs → test, whatever the targets.
  *
  * JJ's tools (set_targets, set_level) still override through setTargets / setLevel.
  */
 import type { BehaviorKind, CoachState, Recommendation, RunState, TargetProgress } from "@coach/protocol";
 import { placeholderCoach } from "./placeholders.ts";
-import type { RunRecord } from "./runlog.ts";
+import { behaviorCounts, type RunRecord } from "./runlog.ts";
 import type { CoachPolicy } from "./session.ts";
 
 export const BEHAVIOR_WORDS: Record<BehaviorKind, string> = {
@@ -25,12 +27,13 @@ export const BEHAVIOR_WORDS: Record<BehaviorKind, string> = {
 const severity = (n: number) => Math.min(1, n / 5);
 
 /** Where the policy reads a finished run's observations (the RunLog, created after the policy). */
-export interface RunSource { get(runId: string): Pick<RunRecord, "observations"> | null }
+export interface RunSource {
+  get(runId: string): (Pick<RunRecord, "observations"> & Partial<Pick<RunRecord, "episodes" | "coachConnected">>) | null;
+}
 
 export function kindCounts(log: RunSource, runId: string): Map<BehaviorKind, number> {
-  const counts = new Map<BehaviorKind, number>();
-  for (const o of log.get(runId)?.observations ?? []) if (o.kind) counts.set(o.kind, (counts.get(o.kind) ?? 0) + 1);
-  return counts;
+  const rec = log.get(runId);
+  return rec ? behaviorCounts({ observations: rec.observations, episodes: rec.episodes ?? [] }) : new Map();
 }
 
 export function observedCoach(log: RunSource, opts: { cleanRuns: number; maxTrainingRuns: number }): CoachPolicy {
@@ -61,6 +64,7 @@ export function observedCoach(log: RunSource, opts: { cleanRuns: number; maxTrai
         return { ...next, targets, stage: "training", level: "strong" };
       }
       if (run.mode !== "training") return next;
+      if (log.get(run.runId)?.coachConnected === false) return next;   // not measured: streaks unchanged
       const targets = next.targets.map((t): TargetProgress => {
         const n = counts.get(t.kind) ?? 0;
         const cleanStreak = n === 0 ? t.cleanStreak + 1 : 0;

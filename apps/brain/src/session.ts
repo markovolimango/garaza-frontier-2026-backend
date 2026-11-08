@@ -38,7 +38,9 @@ const ActionSchema = z.discriminatedUnion("type", [
   z.object({ type: z.literal("set_level"), level: FeedbackLevel }),
   z.object({ type: z.literal("set_categories"), enabled: z.array(FeedbackCategory) }),
   z.object({ type: z.literal("start_calibration") }), z.object({ type: z.literal("calibration_done"), calibration: GazeCalibration }),
-  z.object({ type: z.literal("show_final") }), z.object({ type: z.literal("reset") }),
+  z.object({ type: z.literal("show_final") }),
+  /** full: also forget the deck, docs, brief, intro and panel (a brand-new session, as after a fresh start). */
+  z.object({ type: z.literal("reset"), full: z.boolean().optional() }),
 ]);
 /** Spec "Brain core" SessionAction; slide.from is an extension (see docs/extensions.md). */
 export type SessionAction = z.infer<typeof ActionSchema>;
@@ -65,9 +67,12 @@ export interface SessionStoreOptions {
   ackTimeoutMs?: number;         // 2000
   newSessionId?: () => string;
   log?: Logger;
+  /** A session saved before a restart (persist.ts): continue it instead of starting fresh. */
+  restore?: SessionState;
 }
 
 type Sub = (s: SessionState, cause: SessionCause) => void;
+const EMPTY_CONTEXT: SessionContext = { deck: null, docs: [], brief: null, digest: null };
 
 export class SessionStore {
   private s: SessionState;
@@ -80,8 +85,8 @@ export class SessionStore {
 
   constructor(private readonly o: SessionStoreOptions) {
     this.log = o.log ?? (() => {});
-    const scene = structuredClone(o.initialScene);
-    this.s = this.fresh(scene, { deck: null, docs: [], brief: null, digest: null }, false);
+    const scene = structuredClone(o.restore?.scene ?? o.initialScene);
+    this.s = o.restore ? this.resumed(structuredClone(o.restore)) : this.fresh(scene, EMPTY_CONTEXT, false);
     this.sceneHistory.set(scene.version, structuredClone(scene));
     this.commands = new SceneCommander({
       clock: o.clock, venue: () => this.o.venue, stage: o.stage, ackTimeoutMs: o.ackTimeoutMs ?? 2000, log: this.log,
@@ -252,13 +257,42 @@ export class SessionStore {
 
       case "reset": {
         this.stopCountdown();
-        this.s = this.fresh(s.scene, s.context, s.introDone);
+        if (a.full) {
+          const scene = { ...structuredClone(this.o.initialScene), version: s.scene.version + 1 };
+          this.sceneHistory.set(scene.version, structuredClone(scene));
+          this.s = this.fresh(scene, EMPTY_CONTEXT, false);
+        } else {
+          this.s = this.fresh(s.scene, s.context, s.introDone);
+        }
         return ok;
       }
     }
   }
 
   private beforeCalibration: "intro" | "debrief" | null = null;
+
+  /**
+   * A saved session after a brain restart. Timers and the live run are gone, so a run that was
+   * under way is aborted (it stays in the run log) and the session continues where a finished
+   * run would leave it: the debrief after a completed run, otherwise the intro.
+   */
+  private resumed(saved: SessionState): SessionState {
+    const s = saved;
+    const now = this.o.clock.now();
+    const run = s.run;
+    if (run && run.phase !== "ended" && run.phase !== "aborted") {
+      if (run.paused && s.wake.since !== null) run.pausedMs += Math.max(0, now - s.wake.since);
+      run.paused = false;
+      run.phase = "aborted";
+      run.endedAt = now;
+      this.log("warn", "session.restored_run_aborted", { runId: run.runId });
+    }
+    if (s.phase === "running" || s.phase === "calibrating") s.phase = s.completedRuns.length ? "debrief" : s.context.deck ? "intro" : "setup";
+    s.wake = { active: false, via: null, since: null };
+    s.coach = { ...s.coach, recommendation: s.coach.recommendation ?? this.o.coach.recommend(s.coach) };
+    s.view = viewFor(s).view;
+    return s;
+  }
 
   private fresh(scene: SceneDef, context: SessionContext, introDone: boolean): SessionState {
     const coach = this.o.coach.initial();
