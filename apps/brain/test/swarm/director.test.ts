@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { GREYBOX_VENUE, type ClientRole, type Deck, type DownlinkMessage, type RunId, type SceneDef } from "@coach/protocol";
+import { GREYBOX_VENUE, type ClientRole, type Deck, type DownlinkMessage, type RunId, type SceneDef, type SceneOp } from "@coach/protocol";
 import { VirtualClock } from "../../src/clock.ts";
 import { DirectorAgent, type DirectorLlm, type LlmCall } from "../../src/director/agent.ts";
 import { Director } from "../../src/director/director.ts";
@@ -29,7 +29,8 @@ function rig(opts: { questions?: number; plan?: Handler; decide?: Handler; noLlm
   const scene: SceneDef = { version: 1, venueId: "greybox", qa: { questions: opts.questions ?? 2, answerCapMs: 20_000 }, judges: PANEL, audience: { count: 10 }, lighting: "default" };
   let runLog: RunLog | null = null;
   const coach = observedCoach({ get: (id) => runLog?.get(id) ?? null }, { cleanRuns: 1, maxTrainingRuns: 5 });
-  const store = new SessionStore({ clock, coach, venue: GREYBOX_VENUE, stage: new FakeStage(), initialScene: scene, newSessionId: () => "sess" });
+  const stage = new FakeStage();
+  const store = new SessionStore({ clock, coach, venue: GREYBOX_VENUE, stage, initialScene: scene, newSessionId: () => "sess" });
   store.setContext({ deck: DECK });
   const micFns: ((pcm: Int16Array) => void)[] = [];
   const gestures: string[] = [];
@@ -70,7 +71,14 @@ function rig(opts: { questions?: number; plan?: Handler; decide?: Handler; noLlm
   /** The presenter answers for `ms` (mic voiced, a qa phrase at the end), then is silent. */
   const answer = async (text: string, ms = 2000) => { await run(ms, () => voiced()); phrase(text, "qa"); await run(1600, () => silent()); };
   const status = () => board.allStatuses().find((a) => a.id === "director")!;
-  return { clock, store, board, runLog, said, gestures, calls, director, agent, run, phrase, toPresentation, answer, status };
+  /** A scene change the main screen confirms (as set_qa does). */
+  const applyScene = (ops: SceneOp[]) => {
+    const done = store.applyScene(ops);
+    const m = stage.sent.at(-1)!;
+    if (m.type === "scene.apply") store.commands.onAck({ batchId: m.payload.batchId, version: m.payload.version, ok: true });
+    return done;
+  };
+  return { clock, store, board, runLog, said, gestures, calls, director, agent, run, phrase, toPresentation, answer, status, applyScene };
 }
 
 const planOf = (qs: [string, string, string][]) => () => ({ questions: qs.map(([judgeId, topic, text]) => ({ judgeId, topic, text, slideIndex: -1 })) });
@@ -202,10 +210,10 @@ describe("director agent: Q&A decisions", () => {
 });
 
 describe("director agent: JJ's brief", () => {
-  it("tough brief: tougher tone in the prompts, the question count, no follow-ups, a tough closing line", async () => {
+  it("tough brief: tougher tone in the prompts, no follow-ups, a tough closing line", async () => {
     const t = rig({
-      questions: 3,
-      brief: { type: "director.brief", strictness: "tough", questions: 1, followUps: false, focus: ["pricing"] },
+      questions: 1,
+      brief: { type: "director.brief", strictness: "tough", followUps: false, focus: ["pricing"] },
       plan: (c) => {
         expect(c.prompt).toContain("Questions to write: 1");
         expect(c.prompt).toContain("judge_1 · Customer advocate · style warm · tone (tough)");
@@ -230,12 +238,23 @@ describe("director agent: JJ's brief", () => {
     await t.toPresentation();
     await t.run(100);
     expect(t.calls).toHaveLength(1);
-    t.board.command({ type: "director.brief", perJudge: { judge_3: "kind" }, questions: 3 });
+    t.board.command({ type: "director.brief", perJudge: { judge_3: "kind" } });
+    await t.run(1100);
+    expect(t.calls).toHaveLength(2);
+    expect(t.calls[1]!.prompt).toContain("Questions to write: 2");
+    expect(t.calls[1]!.prompt).toContain("judge_3 · VC investor · style skeptical · tone (kind)");
+    expect(t.calls[1]!.prompt).toContain("judge_4 · Technical expert · style neutral · tone (neutral)");
+  });
+
+  it("set_qa mid-presentation replans for the new number of questions", async () => {
+    const t = rig({ plan: planOf([["judge_3", "pricing", "What do you charge?"], ["judge_1", "problem", "Who has this problem?"]]) });
+    await t.toPresentation();
+    await t.run(100);
+    expect(t.calls).toHaveLength(1);
+    expect(await t.applyScene([{ op: "qa.set", qa: { ...t.store.get().scene.qa, questions: 3 } }])).toMatchObject({ ok: true });
     await t.run(1100);
     expect(t.calls).toHaveLength(2);
     expect(t.calls[1]!.prompt).toContain("Questions to write: 3");
-    expect(t.calls[1]!.prompt).toContain("judge_3 · VC investor · style skeptical · tone (kind)");
-    expect(t.calls[1]!.prompt).toContain("judge_4 · Technical expert · style neutral · tone (neutral)");
   });
 
   it("a reset forgets the brief and drops a plan still being written for the old session", async () => {

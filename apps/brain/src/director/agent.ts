@@ -100,7 +100,7 @@ export class DirectorAgent implements DirectorStrategy {
   private briefLabel(): string {
     const b = this.brief;
     if (!b) return "default";
-    return [b.strictness, b.questions !== undefined ? `${b.questions} questions` : "", b.focus?.length ? `focus ${b.focus.join(", ")}` : "",
+    return [b.strictness, b.focus?.length ? `focus ${b.focus.join(", ")}` : "",
       b.followUps === false ? "no follow-ups" : "", b.interrupts ? "interrupts" : ""].filter(Boolean).join(" · ") || "default";
   }
 
@@ -117,8 +117,9 @@ export class DirectorAgent implements DirectorStrategy {
     });
   }
 
+  /** How many questions: the scene's (set_qa). 0 = no Q&A. */
   private count(s: Readonly<SessionState>): number {
-    return Math.max(0, Math.min(5, Math.round(this.brief?.questions ?? s.scene.qa.questions)));
+    return Math.max(0, Math.min(5, Math.round(s.scene.qa.questions)));
   }
 
   private wishes(): DirectorWishes { return { focus: this.brief?.focus, note: this.brief?.note }; }
@@ -155,6 +156,10 @@ export class DirectorAgent implements DirectorStrategy {
       if (run?.phase !== "qa") this.setStatus("idle", "waiting for a run");   // ended without a Q&A
     }
     if (presenting && !Array.isArray(cause) && cause.type === "slide") this.schedulePlan(this.o.slideDebounceMs ?? 3000);
+    if (presenting && Array.isArray(cause) && cause.some((op) => op.op === "qa.set")) {   // set_qa: another number of questions
+      this.templatePlanIfNone(s, true);
+      this.schedulePlan(1000);
+    }
   }
 
   /** A new session: nothing of the old one carries over (the board's brief is cleared with it). */

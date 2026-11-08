@@ -216,13 +216,20 @@ describe("swarm tools (JJ leads the agents)", () => {
     const { tools, swarm, told } = swarmSetup();
     expect(await tools.invoke("direct_judges", { strictness: "tough", focus: ["pricing"] }, "jj"))
       .toEqual({ ok: true, brief: { strictness: "tough", focus: ["pricing"] }, applies_to: "the next Q&A" });
-    const r = await tools.invoke("direct_judges", { questions: 2, follow_ups: true, note: "press on the market size" }, "jj");
-    expect(r).toMatchObject({ ok: true, brief: { strictness: "tough", focus: ["pricing"], questions: 2, follow_ups: true, note: "press on the market size" } });
-    expect(swarm.commands.at(-1)).toEqual({ type: "director.brief", strictness: "tough", focus: ["pricing"], questions: 2, followUps: true, note: "press on the market size" });
-    expect(told.at(-1)).toBe("director: tough judges · focus pricing · 2 questions · follow-ups · press on the market size");
+    const r = await tools.invoke("direct_judges", { follow_ups: true, note: "press on the market size" }, "jj");
+    expect(r).toMatchObject({ ok: true, brief: { strictness: "tough", focus: ["pricing"], follow_ups: true, note: "press on the market size" } });
+    expect(swarm.commands.at(-1)).toEqual({ type: "director.brief", strictness: "tough", focus: ["pricing"], followUps: true, note: "press on the market size" });
+    expect(told.at(-1)).toBe("director: tough judges · focus pricing · follow-ups · press on the market size");
     // [] clears the focus; interrupts can be switched off
     await tools.invoke("direct_judges", { focus: [], interrupts: false }, "jj");
-    expect(swarm.commands.at(-1)).toEqual({ type: "director.brief", strictness: "tough", questions: 2, followUps: true, interrupts: false, note: "press on the market size" });
+    expect(swarm.commands.at(-1)).toEqual({ type: "director.brief", strictness: "tough", followUps: true, interrupts: false, note: "press on the market size" });
+  });
+
+  it("direct_judges has no question count: set_qa is the one way to set it", async () => {
+    const { tools, swarm } = swarmSetup();
+    expect(JSON.stringify(tools.catalogue().tools.find((x) => x.name === "direct_judges")!.argsSchema)).not.toContain("questions");
+    expect(await tools.invoke("direct_judges", { questions: 2 }, "jj")).toMatchObject({ ok: false, reason: "invalid_args" });
+    expect(swarm.commands).toEqual([]);
   });
 
   it("direct_judges per judge: left/center/right resolve by seat; a panel-wide strictness replaces them", async () => {

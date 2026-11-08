@@ -75,7 +75,6 @@ export const ToolArgs = {
     judge: z.enum(["left", "center", "right", "judge_1", "judge_2", "judge_3", "judge_4", "judge_5"]).optional()
       .describe("Give the strictness to this judge only; omit for the whole panel"),
     focus: z.array(z.string().min(1).max(80)).max(4).optional().describe('Topics to press on, e.g. ["pricing", "competition"]; [] clears'),
-    questions: z.number().int().min(1).max(5).optional().describe("How many questions the panel asks"),
     follow_ups: z.boolean().optional().describe("May a judge follow up on a weak answer"),
     interrupts: z.boolean().optional().describe("May a judge cut in on a long answer"),
     note: z.string().min(1).max(200).optional().describe("Anything else for the director, in one sentence"),

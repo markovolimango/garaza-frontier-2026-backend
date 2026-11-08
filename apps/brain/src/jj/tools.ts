@@ -393,21 +393,19 @@ function briefOut(b: Brief): Record<string, unknown> {
     ...(b.strictness ? { strictness: b.strictness } : {}),
     ...(b.perJudge && Object.keys(b.perJudge).length ? { per_judge: b.perJudge } : {}),
     ...(b.focus?.length ? { focus: b.focus } : {}),
-    ...(b.questions !== undefined ? { questions: b.questions } : {}),
     ...(b.followUps !== undefined ? { follow_ups: b.followUps } : {}),
     ...(b.interrupts !== undefined ? { interrupts: b.interrupts } : {}),
     ...(b.note ? { note: b.note } : {}),
   };
 }
 
-/** One line for the agents panel: "tough judges · focus pricing · 2 questions". */
+/** One line for the agents panel: "tough judges · focus pricing · no follow-ups". */
 export function briefSummary(b: Brief | null): string {
   if (!b) return "default panel";
   const parts: string[] = [];
   if (b.strictness) parts.push(`${b.strictness} judges`);
   for (const [id, s] of Object.entries(b.perJudge ?? {})) parts.push(`${id.replace("judge_", "judge ")} ${s}`);
   if (b.focus?.length) parts.push(`focus ${b.focus.join(", ")}`);
-  if (b.questions !== undefined) parts.push(`${b.questions} question${b.questions === 1 ? "" : "s"}`);
   if (b.followUps !== undefined) parts.push(b.followUps ? "follow-ups" : "no follow-ups");
   if (b.interrupts !== undefined) parts.push(b.interrupts ? "may interrupt" : "no interrupts");
   if (b.note) parts.push(b.note);
@@ -420,10 +418,10 @@ export function createSwarmTools(deps: SwarmToolDeps, registry: ToolRegistry): T
     registry.register<ToolArgsOf<N>>({ name, description, behavior: "BLOCKING", args: ToolArgs[name] as unknown as z.ZodType<ToolArgsOf<N>>, handler });
 
   reg("direct_judges",
-    "Brief your director agent on how the judges behave in the Q&A: strictness (kind, neutral, tough) for the whole panel or one judge, topics to press on, how many questions, follow-ups, interrupts. Merged with the earlier brief: give only what changes. Use it for 'make the judges tougher', 'ask me about pricing', 'go easy on me'.",
+    "Brief your director agent on how the judges behave in the Q&A: strictness (kind, neutral, tough) for the whole panel or one judge, topics to press on, follow-ups, interrupts. Merged with the earlier brief: give only what changes. Use it for 'make the judges tougher', 'ask me about pricing', 'go easy on me'. The number of questions is set_qa.",
     async (a) => {
       if (!Object.values(a).some((v) => v !== undefined)) {
-        return { ok: false, reason: "invalid_args", hint: "give strictness, focus, questions, follow_ups, interrupts or note" };
+        return { ok: false, reason: "invalid_args", hint: "give strictness, focus, follow_ups, interrupts or note (the number of questions: set_qa)" };
       }
       const prev = swarm.latest("director.brief");
       const next: Brief = { ...(prev ?? {}), type: "director.brief" };
@@ -437,7 +435,6 @@ export function createSwarmTools(deps: SwarmToolDeps, registry: ToolRegistry): T
         delete next.perJudge;   // a panel-wide strictness replaces earlier per-judge ones
       }
       if (a.focus) { if (a.focus.length) next.focus = [...new Set(a.focus)]; else delete next.focus; }
-      if (a.questions !== undefined) next.questions = a.questions;
       if (a.follow_ups !== undefined) next.followUps = a.follow_ups;
       if (a.interrupts !== undefined) next.interrupts = a.interrupts;
       if (a.note) next.note = a.note;

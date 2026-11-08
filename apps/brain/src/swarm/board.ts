@@ -49,9 +49,9 @@ export interface VideoNote { runId: RunId; kind: BehaviorKind | null; atMs: numb
 
 export type Strictness = "kind" | "neutral" | "tough";
 export type SwarmCommand =
-  /** JJ → director: how the judges should behave in the next Q&A. */
+  /** JJ → director: how the judges should behave in the next Q&A (how many questions: scene.qa, set_qa). */
   | { type: "director.brief"; strictness?: Strictness; perJudge?: Partial<Record<JudgeId, Strictness>>; focus?: string[];
-      questions?: number; followUps?: boolean; interrupts?: boolean; note?: string }
+      followUps?: boolean; interrupts?: boolean; note?: string }
   /** JJ → feedback: what filler words do to the vignette during runs. */
   | { type: "feedback.policy"; fillers: "off" | "burst" | "every" }
   /** JJ → reporter: build a report now. */
