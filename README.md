@@ -4,6 +4,7 @@ Rehearse a talk with JJ, a voice coach, and a panel of AI judges. One web app pl
 brain; see the spec (`AI Presentation Coach — Component & Interface Spec.md`) for the system.
 
 - **[docs/integration.md](docs/integration.md)**: how the components fit together and where each lane plugs in.
+- **[docs/brain-api.md](docs/brain-api.md)**: the brain's HTTP routes and WebSocket messages.
 - **[docs/extensions.md](docs/extensions.md)**: every addition beyond the spec, with timestamps. Record yours there before merging.
 - **[apps/brain/src/jj/VERIFY.md](apps/brain/src/jj/VERIFY.md)**: checking JJ against real Gemini Live.
 
@@ -58,9 +59,11 @@ bash scripts/demo.sh --fresh        # nova sesija umesto nastavka sačuvane
 
 Pokreće sve redom, čeka da se svaki deo javi, zagreje ekrane u Vite-u i otvori aplikaciju. Brain radi bez
 watch moda. Ako brain, frontend, coach ili most padnu, skripta ih ponovo pokrene. Ctrl+C gasi sve.
-Ako su portovi zauzeti (servisi iz starih terminala), skripta kaže ko ih drži; `--takeover` ih gasi.
+Ako su portovi zauzeti (servisi iz starih terminala), skripta kaže ko ih drži; `--takeover` ih gasi. Isto važi
+za stari `coach-brain-bridge.sh` (ne drži port, ali bi brainu slao kameru umesto demo mosta).
 Ostale opcije: `--force` (vinjeta na svaki predlog), `--no-coach`, `--no-open`, `--dev`. Logovi su u
-`data/demo-logs/`. Kameru možeš upisati u `.env` kao `DEMO_CAMERA=1`.
+`data/demo-logs/`. Kameru možeš upisati u `.env` kao `DEMO_CAMERA=1`; `BRAIN_PORT` i `BRAIN_FRESH` se takođe
+čitaju iz `.env`.
 
 **Sesija se čuva na disk** (`data/sessions/`): runovi, izveštaji, coach i deck ostaju posle restarta
 braina. Run koji je bio u toku se prekida, a sesija nastavlja od izveštaja poslednjeg runa. Za novu
@@ -148,11 +151,15 @@ Coach (`services/coach`, Python) i brain (`apps/brain`, Node) su odvojeni proces
 aktivnu coach sesiju (`/v1/stream`) i šalje brainu (`/ws/control`):
 
 - `body.metrics` → `sensor.status` (kamera ok / nema osobe, fps), uloga `sensor`;
-- pravila kamere → `behavior` start/end, uloga `sensor`: kretanje → `sway`, brze ruke → `fast_hands`,
-  prekrštene ruke → `arms_crossed`, ruka na licu → `face_touch`, pogled nadole → `looking_down`;
-- coaching predlozi o ponašanju (ruke, kretanje, držanje, pogled, tempo, pauze, poštapalice) → crvena
-  vinjeta na ekranu (`operator.override`), samo dok traje run, kad JJ ne sluša i kad run ima uključen
-  feedback (baseline i test run su namerno bez feedbacka). Puls i gubitak praćenja ne pale vinjetu.
+- epizode ponašanja (`behavior.episode`, svaka pojava sa svojim početkom i krajem) → `behavior` start/end,
+  uloga `sensor`, samo dok traje run: kretanje → `sway`, brze ruke → `fast_hands`, prekrštene ruke →
+  `arms_crossed`, ruka na licu → `face_touch`, pogled nadole → `looking_down`, nagnuta glava → `head_tilt`,
+  ruke u džepovima → `hands_in_pockets`. Poslednja dva nemaju coaching pravilo: idu samo u izveštaj, bez vinjete;
+- coaching predlozi → `coach.observation` (izveštaj runa i JJ-ov izbor ciljeva) i crvena vinjeta na ekranu
+  (`operator.override`) za ponašanje (ruke, kretanje, držanje, pogled, tempo, pauze, poštapalice), samo dok
+  traje run, kad JJ ne sluša i kad run ima uključen feedback (baseline i test run su namerno bez feedbacka);
+  ako run ima ciljeve, samo za njih. Kad epizoda cilja prestane, zelena vinjeta. Puls i gubitak praćenja ne
+  pale vinjetu.
 
 ```bash
 JJ_FAKE=1 corepack pnpm dev:brain             # brain → :8787
@@ -162,8 +169,11 @@ bash scripts/coach-brain-bridge.sh --force     # demo: vinjeta na svaki predlog 
 bash scripts/coach-brain-bridge.sh --no-vignette   # kad je otvoren pravi operator panel (brain dozvoljava jednog)
 ```
 
-Most i pravi coach sesiju: kad u aplikaciji krene prezentacija, napravi je i pokrene, pauzira je dok JJ
-sluša i zaustavi je na kraju runa (`--no-sessions` isključuje to, npr. kad sesije vodi iPhone aplikacija).
+Most i pravi coach sesije: kad u aplikaciji krene prezentacija, napravi sesiju runa i pokrene je, pauzira je
+dok JJ sluša i zaustavi je na kraju runa. Između runova (JJ-ov uvod, debrief) drži "standby" sesiju samo za
+status kamere (kartica "Before you start"); ponašanja, predlozi i vinjete idu brainu samo iz runa. Posle
+restarta coacha ili isteka sesije most sam napravi novu. `--no-sessions` isključuje sve to (npr. kad sesije
+vodi iPhone aplikacija).
 
 **Kamera (Mac + iPhone preko Continuity Camera, YOLO26):**
 
@@ -174,16 +184,17 @@ bash vision/run.sh --camera 1 --coach         # slika + tačke, šalje pokrete c
 ```
 
 Redosled: brain, `coach-serve.sh`, `coach-brain-bridge.sh`, pa kamera. Kamera se sama upari sa coachom na
-istom Macu i šalje pokrete samo dok traje run. Vinjeta se pali u runu "With live feedback" (ruke, kretanje,
-prekrštene ruke, ruka na licu, pogled nadole); predlozi o govoru (tempo, pauze, poštapalice) traže iPhone
-aplikaciju (`apple/`), jer Mac kamera nema zvuk.
+istom Macu i šalje pokrete dok postoji coach sesija: u runu i između runova (standby, za proveru kamere).
+Vinjeta se pali u runu "With live feedback" (ruke, kretanje, prekrštene ruke, ruka na licu, pogled nadole);
+nagnuta glava i ruke u džepovima su samo u izveštaju. Predlozi o govoru (tempo, pauze, poštapalice) traže
+iPhone aplikaciju (`apple/`), jer Mac kamera nema zvuk.
 
 #### Podešavanje pragova kamerom (tuning)
 
 Pragovi za telo su procene, provereni samo na sintetičkim tačkama. Podešavaju se u jednom fajlu,
-`services/coach/tuning.json` (bez izmene koda): most ga čita za svaki novi run, a `coach-tune.sh` ga
-primenjuje na svoju sesiju čim sačuvaš fajl. Neispravan fajl se prijavi (koji ključ i zašto) i koriste se
-podrazumevane vrednosti.
+`services/coach/tuning.json` (bez izmene koda): most ga čita za svaku novu sesiju (run i standby), a
+`coach-tune.sh` ga primenjuje na svoju sesiju čim sačuvaš fajl. Neispravan fajl se prijavi (koji ključ i
+zašto) i koriste se podrazumevane vrednosti.
 
 ```bash
 bash scripts/coach-serve.sh                    # 1. coach → :8765
@@ -191,8 +202,9 @@ bash scripts/coach-tune.sh                     # 2. merenja uživo; bez aktivne 
 bash vision/run.sh --camera 1 --coach          # 3. kamera se priključi toj sesiji (1 je primer)
 ```
 
-Brain i most nisu potrebni. Ako uz to radi i most, `coach-tune.sh` prati i sesiju runa iz aplikacije (svoju
-tada zaustavi, pa kamera pređe na run). Ekran pokazuje, za svako ponašanje, trenutnu vrednost (`now`), prag
+Brain i most nisu potrebni. Ako uz to radi i most, kameru drži njegova sesija (standby između runova, pa sesija
+runa): `coach-tune.sh` prati nju umesto svoje, pa izmena `tuning.json` važi tek od sledećeg runa. Za podešavanje
+uživo zaustavi most (ili `demo.sh`) dok podešavaš. Ekran pokazuje, za svako ponašanje, trenutnu vrednost (`now`), prag
 na kom se pali (`fires`), prag na kom se ponovo naoružava (`clears`) i stanje pravila (`ready`, `pending
 1.2/3.0s`, `fired, waits to clear`, `cooldown`). Crveno = preko praga, žuto = između, zeleno = čisto.
 
@@ -227,6 +239,7 @@ Koliko dugo ponašanje mora da traje i pauza između dva ista predloga su u `coa
 Dokumentacija:
 
 - [docs/api.md](docs/api.md): ugovor (REST, WebSocket, koordinate, vreme, greške, autentifikacija);
+- [docs/brain-api.md](docs/brain-api.md): rute i poruke braina (`apps/brain`);
 - [docs/device-setup.md](docs/device-setup.md): iPhone i Watch;
 - [docs/architecture.md](docs/architecture.md): arhitektura;
 - [docs/platform-notes.md](docs/platform-notes.md): proverene činjenice i ograničenja.

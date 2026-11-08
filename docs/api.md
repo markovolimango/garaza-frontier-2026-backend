@@ -6,6 +6,9 @@ They are generated from `services/coach/coach/wire.py` and `wsmessages.py` (`bas
 
 Base URL: `http://127.0.0.1:8765` by default (LAN/TLS: `https://<mac>.local:8765`, see [device-setup.md](device-setup.md)).
 
+This is the coach backend (`services/coach`). The brain's own HTTP routes and WebSocket messages
+(`apps/brain`, :8787) are in [brain-api.md](brain-api.md).
+
 ## 1. Authentication
 
 | Credential | Obtained from | Used for | Transport |
@@ -205,7 +208,10 @@ Person-related names (`left_*`, `right_*`) are anatomical, the subject's own sid
 | `posture.arms_cross` | both wrists past the body midline towards the other side, the smaller of the two (> 0 = crossed), in torso lengths; `wrist_cross`/`wrist_height` per side (height 0 = shoulder line, 1 = hip line); `arms_in_zone` = both wrists in the chest zone |
 | `posture.face_touch_distance` | nearest wrist to a face point (nose, eyes, ears), in torso lengths (2D only) |
 | `posture.head_pitch` | nose below the ear line along the torso axis (`head_pitch_source: ears`, or `shoulders` without visible ears), in torso lengths; `head_pitch_reference` = p20 over 60 s (head up for this person and camera), `head_pitch_delta` = pitch − reference (2D only) |
+| `posture.head_roll` | the eye line (or ear line) turned against the shoulder line, in degrees; `head_roll_reference` = the person's usual roll (median over 60 s, after 5 s of history), `head_roll_delta` = \|roll − reference\| (2D only) |
+| `posture.hand_in_pocket.left/right` | the wrist likely in a pocket: near its own hip (`hand_pocket_distance`, in shoulder widths), elbow bent (`elbow_angle`, degrees), at hip height and still, for most of the window; `hands_in_pockets_count` = how many, `hands_in_pockets` = at least one (2D only) |
 | `posture.arms_crossed` / `face_touch` / `looking_down` | the measure is past its rule threshold right now (no sustain, no hysteresis) |
+| `posture.head_tilt` | `head_roll_delta` ≥ `pose.head_tilt_min_deg` right now (no coaching rule: episodes only) |
 | `tracking_state` | `tracking`, `partial`, `lost` (fresh frames, no usable body for 1 s), `stale` (no frames for 1.5 s), or `unknown` |
 
 - Smoothing uses a timestamp-aware One-Euro filter and resets after a gap of 0.5 s, after tracking loss or after a 2D/3D mode change.
@@ -277,14 +283,18 @@ when it ends, with the same `episode_id`.
 - Measures and thresholds are the coaching rules' own (`body.metrics`, `config.pose`, so `tuning.json` tunes
   both): an episode starts at the rule's condition and ends at its clear threshold. Only the timing is
   separate (`config.episodes`). Posture measures are 1 s medians, so a start lags the real onset by ≈0.5 s.
+- `head_tilt` and `hands_in_pockets` have no coaching rule: they are episodes only (thresholds `pose.head_tilt_*`,
+  `pose.head_roll_*`, `pose.hands_pocket_*`), so they reach the run report but never a suggestion or a vignette.
 
-| behavior | condition (same as the rule) | episode timing (`config.episodes`) |
+| behavior | condition (same as the rule, where there is one) | episode timing (`config.episodes`) |
 |---|---|---|
 | `arms_crossed` | `body.arms_crossed`: both wrists across the midline in the chest zone | on 1 s, off 1 s |
 | `face_touch` | `body.face_touch`: nearest wrist to a face point | on 0.5 s, off 0.5 s |
 | `looking_down` | `body.looking_down`: head pitch against the head-up reference | on 1.5 s, off 1 s |
 | `sway` | `body.torso_movement_high`: torso-center speed (walking counts too) | on 2 s, off 1.5 s |
 | `fast_hands` | `body.hand_movement_high`: faster wrist, relative to the torso | on 2 s, off 1.5 s |
+| `head_tilt` | no rule (report only): `posture.head_roll_delta` ≥ `pose.head_tilt_min_deg` (15°) against the usual roll; ends below `head_tilt_clear_deg` (10°) | on 2 s, off 1 s |
+| `hands_in_pockets` | no rule (report only): `posture.hands_in_pockets_count` ≥ 1; ends when no hand is in a pocket | on 2 s, off 1 s |
 
 The session summary has per-behaviour `episodes`, `total_s`, `longest_s`. The brain bridge forwards each
 episode as the brain's `behavior` start/end with the episode's own times, and sends a green reward vignette

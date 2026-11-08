@@ -285,12 +285,17 @@ class BodyMetricsPayload(Strict):
     joint_angles_deg: dict[str, Any] = Field(description="Angles only where all three joints are valid; plane given.")
     posture: dict[str, Any] = Field(
         default_factory=dict,
-        description="Posture measures in torso lengths, medians over `window_s` (null = unavailable): arms_cross "
-                    "(both wrists past the body midline; > 0 = crossed), arms_in_zone, wrist_cross/wrist_height per "
-                    "side (height 0 = shoulder line, 1 = hip line), face_touch_distance (nearest wrist to a face "
-                    "point), head_pitch (nose below the ear line, or below the shoulder line without ears; "
-                    "head_pitch_source), head_pitch_reference (head-up percentile over a longer window) and "
-                    "head_pitch_delta; arms_crossed/face_touch/looking_down = measure past its rule threshold.")
+        description="Posture measures, medians over `window_s` (null = unavailable), in torso lengths unless "
+                    "noted: arms_cross (both wrists past the body midline; > 0 = crossed), arms_in_zone, "
+                    "wrist_cross/wrist_height per side (height 0 = shoulder line, 1 = hip line), face_touch_distance "
+                    "(nearest wrist to a face point), head_pitch (nose below the ear line, or below the shoulder line "
+                    "without ears; head_pitch_source), head_pitch_reference (head-up percentile over a longer window) "
+                    "and head_pitch_delta; head_roll (degrees: eye or ear line against the shoulder line), "
+                    "head_roll_reference (the person's usual roll, median over a longer window) and head_roll_delta; "
+                    "per side hand_in_pocket, hand_pocket_distance (wrist to its own hip, shoulder widths) and "
+                    "elbow_angle (degrees); hands_in_pockets_count (hands likely in a pocket) and hands_in_pockets. "
+                    "arms_crossed/face_touch/looking_down = measure past its rule threshold; head_tilt = head_roll_delta "
+                    "past pose.head_tilt_min_deg (head_tilt and hands_in_pockets have no coaching rule: episodes only).")
     frames_in_window: int
     smoothing: dict[str, Any]
     note: str = "Movement observations only; they do not indicate emotional state."

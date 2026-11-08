@@ -87,7 +87,7 @@ Lanes: `lead` (protocol), `brain`, `sensing`, `agents`, `stage`, `report`.
 - **Impact:** operator panel: reset now erases data (pass `keepData: true` to keep it). Stage: `report.ready final` unchanged. Recorder lane: media recordings (next) must live under the session folder so the same reset erases them.
 
 ### 2026-11-08T11:40+01:00 · sensing · Posture rules merged with behaviour episodes (`behavior.episode`)
-- **Where:** coach part of `e5d7bb9` (branch `worktree-agent-a042012a57c5cf65b`: `metrics/body.py` posture measures, `coaching.py` rules `body.arms_crossed` / `body.face_touch` / `body.looking_down`, `config.py`, `tuning.py`, `tuning.json`, `cli.py` `coach tune`, `scripts/coach-tune.sh`, tests) applied to the working tree; on top: `services/coach/coach/metrics/episodes.py` (new), `config.py` (`episodes` timing), `wire.py` (`BehaviorEpisodePayload`, server event `behavior.episode`), `session.py`, `brain_bridge.py`; `contracts/` regenerated
+- **Where:** coach part of the posture-rules work (merged: `metrics/body.py` posture measures, `coaching.py` rules `body.arms_crossed` / `body.face_touch` / `body.looking_down`, `config.py`, `tuning.py`, `tuning.json`, `cli.py` `coach tune`, `scripts/coach-tune.sh`, tests) applied to the working tree; on top: `services/coach/coach/metrics/episodes.py` (new), `config.py` (`episodes` timing), `wire.py` (`BehaviorEpisodePayload`, server event `behavior.episode`), `session.py`, `brain_bridge.py`; `contracts/` regenerated
 - **What:** the coach records every occurrence of `arms_crossed`, `face_touch`, `looking_down`, `sway` and `fast_hands` with a start and an end (several at once, not throttled like `coaching.feedback`; start back-dated to the onset, end = last sighting, open episodes close on pause/stop/tracking loss). Episodes use the rules' measures and thresholds (one set, tuned by `tuning.json`); only their timing is separate. The bridge forwards each episode as the brain's `behavior` uplink (`phase` start/end, `clientTs` = the episode's own time, epoch ms) instead of the rule-driven start/end with a hold timer, and sends `operator.override` `reward` (green) when an episode of one of the run's targets clears during a live run with feedback on. `body.hand_movement_high` → `fast_hands` in `RULE_KIND`.
 - **Why:** reports and JJ need "when exactly did it happen" (00:24–00:31), later replay of the matching video/audio; the throttled rules lose repeats and start late; JJ promised green edges that nothing sent.
 - **Impact:** brain: handle `behavior` (pair start/end per kind, close a dangling start at run end, use `clientTs`). Thresholds are untested heuristics, to tune with `coach tune` and recordings.
@@ -227,7 +227,7 @@ Lanes: `lead` (protocol), `brain`, `sensing`, `agents`, `stage`, `report`.
 - **Where:** `apps/brain/src/voices/judgeVoice.ts` (`JudgeVoices`, `speakJudge`, `judgeVoicesHttp`, `DEFAULT_JUDGE_VOICE_IDS`), wired in `apps/brain/src/server.ts` via the `http` option; config keys `ELEVENLABS_API_KEY`, `JUDGE_VOICE_IDS` in `apps/brain/src/config.ts`
 - **What:** `speakJudge(judge_N, text)` queues one utterance at a time: `actor.gesture talk` → `actor.say {utteranceId: judge_N_uK, source: N}` → ElevenLabs streaming TTS (`eleven_flash_v2_5`, `pcm_24000`) forwarded on `/ws/audio` with JJ's framing (start flag on the first frame, empty end-flagged frame) → waits for the stage's `audio.playback` ended/stopped (fallback: audio length + 1.5 s) → `actor.gesture idle`. `JUDGE_VOICE_IDS` (comma-separated, judge_1..4) defaults to premade Rachel, Adam, Antoni, Sarah. No key → say + gestures only, audio skipped and logged; independent of `JJ_FAKE`. Debug: `POST /debug/judge-say {judge: 1-4, text}` → 202 `{ok, actorId, utteranceId, voiceId}`.
 - **Why:** hear and stage-test judge voices before the director lands.
-- **Impact:** director: call `JudgeVoices.speakJudge` instead of its own TTS. Stage: `judge_4` needs a judge in the scene (the default scene has 3). `JUDGE_VOICES` (JJ config, scene `voiceId`) is not read by this module.
+- **Impact:** director: call `JudgeVoices.speakJudge` instead of its own TTS. Stage: `judge_4` needs a judge in the scene (the default scene had 3; it has 4 since 2026-11-08T02:30, "Four judges in the default panel"). `JUDGE_VOICES` (JJ config, scene `voiceId`) is not read by this module.
 
 ### 2026-11-07T23:23+01:00 · stage · Lovable frontend integrated (subtree + brain layer)
 - **Where:** `apps/frontend` (git subtree of the frontend repo), `apps/frontend/src/brain/*`, tagged edits in `bus.ts`, `signals/index.ts`, `__root.tsx`, `presenter.tsx`
@@ -255,8 +255,8 @@ Lanes: `lead` (protocol), `brain`, `sensing`, `agents`, `stage`, `report`.
 
 ### 2026-11-07T23:23+01:00 · lead · Spec gap: no protocol path for "reset"
 - **Where:** spec "Operator panel" lists a reset button; neither `ToolName` nor `operator.override` can reset.
-- **What:** open, not implemented. Proposal: `operator.override {action: "reset"}`.
-- **Why:** found while writing the e2e (it needs a fresh session; today: restart the brain).
+- **What:** closed by `POST /api/session/reset` (2026-11-08T10:45, "Session saved to disk …"), an HTTP route, so no protocol change. The proposal was `operator.override {action: "reset"}`.
+- **Why:** found while writing the e2e (it needs a fresh session; then: restart the brain, which now restores the saved session, so use the route or `BRAIN_FRESH=1`).
 - **Impact:** operator panel.
 
 ### 2026-11-07T21:53+01:00 · brain · Repo layout: JJ code lives only under `apps/brain/src/jj/`

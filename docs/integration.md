@@ -10,6 +10,8 @@ component implements, who calls it, and where it is connected.
 > [`docs/extensions.md`](extensions.md) with a timestamp, so that different agents can
 > sync up when merging.**
 
+The brain's HTTP routes and WebSocket messages are listed in [`docs/brain-api.md`](brain-api.md).
+
 ## 1. Repo layout
 
 ```text
@@ -46,7 +48,7 @@ fixtures/messages/                  one valid + one invalid sample per message t
 docs/                               this guide, extensions.md
 ```
 
-Not built yet: `packages/rules`, the sensor and operator pages, `apps/brain/src/{events,reports,recorder,replay}.ts`, `apps/brain/src/{context,director,llm,tts,stt}/`.
+Not built yet: `packages/rules`, the sensor and operator pages, `apps/brain/src/{events,recorder,replay}.ts`, `apps/brain/src/stt/`. Built since this layout was written (see [extensions.md](extensions.md)): `context/`, `director/`, `voices/` (judge TTS), `swarm/` (the agents JJ leads, their LLM calls and the written reports), `runlog.ts` `digest.ts` `progress.ts` `export.ts` (run and session reports), `persist.ts`, `media.ts`, `pptx.ts`, `sensors.ts`.
 
 ## 2. Runtime picture
 
@@ -299,6 +301,13 @@ all in **`src/brain/` (new files only, never touched by Lovable)**:
 | `scene.ts` | pure: apply `SceneOp`s to the stage's scene copy, panel by seat (`judge_seat_K` → seat K-1), look targets |
 | `captions.ts`, `JJCaptions.tsx` | `jj.transcript` → rolling caption on JJ's screen (JJ's words at speaking pace, older lines dim and fade); compact version over the slides/room while woken |
 | `BrainReport.tsx` | the report screen under the brain: fetches `GET /api/runs/:runId/report` (RunDigest) on `report.ready` |
+| `BrainProgress.tsx` | the report screen's Progress tab: run 1 → 2 → 3 from `GET /api/progress` (SessionProgress) |
+| `CoachAnalysis.tsx` | the swarm reporter's written report on the report screen (`GET /api/swarm/report/run/:runId`, `…/session`, "Download PDF") |
+| `AgentsPanel.tsx` | "JJ's team": the agents JJ leads, live from `swarm.activity` (key A collapses it) |
+| `PreRunCheck.tsx` | "Before you start" between runs: camera, microphone level, recording (`GET /api/sensors/check`) |
+| `recorder.ts` | with consent, records camera + mic during a run and streams it to `POST /api/media/:runId/chunk` |
+| `MomentsPlayer.tsx` | plays the clips of `moments.show` (JJ's `show_moments`) from the run's recording |
+| `pptx.ts` | `.pptx` decks: `POST /api/convert/pptx` → PDF, then the usual deck path; keeps the slide timings |
 | `wake.ts` | "Hey JJ" by voice via the browser's speech recognition → `ptt` |
 | `preload.ts` | once the deck is in, loads the judges screen and its 61 MB of FBX into r3f's loader cache, so the room renders at once |
 | `brain-integration.itest.ts` | BrainSource against a real brain (`vitest.brain.config.ts`) |
@@ -315,6 +324,8 @@ all in **`src/brain/` (new files only, never touched by Lovable)**:
 | `actor.lookAt` judge_N → presenter / notes / audience / judge_M | `judgeCommand` `look` (smooth head + chest turn) |
 | `scene.sync` / applied `scene.apply` | `judgePanel` (seated judges + titles) → the room seats exactly those, with nameplates; judges on other seats (judge_seat_5) are not shown |
 | `jj.transcript` | captions on JJ's screen (`/`); cleared when a run starts or resumes |
+| `moments.show` | `MomentsPlayer` over the screen: the run's recording, clip by clip; no clips = close |
+| `swarm.activity` | `AgentsPanel` (JJ's team): each agent's state and what it is doing |
 | `run.state` presentation start / pause / resume / end | `runClock` → presenter timer |
 | presenter `slide` (during the presentation) | `slide.changed` |
 | PDF loaded in the presenter (`deckFile`) | deck upload, then `session.start` |

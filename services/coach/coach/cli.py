@@ -242,7 +242,7 @@ def main(argv: list[str] | None = None) -> int:
     p.add_argument("--full", action="store_true", help="print full JSON messages")
     p.set_defaults(func=cmd_stream)
 
-    p = sub.add_parser("brain-bridge", help="forward coaching to the brain (garaza-frontier-2026-backend) over WebSockets")
+    p = sub.add_parser("brain-bridge", help="forward coaching to the brain (apps/brain) over WebSockets")
     client_args(p)
     p.add_argument("--brain", default="http://127.0.0.1:8787", help="brain base URL")
     p.add_argument("--no-vignette", action="store_true", help="don't take the brain's operator role (operator panel open)")

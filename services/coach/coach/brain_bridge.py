@@ -1,8 +1,8 @@
 """Bridge: coach backend (/v1/stream) -> brain (/ws/control), over WebSockets.
 
-The two projects stay separate repos and separate processes; this process only connects them.
-It follows the coach's latest active session and forwards, to the brain
-(github.com/markovolimango/garaza-frontier-2026-backend, default http://127.0.0.1:8787):
+The coach (services/coach) and the brain (apps/brain) are separate processes; this one only connects
+them. It follows the coach's latest active session and forwards, to the brain (default
+http://127.0.0.1:8787):
 
   body.metrics       -> sensor.status   (role "sensor": camera ok / no_person / error, fps), on change or 1 Hz
   brain run          -> coach session: a standby session between runs (intro, debrief: camera status for
@@ -20,14 +20,21 @@ It follows the coach's latest active session and forwards, to the brain
                         only for the run's targets when it has some (else for run.enabledCategories);
                         gentle = softer.
   behavior.episode   -> behavior start/end (role "sensor"): every arms_crossed / face_touch / looking_down /
-                        sway / fast_hands episode, with the episode's own start and end times (clientTs, epoch
-                        ms). Starts only while a run is live; an end is sent only for a start the brain got.
+                        sway / fast_hands / head_tilt / hands_in_pockets episode, with the episode's own start
+                        and end times (clientTs, epoch ms). Starts only while a run is live; an end is sent only
+                        for a start the brain got. (head_tilt and hands_in_pockets have no coaching rule: they
+                        reach the run report, never a vignette.)
                      -> operator.override reward (green vignette) when an episode of one of the run's targets
                         clears during a live run with feedback on: the presenter corrected it.
 
-Why the operator override: the brain accepts `behavior` but has no feedback controller yet, so
-nothing would show. The override is a message the brain already handles. The brain allows one
-connection per role, so use --no-vignette when a real operator panel is open.
+Why the operator override: the brain keeps `behavior` and `coach.observation` for the run report, the
+coach's targets and the replayed moments, and draws the vignette for fillers itself (swarm feedback
+agent), but the vignette for body behaviours is left to this bridge (swarm/body.ts). The override is
+a message the brain already handles. The brain allows one connection per role, so use --no-vignette
+when a real operator panel is open.
+
+After a coach restart, or when the bridge's session expired, the session is made again for the
+brain's current state (checked when the coach stream reconnects or finds no active session).
 
   python -m coach brain-bridge [--url http://127.0.0.1:8765] [--brain http://127.0.0.1:8787] [--force] [--no-sessions]
                                [--tuning services/coach/tuning.json]
