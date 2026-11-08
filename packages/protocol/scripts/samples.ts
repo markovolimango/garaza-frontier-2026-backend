@@ -56,6 +56,16 @@ export const DOWNLINK_SAMPLES: Down = {
   "actor.lookAt": { valid: [{ actorId: "judge_1", target: "presenter" }, { actorId: "judge_2", target: "judge_3" }], invalid: [{ why: "audience cannot look", payload: { actorId: "audience", target: "presenter" } }] },
   "audio.stop": { valid: [{ source: 0 }, { source: 2, utteranceId: "u_7" }], invalid: [{ why: "source out of range", payload: { source: 12 } }] },
   "jj.state": { valid: [{ connected: true, listening: true, speaking: false }], invalid: [{ why: "missing speaking", payload: { connected: true, listening: true } }] },
+  "jj.transcript": {
+    valid: [
+      { lineId: "jj_t3", who: "jj", text: "Nice opening. Want to try it again with a slower start?", final: false, utteranceId: "jj_u4" },
+      { lineId: "jj_t4", who: "user", text: "Yes, let's go again.", final: true },
+    ],
+    invalid: [
+      { why: "judges are not JJ's captions", payload: { lineId: "jj_t5", who: "judge_1", text: "Who pays?", final: true } },
+      { why: "empty line id", payload: { lineId: "", who: "jj", text: "Hi", final: false } },
+    ],
+  },
   "report.ready": { valid: [{ kind: "run", runId: "run_1" }, { kind: "final", sessionId: "V1StGXR8_Z5jdHi6B-myT" }], invalid: [{ why: "run kind without runId", payload: { kind: "run" } }] },
   "report.focus": { valid: [{ kind: "filler_burst" }, { kind: null }], invalid: [{ why: "unknown behaviour", payload: { kind: "nervousness" } }] },   // vocab-allow
   "calibrate.prompt": { valid: [{ judgeId: "judge_1" }, { judgeId: null }], invalid: [{ why: "missing judgeId", payload: {} }] },

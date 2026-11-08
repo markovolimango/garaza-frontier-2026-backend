@@ -11,12 +11,16 @@
  *   actor.say judge_N, no audio (no ElevenLabs key, audio locked) → { type: "say" }: subtitle,
  *                                     or the browser voice when "Enable audio" was clicked
  *   actor.gesture judge_N            → { type: "react" } (talking / texting / idle-alt end after durationMs)
+ *   actor.lookAt judge_N             → { type: "look" } (presenter / notes / audience / another seated judge)
  *
- * JJ (source 0), judge_5 and the audience are not on this screen.
+ * judge_N is addressed by its seat in the brain's panel (setPanel, from scene.sync / scene.apply);
+ * before a panel is known, judge_N sits in seat N. JJ (source 0), judges without a seat in the room
+ * (judge_5) and the audience are not on this screen.
  */
-import type { DownlinkPayload, Gesture } from "@coach/protocol";
+import type { DownlinkPayload, Gesture, JudgeId } from "@coach/protocol";
 import type { JudgeIndex, JudgeReaction } from "../judges/types";
-import type { JudgeCommand } from "../signals/judges";
+import type { JudgeCommand, JudgeSeat } from "../signals/judges";
+import { gazeFor } from "./scene";
 
 /** Same table as src/judges/live/useJudgesLive.ts GESTURE_TO_REACTION (not imported: that module is browser-only). */
 export const GESTURE_REACTION: Record<Gesture, JudgeReaction> = {
@@ -40,11 +44,21 @@ export class JudgeRelay {
   private readonly pending = new Map<string, Pending>();          // utteranceId → waiting for its audio
   private readonly speaking = new Map<string, () => void>();       // utteranceId → resolves `done`
   private readonly timers = new Set<ReturnType<typeof setTimeout>>();
+  private panel: JudgeSeat[] | null = null;
 
   constructor(private readonly o: { publish: (c: JudgeCommand) => void; level: (source: number) => number; noAudioMs?: number }) {}
 
+  /** The brain's panel by seat; judge ids map to these seats from now on. */
+  setPanel(panel: JudgeSeat[]): void { this.panel = panel; }
+
+  /** Seat of a judge in the room, or null when it has none (not in the panel, judge_5, JJ). */
+  seatOf(actorId: string): JudgeIndex | null {
+    if (!this.panel) return judgeIndex(actorId);
+    return this.panel.find((s) => s.actorId === actorId)?.seat ?? null;
+  }
+
   say(p: DownlinkPayload<"actor.say">): void {
-    const judge = judgeIndex(p.actorId);
+    const judge = this.seatOf(p.actorId);
     if (judge === null) return;
     const timer = setTimeout(() => {
       if (this.pending.delete(p.utteranceId)) this.o.publish({ type: "say", judge, text: p.text });
@@ -69,8 +83,15 @@ export class JudgeRelay {
     this.speaking.delete(p.utteranceId);
   }
 
+  lookAt(p: DownlinkPayload<"actor.lookAt">): void {
+    const judge = this.seatOf(p.actorId);
+    const target = gazeFor(p.target, (id: JudgeId) => this.seatOf(id));
+    if (judge === null || target === null) return;
+    this.o.publish({ type: "look", judge, target });
+  }
+
   gesture(g: DownlinkPayload<"actor.gesture">): void {
-    const judge = judgeIndex(g.actorId);
+    const judge = this.seatOf(g.actorId);
     if (judge === null) return;
     const reaction = GESTURE_REACTION[g.gesture];
     this.o.publish({ type: "react", judge, reaction });

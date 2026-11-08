@@ -8,12 +8,14 @@
  * - After a run, JJ's screen is allowed too (JJ debriefs); other moves snap back with a hint.
  * - Hold J = push-to-talk ("Hey JJ" fallback); Esc or the chip resumes the run. First click or
  *   key unlocks audio + mic.
- * - Overlay: countdown, toasts, connection and wake state; after a run, next-run buttons.
+ * - Overlay: countdown, toasts, connection and wake state (with JJ's captions over the slides or the
+ *   room); after a run, next-run buttons.
  */
 import { useLocation, useNavigate } from "@tanstack/react-router";
 import { useEffect, useRef, useState, useSyncExternalStore } from "react";
 import { activeSource } from "../signals";
 import { BrainSource, type BrainSnapshot } from "./BrainSource";
+import { JJCaptions } from "./JJCaptions";
 import { intentFor, viewToRoute, type ScreenPath } from "./mapping";
 
 const SCREENS: ScreenPath[] = ["/", "/presenter", "/judges", "/report"];
@@ -92,10 +94,10 @@ function Bridge({ brain }: { brain: BrainSource }) {
   }, [brain]);
 
   // the overlay's state is client-only, so it renders after hydration (no SSR mismatch)
-  return hydrated ? <Overlay snap={snap} brain={brain} /> : null;
+  return hydrated ? <Overlay snap={snap} brain={brain} jjScreen={pathname === "/"} /> : null;
 }
 
-function Overlay({ snap, brain }: { snap: BrainSnapshot; brain: BrainSource }) {
+function Overlay({ snap, brain, jjScreen }: { snap: BrainSnapshot; brain: BrainSource; jjScreen: boolean }) {
   const offline = snap.status !== "open";
   const woken = snap.run?.paused;
   const afterRun = !offline && (snap.ui?.view === "report" || snap.ui?.view === "final");
@@ -116,6 +118,11 @@ function Overlay({ snap, brain }: { snap: BrainSnapshot; brain: BrainSource }) {
         )}
         {snap.jj && !snap.jj.connected && !offline && snap.sessionPhase !== "setup" && <Chip tone="warn">JJ voice offline</Chip>}
       </div>
+      {woken && !jjScreen && (
+        <div className="absolute left-1/2 top-14 w-[min(90vw,48rem)] -translate-x-1/2">
+          <JJCaptions compact />
+        </div>
+      )}
       {snap.countdown !== null && snap.countdown > 0 && (
         <div className="absolute inset-0 flex items-center justify-center bg-black/40">
           <span className="text-[12rem] font-semibold text-white/90">{snap.countdown}</span>

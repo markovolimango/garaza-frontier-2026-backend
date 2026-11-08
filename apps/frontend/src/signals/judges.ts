@@ -1,10 +1,15 @@
-import type { JudgeIndex, JudgeReaction } from "@/judges/types";
+import type { JudgeGaze, JudgeIndex, JudgeReaction } from "@/judges/types";
 
 export type JudgeCommand =
   | { type: "say"; judge: JudgeIndex; text: string }
   | { type: "react"; judge: JudgeIndex; reaction: JudgeReaction }
   /** brain integration: the brain's judge audio is playing; level() drives the scene until done. */
-  | { type: "speak"; judge: JudgeIndex; text: string; level: () => number; done: Promise<void> };
+  | { type: "speak"; judge: JudgeIndex; text: string; level: () => number; done: Promise<void> }
+  /** brain integration: where a judge looks (actor.lookAt). */
+  | { type: "look"; judge: JudgeIndex; target: JudgeGaze };
+
+/** brain integration: one seated judge of the brain's panel (seat 0..3 left to right, brain id judge_N, title). */
+export interface JudgeSeat { seat: JudgeIndex; actorId: string; title: string }
 
 export const JUDGE_TEST_LINES = [
   "Who is paying for this today, and how much?",

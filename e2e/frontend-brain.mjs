@@ -126,6 +126,14 @@ try {
 
   await page.reload({ waitUntil: "networkidle" });
   check("reload restores the brain's view (/report)", !!(await waitFor(() => path() === "/report")), path());
+  // record the judges' gaze commands on the app's own bus (same module instance Vite serves the app;
+  // after an HMR update Vite re-stamps module URLs, hence the fresh `pnpm dev:frontend` this script needs)
+  await page.evaluate(async () => {
+    const bus = await import(/* @vite-ignore */ "/src/signals/bus.ts");
+    window.__looks = [];
+    bus.subscribe("judgeCommand", (c) => { if (c.type === "look") window.__looks.push(c); });
+  });
+  const panel = () => page.evaluate(async () => (await import(/* @vite-ignore */ "/src/signals/bus.ts")).getLast("judgePanel")?.map((s) => s.title) ?? null);
 
   // second run, straight to the judges: the 3D scene runs on BrainSource's connection (bus judgeCommand)
   await page.mouse.click(960, 540);   // unlock audio again after the reload
@@ -137,11 +145,47 @@ try {
   // The director asks by itself, from the deck: run 2 opens with judge_4 (neutral) on the traction slide.
   check("director: a judge asks about the deck by itself", !!(await waitFor(async () => (await page.locator("text=/still active after the first month/").count()) > 0, 20000)));
   await shot("7-judges");
+  const titles = ["Customer advocate", "Startup mentor", "VC investor", "Technical expert"];
+  const plates = async (names) => (await Promise.all(names.map((t) => page.getByText(t, { exact: true }).count()))).every((n) => n > 0);
+  check("the room seats the brain's panel with nameplates", await plates(titles), JSON.stringify(await panel()));
+  const looks = await page.evaluate(() => window.__looks);
+  check("director's actor.lookAt: judge_4 reads its notes, the others turn to judge_4",
+    looks.some((l) => l.judge === 3 && l.target === "notes") && [0, 1, 2].every((j) => looks.some((l) => l.judge === j && l.target === 3)), JSON.stringify(looks.slice(0, 8)));
+  await sleep(1500);
+  await shot("7b-judges-gaze");
   check("judges screen keeps the single stage connection", (await health()).connected.includes("stage") && (await page.locator("text=Opened in another tab").count()) === 0);
   await page.getByText("Report →").click();
   check("report screen shows run 2 (training, strong)", !!(await waitFor(async () => path() === "/report" && (await page.locator("text=Training run · strong feedback").count()) > 0, 8000)), path());
   check("report: time per slide from the brain", (await page.locator("text=Time per slide").count()) > 0 && (await page.locator("text=Slide 1").count()) > 0);
   await shot("8-report");
+
+  // JJ changes the panel to 3 judges: the stage applies judges.set before acking, run 3's room seats 3
+  const sj = await opSend("tool.invoke", { tool: "set_judges", args: { count: 3 } });
+  check("set_judges 3 → stage applies judges.set and acks", sj?.payload?.ok === true && (await panel())?.length === 3, JSON.stringify(await panel()));
+  await page.evaluate(() => { window.__looks = []; });
+  const r3 = await opSend("tool.invoke", { tool: "start_run", args: {} });
+  check("run 3 starts", r3?.payload?.ok === true && !!(await waitFor(() => snap?.session?.run?.index === 3 && snap?.session?.run?.phase === "presentation", 10000)));
+  await page.keyboard.press("3");
+  check("run 3 → Q&A room with 3 judges and their nameplates", !!(await waitFor(async () => path() === "/judges" && await plates(await panel()), 20000))
+    && (await page.getByText("Technical expert", { exact: true }).count()) === 0, JSON.stringify(await panel()));
+  await sleep(1500);
+  await shot("9-three-judges");
+  await page.keyboard.press("4");
+  check("run 3 ends → report", !!(await waitFor(async () => snap?.session?.phase === "debrief" && path() === "/report", 8000)), path());
+
+  // JJ's captions on its screen: a jj.transcript downlink through BrainSource's own client (fake JJ has no transcript)
+  await page.keyboard.press("1");
+  check("JJ screen after the run", !!(await waitFor(() => path() === "/", 3000)), path());
+  await page.evaluate(async () => {
+    const { activeSource } = await import(/* @vite-ignore */ "/src/signals/index.ts");
+    const down = (i, payload) => activeSource.client.onText(JSON.stringify({ v: 1, type: "jj.transcript", id: `e2e_t${i}`, ts: Date.now(), payload }));
+    down(1, { lineId: "user_t90", who: "user", text: "How did that go?", final: true });
+    down(2, { lineId: "jj_t91", who: "jj", text: "Much better.", final: false });
+    down(3, { lineId: "jj_t91", who: "jj", text: "Much better. You slowed down on the pricing slide.", final: true });
+  });
+  check("jj.transcript → rolling caption on JJ's screen (user line, then JJ's words)",
+    !!(await waitFor(async () => (await page.getByText("How did that go?").count()) > 0 && (await page.getByText(/You slowed down on the pricing slide/).count()) > 0, 6000)));
+  await shot("10-jj-captions");
 } catch (e) {
   check("script", false, String(e));
 } finally {

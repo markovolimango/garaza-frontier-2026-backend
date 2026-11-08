@@ -9,6 +9,8 @@
  *   flushes it with `audio.stop`.
  * Control: tool calls go to the shared ToolRegistry; session changes drive greeting,
  *   debrief (`[RUN ENDED] …`), interrupt on run start, and auto-resume after a wake.
+ * Captions: the agent's transcripts become `jj.transcript` lines (TranscriptRelay) while JJ may
+ *   talk (outside runs, or woken), so the stage can show what JJ and the user said.
  *
  * Spec sections: "JJ adapter and tools", "Speech pipeline" (wake sequence).
  */
@@ -18,6 +20,7 @@ import type { VoiceAgent } from "./voice-agent.ts";
 import type { HubPort, JJClock, Logger, MicPort, ReportsPort, SessionActionLike, SessionPort } from "./ports.ts";
 import { buildContextText, runAbortedNote, runEndedMessage, sessionStartNote, uiActionNote, wakeNote } from "./messages.ts";
 import { rms } from "./pcm.ts";
+import { TranscriptRelay } from "./transcript.ts";
 
 export interface JJEngineOptions {
   agent: VoiceAgent;
@@ -81,11 +84,19 @@ export class JJEngine {
   private pendingPhraseStart: number | null = null;
   private reportedRuns = new Set<RunId>();
   private prevRunPhase: string | null = null;
+  private readonly captions: TranscriptRelay;
 
   constructor(opts: JJEngineOptions) {
     this.o = opts;
     this.wakeCfg = { ...DEFAULT_WAKE, ...opts.wake };
     this.log = opts.log ?? (() => {});
+    this.captions = new TranscriptRelay({
+      clock: opts.clock,
+      send: (line) => {
+        if (line.final) this.log("debug", "jj.transcript", { who: line.who, text: line.text });
+        this.o.hub.broadcast(["stage", "operator"], { type: "jj.transcript", payload: line });
+      },
+    });
   }
 
   // ---------------- lifecycle ----------------
@@ -102,7 +113,7 @@ export class JJEngine {
     agent.onToolCall((call) => tools.invoke(call.name, call.args, "jj"));
     agent.onTranscript((t) => {
       if (t.who === "user" && this.wake && t.text.trim()) this.wake.lastUserVoice = this.o.clock.now();
-      if (t.final) this.log("debug", "jj.transcript", { who: t.who, text: t.text });
+      if (this.captionsAllowed(t.who)) this.captions.push(t.who, t.text, t.final, t.who === "jj" ? this.utterance?.id : undefined);
     });
 
     tools.onInvoked((i) => {
@@ -122,6 +133,7 @@ export class JJEngine {
     this.unsubscribe?.();
     this.unsubscribe = null;
     this.clearWake();
+    this.captions.clear();
     if (this.retryTimer) { this.o.clock.clearTimeout(this.retryTimer); this.retryTimer = null; }
     await this.o.agent.close();
     this.started = false;
@@ -161,12 +173,13 @@ export class JJEngine {
       case "reset":
         this.clearWake();
         this.stopJJAudio();
+        this.captions.end();
         void this.o.agent.close();
         this.reportedRuns.clear();
         break;
       case "start_run":
       case "run_it_back":
-        if (s.phase === "running") { this.clearWake(); this.stopJJAudio(); this.o.agent.interrupt(); }
+        if (s.phase === "running") { this.clearWake(); this.stopJJAudio(); this.captions.end(); this.o.agent.interrupt(); }
         break;
       case "wake":
         if (s.wake.active && s.run?.paused && !this.wake) this.beginWake(s);
@@ -246,6 +259,12 @@ export class JJEngine {
 
   // ---------------- downlink audio ----------------
 
+  /** Captions follow speech: a line in progress continues; a new one starts only while JJ may talk (or JJ's utterance still plays). */
+  private captionsAllowed(who: "user" | "jj"): boolean {
+    if (this.captions.isOpen(who)) return true;
+    return this.speechAllowed() || (who === "jj" && this.utterance !== null);
+  }
+
   /** JJ may talk outside runs, while woken, or to finish an utterance it began while allowed. */
   private speechAllowed(): boolean {
     const s = this.o.session.get();
@@ -280,6 +299,7 @@ export class JJEngine {
     const u = this.utterance;
     this.utterance = null;
     this.jjAudioUntil = 0;
+    this.captions.end("jj");
     if (u) this.o.hub.send("stage", { type: "audio.stop", payload: { source: AUDIO_SOURCE.jj, utteranceId: u.id } });
   }
 

@@ -85,7 +85,52 @@ describe("BrainSource ⇄ brain", () => {
     const { brain, src } = await setup();
     expect(await src.invoke("set_audience", { count: 20 })).toMatchObject({ ok: true, version: 2 });
     expect(brain.session.get().scene.audience.count).toBe(20);
+    expect(src.sceneCopy()).toMatchObject({ version: 2, audience: { count: 20 } });
   });
+
+  it("seats the brain's panel: scene.sync, then each applied scene.apply (judges.set) before the ack", async () => {
+    const { brain, src } = await setup();
+    await until(() => (getLast("judgePanel")?.length ?? 0) === 4);
+    expect(getLast("judgePanel")!.map((s) => [s.seat, s.actorId, s.title])).toEqual([
+      [0, "judge_1", "Customer advocate"], [1, "judge_2", "Startup mentor"], [2, "judge_3", "VC investor"], [3, "judge_4", "Technical expert"],
+    ]);
+    expect(await src.invoke("set_judges", { count: 3 })).toMatchObject({ ok: true });
+    expect(getLast("judgePanel")!.map((s) => s.actorId)).toEqual(["judge_1", "judge_2", "judge_3"]);
+    expect(src.sceneCopy()!.version).toBe(brain.session.get().scene.version);
+    expect(await src.invoke("set_judge", { judge: "judge_2", title: "Seed investor" })).toMatchObject({ ok: true });
+    expect(getLast("judgePanel")![1]!.title).toBe("Seed investor");
+  });
+
+  it("actor.lookAt reaches the judges screen as a look command, by seat", async () => {
+    const { brain } = await setup();
+    await until(() => (getLast("judgePanel")?.length ?? 0) > 0);
+    const looks: unknown[] = [];
+    cleanup.push(subscribe("judgeCommand", (c) => { if (c.type === "look") looks.push(c); }));
+    brain.hub.send("stage", { type: "actor.lookAt", payload: { actorId: "judge_1", target: "judge_3" } });
+    brain.hub.send("stage", { type: "actor.lookAt", payload: { actorId: "judge_4", target: "notes" } });
+    await until(() => looks.length === 2);
+    expect(looks).toEqual([{ type: "look", judge: 0, target: 2 }, { type: "look", judge: 3, target: "notes" }]);
+  });
+
+  it("JJ's transcript reaches the captions during the intro, not mid-presentation", async () => {
+    const { brain, src, agent } = await setup();
+    await src.uploadSlides({ name: "P", slides: [{ index: 0, text: "", width: 10, height: 10 }] }, [png()]);
+    await until(() => agent.connected);
+    agent.transcript({ who: "user", text: "Hi JJ.", final: true });
+    agent.speak();
+    agent.transcript({ who: "jj", text: "Hi! Upload done,", final: false });
+    agent.transcript({ who: "jj", text: " ready when you are.", final: true });
+    await until(() => src.captions.getLines().some((l) => l.who === "jj" && l.final));
+    expect(src.captions.getLines().map((l) => [l.who, l.text, l.final])).toEqual([["user", "Hi JJ.", true], ["jj", "Hi! Upload done, ready when you are.", true]]);
+    agent.finishTurn();
+
+    await src.invoke("start_run");
+    await until(() => brain.session.get().run?.phase === "presentation", 5000);
+    expect(src.captions.getLines()).toEqual([]);            // a new run clears the captions
+    agent.transcript({ who: "jj", text: "Psst, mid-run.", final: true });
+    await new Promise((r) => setTimeout(r, 300));
+    expect(src.captions.getLines()).toEqual([]);
+  }, 15_000);
 
   it("push-to-talk pauses a run; refused actions come back as toasts", async () => {
     const { brain, src } = await setup();

@@ -51,7 +51,7 @@ class FakeStage {
   send(m: DownlinkMessage) { this.sent.push(m); return true; }
 }
 
-function rig(opts: { questions?: number } = {}) {
+function rig(opts: { questions?: number; thinkMs?: number } = {}) {
   const clock = new VirtualClock();
   const scene: SceneDef = { version: 1, venueId: "greybox", qa: { questions: opts.questions ?? 2, answerCapMs: 45_000 }, judges: PANEL, audience: { count: 10 }, lighting: "default" };
   let runLog: RunLog | null = null;
@@ -62,9 +62,15 @@ function rig(opts: { questions?: number } = {}) {
   const inbound = new Map<string, (m: { payload: unknown }, role: ClientRole) => void>();
   const outFns: ((m: DownlinkMessage, roles: ClientRole[]) => void)[] = [];
   const gestures: string[] = [];
+  const looks: string[] = [];
   const hub = {
     onMic: (fn: (pcm: Int16Array) => void) => { micFns.push(fn); },
-    send: (_role: "stage", m: DownlinkMessage) => { if (m.type === "actor.gesture") gestures.push(`${m.payload.actorId}:${m.payload.gesture}`); for (const f of outFns) f(m, ["stage"]); return true; },
+    send: (_role: "stage", m: DownlinkMessage) => {
+      if (m.type === "actor.gesture") gestures.push(`${m.payload.actorId}:${m.payload.gesture}`);
+      if (m.type === "actor.lookAt") looks.push(`${m.payload.actorId}>${m.payload.target}`);
+      for (const f of outFns) f(m, ["stage"]);
+      return true;
+    },
     on: (type: string, fn: (m: { payload: unknown }, role: ClientRole) => void) => { inbound.set(type, fn); },
     onOutbound: (fn: (m: DownlinkMessage, roles: ClientRole[]) => void) => { outFns.push(fn); },
     connections: () => ({ stage: true, sensor: true, operator: false }),
@@ -72,7 +78,7 @@ function rig(opts: { questions?: number } = {}) {
   runLog = new RunLog({ session: store, hub: hub as never, clock });
   const said: { judge: string; text: string }[] = [];
   const voices = { speakJudge: (actorId: string, text: string) => { said.push({ judge: actorId, text }); return { utteranceId: `u${said.length}`, done: new Promise<void>((r) => clock.setTimeout(r, 2000)) }; } };
-  const director = new Director({ session: store, hub: hub as never, voices: voices as never, clock, runLog, silenceMs: 1500, noAnswerMs: 5000, echoGuardMs: 0 });
+  const director = new Director({ session: store, hub: hub as never, voices: voices as never, clock, runLog, silenceMs: 1500, noAnswerMs: 5000, echoGuardMs: 0, thinkMs: opts.thinkMs ?? 0 });
   /** Advance virtual time in small steps, letting promises settle in between. */
   const run = async (ms: number, mic?: () => Int16Array) => {
     for (let t = 0; t < ms; t += 20) { if (mic) for (const f of micFns) f(mic()); clock.advance(20); await flush(2); }
@@ -90,7 +96,7 @@ function rig(opts: { questions?: number } = {}) {
     store.dispatch({ type: "presentation_done" });
     await flush();
   };
-  return { clock, store, director, runLog, said, gestures, run, observe, toQa };
+  return { clock, store, director, runLog, said, gestures, looks, run, observe, toQa };
 }
 
 describe("Director", () => {
@@ -113,6 +119,28 @@ describe("Director", () => {
     expect(qa[0]!.answerMs).toBeGreaterThan(2500);
     expect(qa[1]!.answerMs).toBe(0);
     expect(t.runLog.latest()!.endedBy).toBe("qa_done");
+  });
+
+  it("turns the panel: the asker reads their notes, the others look at the asker, all watch the answer", async () => {
+    const t = rig({ questions: 1, thinkMs: 700 });
+    await t.toQa();
+    expect(t.looks.splice(0)).toEqual(["judge_1>presenter", "judge_2>presenter", "judge_3>presenter", "judge_4>presenter", "judge_3>notes"]);
+    await t.run(800);                                    // judge_3 looks up and asks; the panel turns to judge_3
+    expect(t.said.map((s) => s.judge)).toEqual(["judge_3"]);
+    expect(t.looks.splice(0)).toEqual(["judge_1>judge_3", "judge_2>judge_3", "judge_3>presenter", "judge_4>judge_3"]);
+    await t.run(2000);                                   // question over: everyone watches the presenter answer
+    expect(t.looks.splice(0)).toEqual(["judge_1>presenter", "judge_2>presenter", "judge_4>presenter"]);
+    t.store.dispatch({ type: "wake", via: "ptt" });      // JJ listens: the panel waits, reading notes
+    expect(t.looks.splice(0)).toEqual(["judge_1>notes", "judge_2>notes", "judge_3>notes", "judge_4>notes"]);
+    t.store.dispatch({ type: "resume" });
+    expect(t.looks.splice(0)).toEqual(["judge_1>presenter", "judge_2>presenter", "judge_3>presenter", "judge_4>presenter"]);
+    await t.run(1000, () => voiced());
+    await t.run(1800, () => silent());                   // answer over; judge_3 closes
+    expect(t.looks.splice(0)).toEqual(["judge_1>judge_3", "judge_2>judge_3", "judge_4>judge_3"]);
+    await t.run(2100);
+    expect(t.said.at(-1)!.text).toBe(CLOSING_LINE);
+    expect(t.looks).toEqual(["judge_1>presenter", "judge_2>presenter", "judge_4>presenter"]);
+    expect(t.store.get().phase).toBe("debrief");
   });
 
   it("holds the Q&A while JJ is listening, and stops when the run is ended early", async () => {

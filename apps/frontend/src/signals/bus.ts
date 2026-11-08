@@ -1,4 +1,4 @@
-import type { JudgeCommand } from "./judges";
+import type { JudgeCommand, JudgeSeat } from "./judges";
 
 export type FeedbackColor = "red" | "green" | "neutral";
 export interface Feedback {
@@ -24,6 +24,8 @@ export interface Channels {
   deckFile: File;
   /** brain integration: the presenter timer follows the run (start / pause / resume / stop). */
   runClock: "start" | "pause" | "resume" | "stop";
+  /** brain integration: the brain's judge panel by seat (the judges screen seats exactly these). */
+  judgePanel: JudgeSeat[];
 }
 
 export type Channel = keyof Channels;
@@ -41,6 +43,7 @@ const listeners: { [C in Channel]: Set<Listener<C>> } = {
   slideCommand: new Set(),
   deckFile: new Set(),
   runClock: new Set(),
+  judgePanel: new Set(), // brain integration
 };
 const last: Partial<Channels> = {};
 

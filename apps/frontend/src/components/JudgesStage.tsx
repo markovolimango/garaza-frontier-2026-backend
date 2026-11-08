@@ -1,13 +1,17 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { Volume2 } from "lucide-react";
-import { JudgesScene, readLiveParams, useJudgesLive, type JudgesHandle } from "@/judges";
+import { JudgesScene, readLiveParams, seatedJudges, useJudgesLive, type JudgesHandle } from "@/judges";
 import { Button } from "@/components/ui/button";
 import { NextButton } from "@/components/NextButton";
-import { publish, subscribe } from "@/signals";
+import { getLast, publish, subscribe } from "@/signals";
 import { judgesMode } from "@/signals/judges";
 
 export function JudgesStage() {
   const judges = useRef<JudgesHandle>(null);
+  // brain integration: seat the brain's panel (with nameplates); without a brain, the default four.
+  const [panel, setPanel] = useState(() => getLast("judgePanel"));
+  useEffect(() => subscribe("judgePanel", setPanel), []);
+  const seats = useMemo(() => (panel ? seatedJudges(panel) : undefined), [panel]);
   const [params] = useState(() => ({ ...readLiveParams(), mode: judgesMode(window.location.search) }));
   const live = useJudgesLive(judges, params.mode, params.url);
   const [audioError, setAudioError] = useState(false);
@@ -23,6 +27,7 @@ export function JudgesStage() {
         const stop = judges.current?.speak(command.judge, command.text, command.level);
         void command.done.then(() => stop?.());
       }
+      else if (command.type === "look") judges.current?.lookAt(command.judge, command.target);   // brain integration
       else judges.current?.react(command.judge, command.reaction);
     });
     publish("judgesReady", true);
@@ -43,7 +48,7 @@ export function JudgesStage() {
 
   return (
     <main className="fixed inset-0">
-      <JudgesScene ref={judges} />
+      <JudgesScene ref={judges} judges={seats} />
       <div className="absolute left-4 top-4 z-20 flex flex-wrap items-center gap-2">
         {!live.audioOn && (
           <Button onClick={() => {

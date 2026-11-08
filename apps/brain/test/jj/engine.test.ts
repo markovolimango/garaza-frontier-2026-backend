@@ -290,3 +290,59 @@ describe("JJEngine: debrief and UI notes", () => {
     expect(t.engine.status().connected).toBe(true);
   });
 });
+
+describe("JJEngine: captions (jj.transcript)", () => {
+  const lines = (t: Awaited<ReturnType<typeof toIntro>>, role = "stage") =>
+    t.hub.sent.filter((x) => x.role === role && x.msg.type === "jj.transcript").map((x) => x.msg.payload as { lineId: string; who: string; text: string; final: boolean; utteranceId?: string });
+
+  it("relays what JJ and the user say outside runs, to the stage and the operator", async () => {
+    const t = await toIntro();
+    t.agent.transcript({ who: "user", text: "Hi JJ, I'm", final: false });
+    t.agent.transcript({ who: "user", text: " ready.", final: false });
+    t.clock.advance(1500);                                   // the user stopped: line final
+    t.agent.speak();                                         // JJ's utterance jj_u1 starts
+    t.agent.transcript({ who: "jj", text: "Great,", final: false });
+    t.agent.transcript({ who: "jj", text: " let's start.", final: false });
+    t.agent.finishTurn();
+    t.clock.advance(2000);
+    expect(lines(t).map((l) => [l.who, l.text, l.final])).toEqual([
+      ["user", "Hi JJ, I'm", false],
+      ["user", "Hi JJ, I'm ready.", false],
+      ["user", "Hi JJ, I'm ready.", true],
+      ["jj", "Great,", false],
+      ["jj", "Great, let's start.", false],
+      ["jj", "Great, let's start.", true],
+    ]);
+    expect(lines(t).at(-1)!.utteranceId).toBe("jj_u1");
+    expect(lines(t, "operator")).toEqual(lines(t));
+  });
+
+  it("stays quiet mid-presentation, captions a wake, and closes JJ's line when a run starts", async () => {
+    const t = await toPresentation();
+    t.agent.transcript({ who: "jj", text: "Late reply nobody should see.", final: false });
+    t.agent.transcript({ who: "user", text: "talking to the audience", final: false });
+    t.clock.advance(2000);
+    expect(lines(t)).toEqual([]);
+
+    t.session.dispatch({ type: "wake", via: "ptt" });
+    await flush();
+    t.agent.transcript({ who: "user", text: "Am I too fast?", final: true });
+    t.agent.speak();
+    t.agent.transcript({ who: "jj", text: "A little. Breathe", final: false });
+    expect(lines(t).map((l) => l.text)).toEqual(["Am I too fast?", "A little. Breathe"]);
+    t.agent.bargeIn();                                       // the user talks over JJ: JJ's line ends
+    expect(lines(t).at(-1)).toMatchObject({ who: "jj", text: "A little. Breathe", final: true });
+  });
+
+  it("start_run ends open lines; nothing after that while the run is live", async () => {
+    const t = await toIntro();
+    t.agent.speak();
+    t.agent.transcript({ who: "jj", text: "Off you go", final: false });
+    await t.agent.callTool("start_run");
+    expect(lines(t).at(-1)).toMatchObject({ text: "Off you go", final: true });
+    const n = lines(t).length;
+    t.agent.transcript({ who: "jj", text: " and good luck!", final: false });
+    t.clock.advance(3000);
+    expect(lines(t)).toHaveLength(n);
+  });
+});

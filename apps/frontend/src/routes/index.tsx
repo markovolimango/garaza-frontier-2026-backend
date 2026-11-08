@@ -5,6 +5,7 @@ import { NextButton } from "@/components/NextButton";
 import { moodOrbPalette } from "@/signals/mood";
 import { useJjMood } from "@/signals/useJjMood";
 import { useSignal } from "@/signals/useSignal";
+import { JJCaptions } from "@/brain/JJCaptions"; // brain integration
 
 export const Route = createFileRoute("/")({
   head: () => ({
@@ -42,9 +43,12 @@ function JJScreen() {
     >
       <span className="absolute left-8 top-6 font-mono text-xs tracking-widest text-muted-foreground">JJ</span>
       <Orb />
-      <p className="max-w-xl text-center text-lg text-muted-foreground">
-        “Hi, I'm JJ. Whenever you're ready, start your run and I'll listen in.”
-      </p>
+      {/* brain integration: under the brain, JJ's live captions take this line's place while JJ talks */}
+      <JJCaptions>
+        <p className="max-w-xl text-center text-lg text-muted-foreground">
+          “Hi, I'm JJ. Whenever you're ready, start your run and I'll listen in.”
+        </p>
+      </JJCaptions>
       <Link
         to="/presenter"
         className="rounded-full bg-primary px-8 py-3 font-medium text-primary-foreground shadow-[var(--shadow-glow)] transition-transform hover:scale-105"

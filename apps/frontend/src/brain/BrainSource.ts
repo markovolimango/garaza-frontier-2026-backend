@@ -7,19 +7,22 @@
  *   slide.show     → bus "slideCommand" (presenter jumps)
  *   bus "slide"    → slide.changed (only during the presentation)
  *   bus "deckFile" → POST /api/uploads/deck, then session.start
- *   scene.apply    → ack (the room has no scene ops yet, so applying is immediate)
- *   actor.say / actor.gesture / judge audio → bus "judgeCommand" (JudgeRelay, judges screen)
+ *   scene.sync / scene.apply → local scene copy (ops applied, then ack) → bus "judgePanel" (seats + titles)
+ *   actor.say / actor.gesture / actor.lookAt / judge audio → bus "judgeCommand" (JudgeRelay, judges screen)
+ *   jj.transcript  → captions (CaptionStore, JJ's screen; cleared when a run starts or resumes)
  *   JJ audio level → bus "orbLevel"
  *   run.state       → bus "runClock" (presenter timer: start / pause / resume / stop)
  */
-import type { Deck, DownlinkPayload, JJState, RunState, SessionPhase, ToolName, ToolResult, UplinkPayload, UplinkType } from "@coach/protocol";
+import type { Deck, DownlinkPayload, JJState, RunState, SceneDef, SessionPhase, ToolName, ToolResult, UplinkPayload, UplinkType } from "@coach/protocol";
 import { ControlClient, type ConnectionStatus } from "@coach/web/net";
 import { getLast, publish, subscribe } from "../signals/bus";
 import type { SignalSource } from "../signals/sources/types";
 import { AudioOut, MicIn } from "./audio";
+import { CaptionStore } from "./captions";
 import { pdfToSlides, uploadDeck } from "./deck";
 import { JudgeRelay } from "./judges";
 import { preloadJudges } from "./preload";
+import { applySceneOps, panelFromScene } from "./scene";
 import { WakeListener } from "./wake";
 import { feedbackToBus, orbTarget, reportsSlides, runClockChanges } from "./mapping";
 
@@ -75,6 +78,11 @@ export class BrainSource implements SignalSource {
   private started = false;
   /** Judge messages → bus judgeCommand (the judges screen must not open a second stage connection). */
   private readonly judges = new JudgeRelay({ publish: (c) => publish("judgeCommand", c), level: (s) => this.audioOut?.level(s) ?? 0 });
+  /** What JJ and the user said (jj.transcript), for JJ's screen. */
+  readonly captions = new CaptionStore();
+  /** The brain's scene as last synced or applied. */
+  private scene: SceneDef | null = null;
+  private panelKey = "";
 
   constructor(private readonly o: BrainSourceOptions) {
     const ws = o.httpBase.replace(/^http/, "ws");
@@ -98,6 +106,8 @@ export class BrainSource implements SignalSource {
     });
     c.on("run.state", (p) => {
       for (const cmd of runClockChanges(this.snap.run, p.run)) publish("runClock", cmd);   // presenter timer
+      const prev = this.snap.run;
+      if (p.run && ((p.run.phase === "countdown" && prev?.phase !== "countdown") || (prev?.paused && !p.run.paused))) this.captions.clear();
       this.set({ run: p.run, sessionPhase: p.sessionPhase });
     });
     c.on("feedback.set", (p) => { if (!this.paused) publish("feedback", feedbackToBus(p)); });
@@ -106,11 +116,19 @@ export class BrainSource implements SignalSource {
       this.set({ countdown: p.secondsLeft });
       if (p.secondsLeft === 0) setTimeout(() => { if (this.snap.countdown === 0) this.set({ countdown: null }); }, 700);
     });
-    c.on("scene.sync", (p) => this.set({ deck: p.deck }));
-    c.on("scene.apply", (p) => { c.send("ack", { batchId: p.batchId, version: p.version, ok: true }); });
+    c.on("scene.sync", (p) => { this.scene = p.scene; this.publishPanel(); this.set({ deck: p.deck }); });
+    c.on("scene.apply", (p) => {
+      // Apply first, then ack: the brain commits the batch only after the stage has it.
+      if (!this.scene) { c.send("ack", { batchId: p.batchId, ok: false, error: "the stage has no scene yet" }); return; }
+      this.scene = applySceneOps(this.scene, p.ops, p.version);
+      this.publishPanel();
+      c.send("ack", { batchId: p.batchId, version: p.version, ok: true });
+    });
     c.on("jj.state", (p) => this.set({ jj: p }));
+    c.on("jj.transcript", (p) => this.captions.push(p));
     c.on("actor.say", (p) => { this.audioOut?.utterances.set(p.source, p.utteranceId); this.set({ lastSay: p }); this.judges.say(p); });
     c.on("actor.gesture", (p) => this.judges.gesture(p));
+    c.on("actor.lookAt", (p) => this.judges.lookAt(p));
     c.on("audio.stop", (p) => this.audioOut?.stop(p.source));
     c.on("hud.toast", (p) => this.toast(p.text, p.level));
     c.on("error", (p) => this.toast(p.message, "warn"));
@@ -139,7 +157,22 @@ export class BrainSource implements SignalSource {
     this.micIn?.close();
     this.wake?.stop();
     this.judges.clear();
+    this.captions.clear();
     this.started = false;
+  }
+
+  /** The stage's copy of the brain's scene (scene.sync, then each applied scene.apply). */
+  sceneCopy(): Readonly<SceneDef> | null { return this.scene; }
+
+  /** The judges the room seats → JudgeRelay and bus "judgePanel" (published only when it changes). */
+  private publishPanel(): void {
+    if (!this.scene) return;
+    const panel = panelFromScene(this.scene);
+    this.judges.setPanel(panel);
+    const key = JSON.stringify(panel);
+    if (key === this.panelKey) return;
+    this.panelKey = key;
+    publish("judgePanel", panel);
   }
 
   setPaused(p: boolean): void { this.paused = p; }

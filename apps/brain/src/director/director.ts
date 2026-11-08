@@ -5,8 +5,12 @@
  * after `silenceMs` of silence following speech, after `noAnswerMs` without speech, or at the
  * answer cap. A wake (JJ listening) holds the Q&A until the run resumes. After the last answer
  * a judge closes and the director dispatches `qa_done`. Ending the run early cancels it.
+ *
+ * Gaze (`actor.lookAt`, sent on change): the judge about to ask looks down at their notes for
+ * `thinkMs`, then at the presenter while the others turn to that judge; during the answer the
+ * whole panel watches the presenter. While JJ is woken they wait looking at their notes.
  */
-import type { JudgeId, RunId, SessionState } from "@coach/protocol";
+import type { Downlink, JudgeId, LookTarget, RunId, SessionState } from "@coach/protocol";
 import type { Clock } from "../clock.ts";
 import { rms } from "../jj/pcm.ts";
 import type { Logger } from "../log.ts";
@@ -17,7 +21,7 @@ import { CLOSING_LINE, planQuestions, type PlannedQuestion } from "./questions.t
 export interface DirectorVoices { speakJudge(actorId: JudgeId, text: string): { utteranceId: string; done: Promise<void> } }
 export interface DirectorHub {
   onMic(fn: (pcm16k: Int16Array) => void): void;
-  send(role: "stage", msg: { type: "actor.gesture"; payload: { actorId: JudgeId; gesture: "nod" | "note" } }): boolean;
+  send(role: "stage", msg: Downlink<"actor.gesture" | "actor.lookAt">): boolean;
 }
 
 export interface DirectorOptions {
@@ -37,9 +41,12 @@ export interface DirectorOptions {
   answerCapMs?: number;
   /** Ignore the mic this long after a judge stops (speaker echo). Default 400 ms. */
   echoGuardMs?: number;
+  /** The judge about to ask looks at their notes this long first. Default 700 ms (0: no pause). */
+  thinkMs?: number;
 }
 
 interface Active { runId: RunId; cancelled: boolean }
+type Gaze = (id: JudgeId) => LookTarget;
 const FRAME_MS = 20;
 const MIN_SPEECH_MS = 300;
 const TICK_MS = 200;
@@ -49,6 +56,9 @@ export class Director {
   private paused = false;
   private onLevel: ((level: number) => void) | null = null;
   private readonly log: Logger;
+  /** Where the panel should look now, and what each judge was last told. */
+  private gaze: Gaze = () => "presenter";
+  private readonly looks = new Map<JudgeId, LookTarget>();
 
   constructor(private readonly o: DirectorOptions) {
     this.log = o.log ?? (() => {});
@@ -61,10 +71,23 @@ export class Director {
 
   private onChange(s: Readonly<SessionState>): void {
     const run = s.run;
+    const wasPaused = this.paused;
     this.paused = !!run?.paused;
     const inQa = s.phase === "running" && run?.phase === "qa";
     if (inQa && this.active?.runId !== run!.runId) { void this.runQa(run!.runId, s); return; }
-    if (this.active && (!inQa || run!.runId !== this.active.runId)) this.cancel();
+    if (this.active && (!inQa || run!.runId !== this.active.runId)) { this.cancel(); return; }
+    if (this.active && this.paused !== wasPaused) this.look(this.gaze);   // notes while JJ listens, back after
+  }
+
+  /** Points the panel (actor.lookAt for each judge whose target changed); held at notes while woken. */
+  private look(gaze: Gaze): void {
+    this.gaze = gaze;
+    for (const j of this.o.session.get().scene.judges) {
+      const target = this.paused ? "notes" : gaze(j.id);
+      if (this.looks.get(j.id) === target) continue;
+      this.looks.set(j.id, target);
+      this.o.hub.send("stage", { type: "actor.lookAt", payload: { actorId: j.id, target } });
+    }
   }
 
   private cancel(): void {
@@ -82,13 +105,19 @@ export class Director {
     const plan = planQuestions(s.context.deck ?? null, s.scene.judges, s.scene.qa.questions, (s.run?.index ?? 1) - 1);
     const capMs = this.o.answerCapMs ?? s.scene.qa.answerCapMs;
     this.log("info", "director.start", { runId, questions: plan.map((q) => `${q.judgeId}: ${q.topic}`) });
+    this.looks.clear();
+    this.look(() => "presenter");
     for (const q of plan) {
       if (!(await this.ask(me, q, capMs))) return;
     }
     if (!(await this.untilAwake(me))) return;
     const closer = plan[0]?.judgeId ?? s.scene.judges[0]?.id;
-    if (closer) await this.o.voices.speakJudge(closer, CLOSING_LINE).done;
+    if (closer) {
+      this.look((id) => (id === closer ? "presenter" : closer));
+      await this.o.voices.speakJudge(closer, CLOSING_LINE).done;
+    }
     if (me.cancelled) return;
+    this.look(() => "presenter");
     this.active = null;
     const r = this.o.session.dispatch({ type: "qa_done" });
     this.log("info", "director.done", { runId, ok: r.ok });
@@ -96,9 +125,17 @@ export class Director {
 
   private async ask(me: Active, q: PlannedQuestion, capMs: number): Promise<boolean> {
     if (!(await this.untilAwake(me))) return false;
+    const thinkMs = this.o.thinkMs ?? 700;
+    if (thinkMs > 0) {
+      this.look((id) => (id === q.judgeId ? "notes" : "presenter"));   // the next judge reads their question
+      await this.sleep(thinkMs);
+      if (!(await this.untilAwake(me))) return false;
+    }
     const askedAt = this.o.clock.now();
+    this.look((id) => (id === q.judgeId ? "presenter" : q.judgeId));   // the panel turns to the judge who asks
     await this.o.voices.speakJudge(q.judgeId, q.text).done;
     if (me.cancelled) return false;
+    this.look(() => "presenter");                                     // everyone watches the answer
     await this.sleep(this.o.echoGuardMs ?? 400);
     if (me.cancelled) return false;
     const answerMs = await this.listen(me, capMs);

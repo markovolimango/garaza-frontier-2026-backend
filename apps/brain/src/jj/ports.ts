@@ -23,7 +23,7 @@ export interface SessionPort {
 }
 
 /** Downlink messages the JJ engine and the coach tools emit. */
-export type JJDownlink = Downlink<"jj.state" | "actor.say" | "audio.stop" | "report.focus" | "hud.toast">;
+export type JJDownlink = Downlink<"jj.state" | "jj.transcript" | "actor.say" | "audio.stop" | "report.focus" | "hud.toast">;
 
 /** Spec `Hub` (brain core). The hub wraps payloads in the envelope. */
 export interface HubPort {

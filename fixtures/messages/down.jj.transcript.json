@@ -1,0 +1,63 @@
+{
+  "type": "jj.transcript",
+  "direction": "down",
+  "valid": [
+    {
+      "v": 1,
+      "type": "jj.transcript",
+      "id": "fx_jj_transcript_0",
+      "ts": 1762540000000,
+      "payload": {
+        "lineId": "jj_t3",
+        "who": "jj",
+        "text": "Nice opening. Want to try it again with a slower start?",
+        "final": false,
+        "utteranceId": "jj_u4"
+      }
+    },
+    {
+      "v": 1,
+      "type": "jj.transcript",
+      "id": "fx_jj_transcript_1",
+      "ts": 1762540000001,
+      "payload": {
+        "lineId": "jj_t4",
+        "who": "user",
+        "text": "Yes, let's go again.",
+        "final": true
+      }
+    }
+  ],
+  "invalid": [
+    {
+      "why": "judges are not JJ's captions",
+      "message": {
+        "v": 1,
+        "type": "jj.transcript",
+        "id": "fx_jj_transcript_100",
+        "ts": 1762540000100,
+        "payload": {
+          "lineId": "jj_t5",
+          "who": "judge_1",
+          "text": "Who pays?",
+          "final": true
+        }
+      }
+    },
+    {
+      "why": "empty line id",
+      "message": {
+        "v": 1,
+        "type": "jj.transcript",
+        "id": "fx_jj_transcript_101",
+        "ts": 1762540000101,
+        "payload": {
+          "lineId": "",
+          "who": "jj",
+          "text": "Hi",
+          "final": false
+        }
+      }
+    }
+  ]
+}

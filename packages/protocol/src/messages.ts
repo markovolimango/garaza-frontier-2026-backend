@@ -45,6 +45,17 @@ export const DOWNLINK = {
   "actor.lookAt": z.object({ actorId: JudgeId, target: LookTarget }),
   "audio.stop": z.object({ source: z.number().int().min(0).max(9), utteranceId: z.string().optional() }),
   "jj.state": JJState,
+  /**
+   * JJ's live captions: one line of what JJ or the user said to JJ, re-sent whole (same lineId)
+   * as it grows, throttled; `final` once it is complete. Only while JJ may talk (not mid-run unless woken).
+   */
+  "jj.transcript": z.object({
+    lineId: z.string().min(1),
+    who: z.enum(["user", "jj"]),
+    text: z.string().max(1000),
+    final: z.boolean(),
+    utteranceId: z.string().min(1).optional(),
+  }),
   "report.ready": z.discriminatedUnion("kind", [
     z.object({ kind: z.literal("run"), runId: RunId }),
     z.object({ kind: z.literal("final"), sessionId: SessionId }),

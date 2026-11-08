@@ -288,12 +288,14 @@ all in **`src/brain/` (new files only, never touched by Lovable)**:
 
 | File | Does |
 | --- | --- |
-| `BrainSource.ts` | `SignalSource` over `/ws/control` (role `stage`), `/ws/audio`, `/ws/mic`; maps downlinks onto the bus; acks `scene.apply` |
+| `BrainSource.ts` | `SignalSource` over `/ws/control` (role `stage`), `/ws/audio`, `/ws/mic`; maps downlinks onto the bus; keeps a scene copy, applies `scene.apply` then acks |
 | `BrainBridge.tsx` | brain-driven navigation, Next buttons → loop actions, hold `J` = push-to-talk, audio unlock, overlay (countdown, toasts, status) |
 | `mapping.ts` | pure protocol ⇄ bus/screen mapping (unit tested) |
 | `audio.ts` | JJ playback (24 kHz, flush on `audio.stop`, `audio.playback` reports) and mic capture (16 kHz worklet) |
 | `deck.ts` | PDF → 1920 px PNGs + text (pdf.js) → `POST /api/uploads/deck` |
-| `judges.ts` | `JudgeRelay`: `actor.say` / `actor.gesture` / judge audio → bus `judgeCommand` for the judges screen |
+| `judges.ts` | `JudgeRelay`: `actor.say` / `actor.gesture` / `actor.lookAt` / judge audio → bus `judgeCommand` for the judges screen, judges addressed by seat |
+| `scene.ts` | pure: apply `SceneOp`s to the stage's scene copy, panel by seat (`judge_seat_K` → seat K-1), look targets |
+| `captions.ts`, `JJCaptions.tsx` | `jj.transcript` → rolling caption on JJ's screen (JJ's words at speaking pace, older lines dim and fade); compact version over the slides/room while woken |
 | `BrainReport.tsx` | the report screen under the brain: fetches `GET /api/runs/:runId/report` (RunDigest) on `report.ready` |
 | `wake.ts` | "Hey JJ" by voice via the browser's speech recognition → `ptt` |
 | `preload.ts` | once the deck is in, loads the judges screen and its 61 MB of FBX into r3f's loader cache, so the room renders at once |
@@ -306,8 +308,11 @@ all in **`src/brain/` (new files only, never touched by Lovable)**:
 | JJ audio level (speaking) / mic level (listening) | `orbLevel` |
 | `ui.state.view` setup, jj, slides, room, report, final | `/presenter`, `/`, `/presenter`, `/judges`, `/report`, `/report` |
 | `slide.show` | `slideCommand` → presenter jumps |
-| `actor.say` judge_1..4 + its audio | `judgeCommand` `speak` (subtitle, glow from that source's level, until the audio ends); no audio within 2.5 s → `say` |
-| `actor.gesture` judge_1..4 | `judgeCommand` `react` (Marko's gesture table) |
+| `actor.say` judge_N + its audio | `judgeCommand` `speak` (subtitle, glow from that source's level, until the audio ends); no audio within 1.5 s → `say` |
+| `actor.gesture` judge_N | `judgeCommand` `react` (Marko's gesture table) |
+| `actor.lookAt` judge_N → presenter / notes / audience / judge_M | `judgeCommand` `look` (smooth head + chest turn) |
+| `scene.sync` / applied `scene.apply` | `judgePanel` (seated judges + titles) → the room seats exactly those, with nameplates; judges on other seats (judge_seat_5) are not shown |
+| `jj.transcript` | captions on JJ's screen (`/`); cleared when a run starts or resumes |
 | `run.state` presentation start / pause / resume / end | `runClock` → presenter timer |
 | presenter `slide` (during the presentation) | `slide.changed` |
 | PDF loaded in the presenter (`deckFile`) | deck upload, then `session.start` |
@@ -317,10 +322,10 @@ all in **`src/brain/` (new files only, never touched by Lovable)**:
 
 **Edits inside Lovable's files** are kept tiny and tagged `brain integration`, so a subtree
 pull conflicts rarely and obviously: `package.json` (`@coach/protocol`, `@coach/web`,
-`zod` 4.6.6), `src/signals/bus.ts` (+`slideCommand`, `deckFile`), `src/signals/index.ts`
+`zod` 4.6.6), `src/signals/bus.ts` (+`slideCommand`, `deckFile`, `runClock`, `judgePanel`), `src/signals/index.ts`
 (source switch on `VITE_SIGNAL_SOURCE`), `src/routes/__root.tsx` (mount `<BrainBridge/>`),
 `src/routes/presenter.tsx` (publish `deckFile`, follow `slideCommand`, re-open the deck on
-mount), `src/signals/judges.ts` (+`speak` command), `src/components/JudgesStage.tsx` (play `speak`, enable audio after an earlier click), `src/components/presenter/Timer.tsx` (follow `runClock`). The mock stays the default, so the Lovable preview keeps working.
+mount), `src/signals/judges.ts` (+`speak` and `look` commands, `JudgeSeat`), `src/components/JudgesStage.tsx` (play `speak` and `look`, seat `judgePanel`, enable audio after an earlier click), `src/components/presenter/Timer.tsx` (follow `runClock`), `src/routes/index.tsx` (`<JJCaptions>` around the greeting). The mock stays the default, so the Lovable preview keeps working.
 
 **Rules for the Lovable side** (pass these to Lovable when prompting):
 
@@ -330,8 +335,7 @@ mount), `src/signals/judges.ts` (+`speak` command), `src/components/JudgesStage.
 - The judges screen (`JudgesStage`, Marko's scene) plays bus `judgeCommand`s; under the brain,
   BrainSource feeds them (`judges.ts`). Keep it in its default mock mode there: `?source=backend`
   opens `src/judges/live/BackendSource`, a second stage connection that replaces BrainSource's.
-  When scene ops matter, the room must apply `scene.apply` in one frame before acking (today
-  BrainSource acks immediately). The report screen is still a placeholder: it should fetch
-  `GET /api/runs/:runId/report` on `report.ready`.
+  BrainSource applies each `scene.apply` to its scene copy and publishes `judgePanel` before it
+  acks; `JudgesStage` must keep passing `seatedJudges(panel)` to the scene.
 - The presenter forgets its PDF when the screen unmounts; BrainSource re-feeds it, but a
   persistent deck (kept above the routes) would remove the reload during the countdown.
