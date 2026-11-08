@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { feedbackToBus, intentFor, orbTarget, reportsSlides, viewToRoute } from "../brain/mapping";
+import { feedbackToBus, intentFor, orbTarget, reportsSlides, runClockChanges, viewToRoute } from "../brain/mapping";
 
 describe("brain mapping", () => {
   it("maps feedback.set onto the vignette bus", () => {
@@ -19,10 +19,30 @@ describe("brain mapping", () => {
     expect(intentFor("room", "qa", "/report")).toMatchObject({ kind: "tool", tool: "end_run" });
   });
 
-  it("refuses moves that mean nothing in the loop", () => {
-    expect(intentFor("setup", null, "/")).toMatchObject({ kind: "hint" });
-    expect(intentFor("slides", "countdown", "/judges")).toMatchObject({ kind: "hint" });
-    expect(intentFor("jj", null, "/report")).toMatchObject({ kind: "hint" });
+  it("refuses moves that mean nothing in the loop, saying what to do instead", () => {
+    expect(intentFor("setup", null, "/")).toEqual({ kind: "hint", text: "Upload your deck (PDF) first" });
+    expect(intentFor("slides", "countdown", "/judges")).toMatchObject({ kind: "hint", text: "The run is starting…" });
+    expect(intentFor("slides", "presentation", "/")).toMatchObject({ kind: "hint", text: expect.stringContaining("Judges →") });
+    expect(intentFor("room", "qa", "/presenter")).toMatchObject({ kind: "hint", text: expect.stringContaining("Report →") });
+    expect(intentFor("jj", null, "/report")).toMatchObject({ kind: "hint", text: expect.stringContaining("Start run") });
+    expect(intentFor("report", "ended", "/judges")).toMatchObject({ kind: "hint" });
+  });
+
+  it("allows JJ's screen after a run (JJ debriefs there)", () => {
+    expect(intentFor("report", "ended", "/")).toEqual({ kind: "allow" });
+    expect(intentFor("final", null, "/")).toEqual({ kind: "allow" });
+  });
+
+  it("runs the presenter timer with the presentation", () => {
+    const run = (phase: "countdown" | "presentation" | "qa", paused = false, runId = "run_1") => ({ runId, phase, paused });
+    expect(runClockChanges(null, run("countdown"))).toEqual([]);
+    expect(runClockChanges(run("countdown"), run("presentation"))).toEqual(["start"]);
+    expect(runClockChanges(run("presentation"), run("presentation", true))).toEqual(["pause"]);
+    expect(runClockChanges(run("presentation", true), run("presentation"))).toEqual(["resume"]);
+    expect(runClockChanges(run("presentation"), run("presentation"))).toEqual([]);
+    expect(runClockChanges(run("presentation"), run("qa"))).toEqual(["stop"]);
+    expect(runClockChanges(null, run("presentation", true))).toEqual(["start", "pause"]);   // reload while woken
+    expect(runClockChanges(run("presentation"), run("presentation", false, "run_2"))).toEqual(["start"]);
   });
 
   it("orb follows JJ's voice, then the mic, then idles", () => {

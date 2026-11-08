@@ -19,6 +19,12 @@ Lanes: `lead` (protocol), `brain`, `sensing`, `agents`, `stage`, `report`.
 
 ---
 
+### 2026-11-08T02:10+01:00 · stage · UX fixes from a full walkthrough (resume, next run, timer, two tabs)
+- **Where:** `apps/frontend/src/brain/{BrainBridge.tsx, BrainSource.ts, mapping.ts, audio.ts, judges.ts}`; tagged edits in `src/signals/bus.ts` (+`runClock`), `src/components/presenter/Timer.tsx`, `src/components/JudgesStage.tsx`; `e2e/frontend-brain.mjs` (33 checks)
+- **What:** Esc or a click on "JJ is listening" invokes `resume_run`. After a run, JJ's screen is allowed (no snap-back) and a "Next run" bar offers `start_run` and `start_run {mode: training, level: strong}`. Snap-back hints say what to do. The presenter timer follows the run (`runClock`). `/ws/audio` and `/ws/mic` stop reconnecting after close 4001, so two tabs no longer steal the sockets from each other every second. The judges' audio turns on by itself after an earlier click on the page. Judge lines without audio fall back to text after 1.5 s (was 2.5 s).
+- **Why:** with fake JJ a wake never ended (the run stayed paused into Q&A); "Back to JJ" did nothing after a run; the placeholder coach never leaves baseline without JJ setting targets, so no run ever had feedback; the timer stood at 5:00 during the talk.
+- **Impact:** coach policy / JJ: "With live feedback" bypasses the recommendation the way the operator can; drop it once JJ picks targets. Lovable: keep the tagged edits in `Timer.tsx` and `JudgesStage.tsx`.
+
 ### 2026-11-08T01:44+01:00 · stage · Brain judges on the real judges screen (`JudgeRelay`, `judgeCommand` `speak`)
 - **Where:** `apps/frontend/src/brain/judges.ts` (new), `BrainSource.ts`; tagged edits in `apps/frontend/src/signals/judges.ts` and `src/components/JudgesStage.tsx`; `e2e/frontend-brain.mjs`
 - **What:** BrainSource turns `actor.say` / `actor.gesture` for judge_1..4 into bus `judgeCommand`s: `speak` (new variant: `level()` from that source's audio, `done` when its playback ends) once the judge's audio starts, `say` when none comes within 2.5 s, `react` for gestures. The e2e finds Chrome on macOS, warms Vite up before the first click, and adds a second run that checks the 3D judges and a `POST /debug/judge-say` subtitle (30 checks).

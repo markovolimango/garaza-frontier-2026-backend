@@ -101,8 +101,9 @@ try {
   check("'JJ is listening' chip shows", !!(await waitFor(async () => (await page.locator("text=JJ is listening").count()) > 0)));
   await shot("5-woken");
   await page.keyboard.up("j");
-  await opSend("tool.invoke", { tool: "resume_run", args: {} });
-  check("resume_run → run continues", !!(await waitFor(() => snap?.session?.run?.paused === false)));
+  await page.keyboard.press("Escape");
+  check("Esc → resume_run → run continues", !!(await waitFor(() => snap?.session?.run?.paused === false)));
+  check("presenter timer runs with the presentation", !!(await waitFor(async () => !/elapsed 0:00/.test(await page.innerText("body")), 4000)));
 
   await page.keyboard.press("3");     // Presenter → Judges = slides done
   check("key 3 → presentation.done → Q&A room (/judges)", !!(await waitFor(async () => snap?.session?.run?.phase === "qa" && path() === "/judges")), path());
@@ -110,8 +111,14 @@ try {
   check("key 4 → end_run → report (/report)", !!(await waitFor(async () => snap?.session?.phase === "debrief" && path() === "/report")), path());
   await shot("6-report");
 
-  await page.keyboard.press("1");     // meaningless move: snaps back with a hint
-  check("key 1 on report → hint toast, stays on /report", !!(await waitFor(async () => (await page.locator("text=/Tell JJ when you're ready/").count()) > 0)) && !!(await waitFor(() => path() === "/report", 3000)));
+  await page.keyboard.press("3");     // meaningless move: snaps back with a hint
+  check("key 3 on report → hint toast, stays on /report", !!(await waitFor(async () => (await page.locator("text=/Start a run first/").count()) > 0)) && !!(await waitFor(() => path() === "/report", 3000)));
+  await page.keyboard.press("1");     // JJ's screen is allowed after a run
+  await sleep(1600);
+  check("key 1 on report → JJ screen stays (debrief)", path() === "/" && snap?.session?.phase === "debrief", path());
+  check("next-run buttons after the run", (await page.locator("text=With live feedback").count()) > 0);
+  await page.keyboard.press("4");     // back to the report
+  await waitFor(() => path() === "/report", 3000);
 
   const s = await opSend("tool.invoke", { tool: "set_audience", args: { count: 30 } });
   check("scene tool → stage acks scene.apply → ok", s?.payload?.ok === true, JSON.stringify(s?.payload));
@@ -121,8 +128,8 @@ try {
 
   // second run, straight to the judges: the 3D scene runs on BrainSource's connection (bus judgeCommand)
   await page.mouse.click(960, 540);   // unlock audio again after the reload
-  await page.keyboard.press("2");
-  check("run 2 → presentation", !!(await waitFor(() => snap?.session?.run?.index === 2 && snap?.session?.run?.phase === "presentation", 10000)));
+  await page.getByText("With live feedback").click();
+  check("run 2 'With live feedback' → training/strong presentation", !!(await waitFor(() => snap?.session?.run?.index === 2 && snap?.session?.run?.phase === "presentation" && snap?.session?.run?.feedbackLevel === "strong", 10000)), `${snap?.session?.run?.mode}/${snap?.session?.run?.feedbackLevel}`);
   await page.keyboard.press("3");
   check("run 2 → Q&A room (/judges)", !!(await waitFor(async () => snap?.session?.run?.phase === "qa" && path() === "/judges")), path());
   check("judges screen renders the 3D scene", !!(await waitFor(async () => (await page.locator("canvas").count()) > 0, 20000)));

@@ -5,7 +5,7 @@
  *   MicIn:    getUserMedia → AudioWorklet → 16 kHz Int16 20 ms frames → /ws/mic.
  * Both need a user gesture first (browser autoplay rules): call start() from a click/key.
  */
-import { AUDIO_FLAG, MIC_SAMPLE_RATE, OUT_SAMPLE_RATE, decodeAudioFrame } from "@coach/protocol";
+import { AUDIO_FLAG, CLOSE_CODES, MIC_SAMPLE_RATE, OUT_SAMPLE_RATE, decodeAudioFrame } from "@coach/protocol";
 
 type Playback = { source: number; utteranceId: string; state: "started" | "ended" | "stopped" };
 
@@ -55,7 +55,10 @@ export class AudioOut {
     const ws = new WebSocket(this.url);
     ws.binaryType = "arraybuffer";
     ws.onmessage = (ev) => { if (ev.data instanceof ArrayBuffer) this.push(new Uint8Array(ev.data)); };
-    ws.onclose = () => { if (!this.stopped) setTimeout(() => this.connect(), 1000); };
+    ws.onclose = (e) => {   // 4001: another tab took the brain; don't fight it for the socket
+      if (e.code === CLOSE_CODES.replaced) this.stopped = true;
+      if (!this.stopped) setTimeout(() => this.connect(), 1000);
+    };
     this.ws = ws;
   }
 
@@ -159,7 +162,10 @@ export class MicIn {
     if (this.stopped) return;
     const ws = new WebSocket(this.url);
     ws.onopen = () => ws.send(JSON.stringify({ type: "mic.hello", sampleRate: MIC_SAMPLE_RATE }));
-    ws.onclose = () => { if (!this.stopped) setTimeout(() => this.connect(), 1000); };
+    ws.onclose = (e) => {   // 4001: another tab took the brain; don't fight it for the socket
+      if (e.code === CLOSE_CODES.replaced) this.stopped = true;
+      if (!this.stopped) setTimeout(() => this.connect(), 1000);
+    };
     this.ws = ws;
   }
 }

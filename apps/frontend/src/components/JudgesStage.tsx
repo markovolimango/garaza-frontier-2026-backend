@@ -13,6 +13,8 @@ export function JudgesStage() {
   const [audioError, setAudioError] = useState(false);
   const sayRef = useRef(live.sayLocal);
   sayRef.current = live.sayLocal;
+  const enableRef = useRef(live.enableAudio);
+  enableRef.current = live.enableAudio;
 
   useEffect(() => {
     const unsubscribe = subscribe("judgeCommand", (command) => {
@@ -28,6 +30,15 @@ export function JudgesStage() {
       unsubscribe();
       publish("judgesReady", false);
     };
+  }, []);
+
+  // brain integration: after any earlier click on the page the browser allows audio, so the judges'
+  // voice needs no extra click. Deferred a tick so StrictMode's mount/unmount/mount creates one player.
+  useEffect(() => {
+    const activation = (navigator as Navigator & { userActivation?: { hasBeenActive: boolean } }).userActivation;
+    if (!activation?.hasBeenActive) return;
+    const t = setTimeout(() => void enableRef.current().catch(() => {}), 0);
+    return () => clearTimeout(t);
   }, []);
 
   return (

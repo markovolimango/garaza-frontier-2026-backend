@@ -24,7 +24,8 @@ export const GESTURE_REACTION: Record<Gesture, JudgeReaction> = {
   lean_in: "think", talk: "talking", shift: "idle-alt", lean_back: "idle-alt",
 };
 const LOOPING: ReadonlySet<JudgeReaction> = new Set(["talking", "texting", "idle-alt"]);
-export const NO_AUDIO_MS = 2500;
+/** ElevenLabs flash starts in well under a second; without a key no audio comes at all. */
+export const NO_AUDIO_MS = 1500;
 
 export type Playback = { source: number; utteranceId: string; state: "started" | "ended" | "stopped" };
 

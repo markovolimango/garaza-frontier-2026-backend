@@ -10,6 +10,7 @@
  *   scene.apply    → ack (the room has no scene ops yet, so applying is immediate)
  *   actor.say / actor.gesture / judge audio → bus "judgeCommand" (JudgeRelay, judges screen)
  *   JJ audio level → bus "orbLevel"
+ *   run.state       → bus "runClock" (presenter timer: start / pause / resume / stop)
  */
 import type { Deck, DownlinkPayload, JJState, RunState, SessionPhase, ToolName, ToolResult, UplinkPayload, UplinkType } from "@coach/protocol";
 import { ControlClient, type ConnectionStatus } from "@coach/web/net";
@@ -18,7 +19,7 @@ import type { SignalSource } from "../signals/sources/types";
 import { AudioOut, MicIn } from "./audio";
 import { pdfToSlides, uploadDeck } from "./deck";
 import { JudgeRelay } from "./judges";
-import { feedbackToBus, orbTarget, reportsSlides } from "./mapping";
+import { feedbackToBus, orbTarget, reportsSlides, runClockChanges } from "./mapping";
 
 export interface BrainSourceOptions {
   /** http(s) base of the brain, e.g. http://localhost:8787 */
@@ -85,7 +86,10 @@ export class BrainSource implements SignalSource {
     const c = this.client;
     c.onStatus((status) => this.set({ status }));
     c.on("ui.state", (p) => { this.set({ ui: p }); publish("jjMood", p.orb.score); });
-    c.on("run.state", (p) => this.set({ run: p.run, sessionPhase: p.sessionPhase }));
+    c.on("run.state", (p) => {
+      for (const cmd of runClockChanges(this.snap.run, p.run)) publish("runClock", cmd);   // presenter timer
+      this.set({ run: p.run, sessionPhase: p.sessionPhase });
+    });
     c.on("feedback.set", (p) => { if (!this.paused) publish("feedback", feedbackToBus(p)); });
     c.on("slide.show", (p) => { this.lastCommandedSlide = p.index; publish("slideCommand", p.index); });
     c.on("countdown", (p) => {
@@ -162,6 +166,9 @@ export class BrainSource implements SignalSource {
   }
 
   ptt(down: boolean): void { this.send("ptt", { down }); }
+
+  /** Ends a wake ("Hey JJ" / hold J) when JJ doesn't resume the run by itself. */
+  resume(): void { void this.invoke("resume_run").then((r) => { if (!r.ok) this.toast(r.hint ?? r.reason, "warn"); }); }
 
   /** Starts JJ's voice and the mic. Must run inside a user gesture (click / key). */
   unlockAudio(): void {

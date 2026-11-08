@@ -305,16 +305,19 @@ all in **`src/brain/` (new files only, never touched by Lovable)**:
 | `slide.show` | `slideCommand` → presenter jumps |
 | `actor.say` judge_1..4 + its audio | `judgeCommand` `speak` (subtitle, glow from that source's level, until the audio ends); no audio within 2.5 s → `say` |
 | `actor.gesture` judge_1..4 | `judgeCommand` `react` (Marko's gesture table) |
+| `run.state` presentation start / pause / resume / end | `runClock` → presenter timer |
 | presenter `slide` (during the presentation) | `slide.changed` |
 | PDF loaded in the presenter (`deckFile`) | deck upload, then `session.start` |
-| Next / keys 1–4: JJ→Presenter, Presenter→Judges, Judges→Report | `start_run`, `presentation.done`, `end_run`; other moves snap back with a hint |
+| Next / keys 1–4: JJ→Presenter, Presenter→Judges, Judges→Report | `start_run`, `presentation.done`, `end_run`; JJ's screen is allowed after a run; other moves snap back with a hint that says what to do |
+| Esc / click on "JJ is listening" | `resume_run` (JJ normally resumes by itself; this is the way out when it doesn't) |
+| After a run: Next run · Start run / With live feedback | `start_run` (coach's pick) / `start_run {mode: training, level: strong}` |
 
 **Edits inside Lovable's files** are kept tiny and tagged `brain integration`, so a subtree
 pull conflicts rarely and obviously: `package.json` (`@coach/protocol`, `@coach/web`,
 `zod` 4.6.6), `src/signals/bus.ts` (+`slideCommand`, `deckFile`), `src/signals/index.ts`
 (source switch on `VITE_SIGNAL_SOURCE`), `src/routes/__root.tsx` (mount `<BrainBridge/>`),
 `src/routes/presenter.tsx` (publish `deckFile`, follow `slideCommand`, re-open the deck on
-mount), `src/signals/judges.ts` (+`speak` command), `src/components/JudgesStage.tsx` (play `speak`). The mock stays the default, so the Lovable preview keeps working.
+mount), `src/signals/judges.ts` (+`speak` command), `src/components/JudgesStage.tsx` (play `speak`, enable audio after an earlier click), `src/components/presenter/Timer.tsx` (follow `runClock`). The mock stays the default, so the Lovable preview keeps working.
 
 **Rules for the Lovable side** (pass these to Lovable when prompting):
 

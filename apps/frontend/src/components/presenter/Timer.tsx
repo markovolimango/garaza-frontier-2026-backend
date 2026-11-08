@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { getLast, subscribe } from "@/signals/bus";
 
 export function fmt(sec: number) {
   const s = Math.max(0, Math.round(Math.abs(sec)));
@@ -12,7 +13,13 @@ interface TimerProps {
 
 export function Timer({ totalSec, onTotalChange }: TimerProps) {
   const [elapsed, setElapsed] = useState(0);
-  const [running, setRunning] = useState(false);
+  const [running, setRunning] = useState(() => getLast("runClock") === "start" || getLast("runClock") === "resume");
+
+  // brain integration: the timer starts with the presentation and pauses while JJ is woken.
+  useEffect(() => subscribe("runClock", (c) => {
+    if (c === "start") setElapsed(0);
+    setRunning(c === "start" || c === "resume");
+  }), []);
 
   useEffect(() => {
     if (!running) return;

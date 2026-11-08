@@ -29,21 +29,41 @@ export function viewToRoute(view: StageView): ScreenPath {
 export type Intent =
   | { kind: "tool"; tool: ToolName; args: Record<string, unknown>; label: string }
   | { kind: "send"; type: "presentation.done"; label: string }
+  | { kind: "allow" }
   | { kind: "hint"; text: string };
+
+const START_HINT = "Start a run first: Start run, or key 2";
 
 /**
  * The brain decides the view. When the user navigates away from it (Next buttons, keys
- * 1-4), translate the move into the loop action it means; anything else snaps back.
+ * 1-4), translate the move into the loop action it means; a few moves are just allowed
+ * (JJ's screen after a run); anything else snaps back with a hint that says what to do.
  */
 export function intentFor(view: StageView, runPhase: RunPhase | null, to: ScreenPath): Intent {
   if (view === "setup") return { kind: "hint", text: "Upload your deck (PDF) first" };
   if ((view === "jj" || view === "report" || view === "final") && to === "/presenter") {
     return { kind: "tool", tool: "start_run", args: {}, label: "Starting the run" };
   }
+  if ((view === "report" || view === "final") && to === "/") return { kind: "allow" };   // JJ debriefs here too
   if (view === "slides" && runPhase === "presentation" && to === "/judges") return { kind: "send", type: "presentation.done", label: "Slides done" };
   if (view === "room" && to === "/report") return { kind: "tool", tool: "end_run", args: {}, label: "Ending the run" };
-  if (view === "report" || view === "final") return { kind: "hint", text: "Tell JJ when you're ready, or press Start run" };
-  return { kind: "hint", text: "JJ is running the session" };
+  if (view === "slides" && runPhase === "countdown") return { kind: "hint", text: "The run is starting…" };
+  if (view === "slides") return { kind: "hint", text: "You're presenting: Judges → when you're done, hold J to talk to JJ" };
+  if (view === "room") return { kind: "hint", text: "Q&A with the judges: Report → when you're done" };
+  return { kind: "hint", text: START_HINT };
+}
+
+export type RunClock = "start" | "pause" | "resume" | "stop";
+type ClockRun = { runId: string; phase: RunPhase; paused: boolean } | null | undefined;
+
+/** run.state change → presenter timer commands (the timer runs while the slides are presented). */
+export function runClockChanges(prev: ClockRun, next: ClockRun): RunClock[] {
+  const live = (r: ClockRun) => !!r && r.phase === "presentation";
+  if (live(next) && (!live(prev) || prev!.runId !== next!.runId)) return next!.paused ? ["start", "pause"] : ["start"];
+  if (!live(next)) return live(prev) ? ["stop"] : [];
+  if (next!.paused && !prev!.paused) return ["pause"];
+  if (!next!.paused && prev!.paused) return ["resume"];
+  return [];
 }
 
 /** Orb level: JJ's voice while speaking, the mic (softer) while listening, a calm idle otherwise. */

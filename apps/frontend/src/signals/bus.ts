@@ -22,6 +22,8 @@ export interface Channels {
   slideCommand: number;
   /** brain integration: the PDF the presenter loaded (uploaded to the brain). */
   deckFile: File;
+  /** brain integration: the presenter timer follows the run (start / pause / resume / stop). */
+  runClock: "start" | "pause" | "resume" | "stop";
 }
 
 export type Channel = keyof Channels;
@@ -38,6 +40,7 @@ const listeners: { [C in Channel]: Set<Listener<C>> } = {
   judgesReady: new Set(),
   slideCommand: new Set(),
   deckFile: new Set(),
+  runClock: new Set(),
 };
 const last: Partial<Channels> = {};
 
