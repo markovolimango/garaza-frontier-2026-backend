@@ -9,7 +9,8 @@
  * Fires only while the run is live (presentation / qa), not paused, `run.feedbackLevel !== "off"`, and
  * for this run's focus: with targets only if `filler_burst` is one; without targets only if
  * `disfluencies` is in `run.enabledCategories` (as services/coach brain_bridge.py `vignette_for`).
- * Intensity 0.7 strong / 0.4 gentle, held 2.5 s. The body part of the policy belongs to the body agent.
+ * Intensity 0.7 strong / 0.4 gentle, held 2.5 s. Body vignettes are not the swarm's: the camera coach's
+ * bridge (services/coach) sends them.
  */
 import type { RunState, SessionState } from "@coach/protocol";
 import type { Clock } from "../clock.ts";
@@ -17,7 +18,7 @@ import type { Logger } from "../log.ts";
 import type { SwarmBoard, SwarmCommand } from "./board.ts";
 
 export type FeedbackPolicy = Extract<SwarmCommand, { type: "feedback.policy" }>;
-export const DEFAULT_FEEDBACK_POLICY: FeedbackPolicy = { type: "feedback.policy", fillers: "burst", body: "targets" };
+export const DEFAULT_FEEDBACK_POLICY: FeedbackPolicy = { type: "feedback.policy", fillers: "burst" };
 
 export interface FillerFeedbackOptions {
   board: SwarmBoard;

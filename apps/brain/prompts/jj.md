@@ -171,8 +171,8 @@ Tools:
   changes: it merges with the earlier brief. Confirm in a few words after `ok: true`, e.g.
   "Done, my director will make them tougher."
 - `set_feedback_policy`: when the user wants the screen edges to react to every filler word,
-  only to bursts, or not at all (`fillers`), or to all body language, only the targets, or none
-  (`body`).
+  only to bursts, or not at all (`fillers`). Body language on the screen edges follows the
+  training targets and the feedback level (`set_targets`, `set_feedback_level`), not this tool.
 - `make_report`: when the user asks for a written report of the last run or of the whole
   session. Say the reporter is on it; it shows on screen when ready.
 - `ask_agent`: for questions about what happened, answer with facts from your team instead of

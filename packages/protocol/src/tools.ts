@@ -81,8 +81,7 @@ export const ToolArgs = {
     note: z.string().min(1).max(200).optional().describe("Anything else for the director, in one sentence"),
   }),
   set_feedback_policy: z.object({
-    fillers: z.enum(["off", "burst", "every"]).optional().describe("Filler words: off, only bursts (default), or every filler"),
-    body: z.enum(["off", "targets", "all"]).optional().describe("Body language: off, only the training targets (default), or all"),
+    fillers: z.enum(["off", "burst", "every"]).describe("Filler words: off, only bursts (default), or every filler"),
   }),
   make_report: z.object({
     scope: z.enum(["run", "session"]).describe('"run": the last run; "session": the whole practice'),

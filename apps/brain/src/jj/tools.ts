@@ -370,7 +370,6 @@ export function createCoachTools(deps: CoachToolDeps, registry: ToolRegistry): T
 
 export type AskableAgent = ToolArgsOf<"ask_agent">["agent"];
 type Brief = Extract<SwarmCommand, { type: "director.brief" }>;
-type Policy = Extract<SwarmCommand, { type: "feedback.policy" }>;
 
 export interface SwarmToolPort {
   /** Issues a command on the board (the agent that owns it obeys). */
@@ -387,8 +386,6 @@ export interface SwarmToolDeps {
   /** Told after each command JJ (or a button) gives an agent, e.g. for the agents panel. */
   onCommand?: (agent: "director" | "feedback" | "reporter", summary: string) => void;
 }
-
-export const DEFAULT_FEEDBACK_POLICY: Policy = { type: "feedback.policy", fillers: "burst", body: "targets" };
 
 /** The brief in JJ's words (snake_case), for tool results. */
 function briefOut(b: Brief): Record<string, unknown> {
@@ -450,14 +447,11 @@ export function createSwarmTools(deps: SwarmToolDeps, registry: ToolRegistry): T
     });
 
   reg("set_feedback_policy",
-    "Tell your feedback agent what may tint the screen edges during runs: filler words (off; burst = only bursts; every = each filler) and body language (off; targets = only the training targets; all). Unset fields keep their value.",
+    "Tell your feedback agent what filler words do to the screen edges during runs: off; burst = only bursts (default); every = each filler.",
     async (a) => {
-      if (!a.fillers && !a.body) return { ok: false, reason: "invalid_args", hint: "give fillers and/or body" };
-      const prev = swarm.latest("feedback.policy") ?? DEFAULT_FEEDBACK_POLICY;
-      const next: Policy = { type: "feedback.policy", fillers: a.fillers ?? prev.fillers, body: a.body ?? prev.body };
-      swarm.command(next);
-      deps.onCommand?.("feedback", `fillers ${next.fillers} · body ${next.body}`);
-      return { ok: true, fillers: next.fillers, body: next.body };
+      swarm.command({ type: "feedback.policy", fillers: a.fillers });
+      deps.onCommand?.("feedback", `fillers ${a.fillers}`);
+      return { ok: true, fillers: a.fillers };
     });
 
   reg("make_report",

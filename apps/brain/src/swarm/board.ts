@@ -6,7 +6,8 @@
  *   director  (LLM)                 → judges' questions/reactions; obeys `director.brief` commands
  *   body      (camera coach + LLM)  → `video.note` events about movements seen on the recording
  *   reporter  (LLM)                 → `report.ready` once a run / session report JSON is built
- *   feedback  (rules)               → the only one that turns the vignette on (fillers, body)
+ *   feedback  (rules)               → turns the vignette on for filler words (body vignettes are the
+ *                                     camera coach bridge's, services/coach)
  *   jj        (Gemini Live, voice)  → issues `command`s through its tools; hears `agent.note`s
  *
  * Every agent reports its state (`status`), shown live on the stage (`swarm.activity` downlink).
@@ -51,8 +52,8 @@ export type SwarmCommand =
   /** JJ → director: how the judges should behave in the next Q&A. */
   | { type: "director.brief"; strictness?: Strictness; perJudge?: Partial<Record<JudgeId, Strictness>>; focus?: string[];
       questions?: number; followUps?: boolean; interrupts?: boolean; note?: string }
-  /** JJ → feedback: what may turn the vignette on during runs. */
-  | { type: "feedback.policy"; fillers: "off" | "burst" | "every"; body: "off" | "targets" | "all" }
+  /** JJ → feedback: what filler words do to the vignette during runs. */
+  | { type: "feedback.policy"; fillers: "off" | "burst" | "every" }
   /** JJ → reporter: build a report now. */
   | { type: "report.make"; scope: "run" | "session"; runId?: RunId; focus?: string };
 export type SwarmCommandType = SwarmCommand["type"];

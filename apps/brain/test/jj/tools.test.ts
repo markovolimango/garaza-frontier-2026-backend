@@ -247,12 +247,13 @@ describe("swarm tools (JJ leads the agents)", () => {
     expect(await tools.invoke("direct_judges", { strictness: "kind" }, "jj")).toMatchObject({ ok: true, applies_to: "the rest of this Q&A" });
   });
 
-  it("set_feedback_policy merges with the latest policy (default: filler bursts, body targets)", async () => {
+  it("set_feedback_policy sets what filler words do; it has no body option", async () => {
     const { tools, swarm } = swarmSetup();
-    expect(await tools.invoke("set_feedback_policy", { fillers: "every" }, "jj")).toEqual({ ok: true, fillers: "every", body: "targets" });
-    expect(await tools.invoke("set_feedback_policy", { body: "off" }, "jj")).toEqual({ ok: true, fillers: "every", body: "off" });
-    expect(swarm.commands.at(-1)).toEqual({ type: "feedback.policy", fillers: "every", body: "off" });
+    expect(await tools.invoke("set_feedback_policy", { fillers: "every" }, "jj")).toEqual({ ok: true, fillers: "every" });
+    expect(swarm.commands.at(-1)).toEqual({ type: "feedback.policy", fillers: "every" });
     expect(await tools.invoke("set_feedback_policy", {}, "jj")).toMatchObject({ ok: false, reason: "invalid_args" });
+    expect(await tools.invoke("set_feedback_policy", { body: "off" }, "jj")).toMatchObject({ ok: false, reason: "invalid_args" });
+    expect(JSON.stringify(tools.catalogue().tools.find((x) => x.name === "set_feedback_policy")!.argsSchema)).not.toContain("body");
   });
 
   it("make_report orders a run or session report; needs a run first", async () => {

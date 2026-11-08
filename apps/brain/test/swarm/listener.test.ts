@@ -303,13 +303,13 @@ describe("feedback agent: filler vignette", () => {
   it("every / off policies, gentle intensity, paused runs", async () => {
     const t = rig();
     await t.present({ mode: "training", level: "gentle" });
-    t.board.command({ type: "feedback.policy", fillers: "every", body: "targets" });
+    t.board.command({ type: "feedback.policy", fillers: "every" });
     phraseIn(t, ["um"]);
     expect(t.vignettes).toEqual([["warn", 0.4, 2500]]);
-    t.board.command({ type: "feedback.policy", fillers: "off", body: "targets" });
+    t.board.command({ type: "feedback.policy", fillers: "off" });
     phraseIn(t, ["um", "uh"]);
     expect(t.vignettes).toHaveLength(1);
-    t.board.command({ type: "feedback.policy", fillers: "every", body: "targets" });
+    t.board.command({ type: "feedback.policy", fillers: "every" });
     t.d({ type: "wake", via: "ptt" });
     t.sessions[0]!.report({ phrase: "um", fillers: ["um"] });              // a late report while JJ listens
     expect(t.vignettes).toHaveLength(1);
