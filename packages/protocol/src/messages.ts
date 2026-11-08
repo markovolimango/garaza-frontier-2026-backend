@@ -82,6 +82,14 @@ export const UPLINK = {
   "gaze.sample": z.object({ yawDeg: z.number(), pitchDeg: z.number(), clientTs: z.number(), facePresent: z.boolean() }),
   "sensor.status": z.object({ camera: z.enum(["ok", "no_person", "error"]), fps: z.number().min(0), posePresent: z.boolean(), message: z.string().optional() }),
   "sensor.debug": z.object({ clientTs: z.number(), landmarks: z.array(z.tuple([z.number(), z.number(), z.number(), z.number()])), aspect: z.number().positive() }),
+  /** One coaching observation from the coach backend (services/coach via its bridge): any rule, for reports and the coach policy. */
+  "coach.observation": z.object({
+    rule: z.string().min(1).max(64),
+    kind: BehaviorKind.nullable(),
+    category: FeedbackCategory.nullable(),
+    text: z.string().max(400),
+    clientTs: z.number(),
+  }),
 } as const;
 
 /** Which roles may send each uplink type (spec table "From → to"). */
@@ -100,6 +108,7 @@ export const UPLINK_SENDERS: { [K in UplinkType]: readonly ClientRole[] } = {
   "gaze.sample": ["sensor"],
   "sensor.status": ["sensor"],
   "sensor.debug": ["sensor"],
+  "coach.observation": ["sensor"],
 };
 
 // ---------------- types ----------------

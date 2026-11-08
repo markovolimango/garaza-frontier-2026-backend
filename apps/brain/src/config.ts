@@ -26,6 +26,8 @@ export type BrainConfig = z.infer<typeof BrainConfig>;
 export function readConfig(env: Record<string, string | undefined> = process.env): { brain: BrainConfig; jj: JJConfig } {
   const b = BrainConfig.safeParse(env);
   if (!b.success) throw new Error(`invalid brain config:\n${z.prettifyError(b.error)}`);
+  // No Gemini key → fake JJ (instead of refusing to start), so adding the key later is all it takes.
+  if (!env.GEMINI_API_KEY?.trim()) b.data.JJ_FAKE = "1";
   const jjEnv = b.data.JJ_FAKE === "1" ? { ...env, GEMINI_API_KEY: env.GEMINI_API_KEY || "fake" } : env;
   const j = JJConfig.safeParse(jjEnv);
   if (!j.success) throw new Error(`invalid JJ config:\n${z.prettifyError(j.error)}\n(set JJ_FAKE=1 to run without Gemini)`);

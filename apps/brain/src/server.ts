@@ -11,6 +11,10 @@ import { FakeVoiceAgent } from "./jj/index.ts";
 import { consoleLogger } from "./log.ts";
 import { RealClock } from "./clock.ts";
 import { JudgeVoices, judgeVoicesHttp } from "./voices/judgeVoice.ts";
+import { buildDigest, digestHttp } from "./digest.ts";
+import { Director } from "./director/director.ts";
+import { observedCoach } from "./observedCoach.ts";
+import { RunLog } from "./runlog.ts";
 
 const REPO = resolve(dirname(fileURLToPath(import.meta.url)), "../../..");
 if (existsSync(join(REPO, ".env"))) process.loadEnvFile(join(REPO, ".env"));
@@ -22,18 +26,29 @@ const log = consoleLogger(config.brain.LOG_LEVEL);
 // Judge voices (ElevenLabs). Created before the brain so its debug route can be passed in;
 // the hub is bound once the brain exists.
 let judgesHttp: ReturnType<typeof judgeVoicesHttp> | null = null;
+// The run log needs the session, which createBrain makes; the coach policy and routes reach it lazily.
+let runLog: RunLog | null = null;
+let digestRoutes: ReturnType<typeof digestHttp> | null = null;
 
+if (config.jj.GEMINI_API_KEY === "fake" && !process.env.GEMINI_API_KEY) log("warn", "jj.fake_no_key", { hint: "set GEMINI_API_KEY in .env for JJ's real voice" });
 const brain = createBrain({
   jj: config.jj, log, sessionDir: resolve(REPO, config.brain.SESSION_DIR), corsOrigins: config.brain.CORS_ORIGINS,
   ...(config.brain.JJ_FAKE === "1" ? { agent: new FakeVoiceAgent() } : {}),
-  http: (req, res) => judgesHttp ? judgesHttp(req, res) : false,
+  coach: observedCoach({ get: (id) => runLog?.get(id) ?? null }, { cleanRuns: config.brain.COACH_CLEAN_RUNS, maxTrainingRuns: config.brain.COACH_MAX_TRAINING_RUNS }),
+  reports: { compactRunReport: (runId) => { const rec = runLog?.get(runId); return rec ? buildDigest(rec, brain.session.get().coach.recommendation) : null; } },
+  http: (req, res) => (digestRoutes ? digestRoutes(req, res) : false) || (judgesHttp ? judgesHttp(req, res) : false),
 });
+const clock = new RealClock();
+runLog = new RunLog({ session: brain.session, hub: brain.hub, clock });
+digestRoutes = digestHttp(runLog, () => brain.session.get().coach.recommendation);
+runLog.onRunEnded((rec) => { brain.hub.send("stage", { type: "report.ready", payload: { kind: "run", runId: rec.runId } }); });
 const judges = new JudgeVoices({
-  hub: brain.hub, clock: new RealClock(), log,
+  hub: brain.hub, clock, log,
   apiKey: config.brain.ELEVENLABS_API_KEY || undefined,
   voiceIds: config.brain.JUDGE_VOICE_IDS,
 });
 judgesHttp = judgeVoicesHttp(judges);
+new Director({ session: brain.session, hub: brain.hub, voices: judges, clock, log, runLog, speechRms: config.jj.JJ_SPEECH_RMS });
 const port = await brain.listen(config.brain.BRAIN_PORT, config.brain.BRAIN_HOST);
 log("info", "brain.listening", { url: `http://${config.brain.BRAIN_HOST}:${port}`, jj: config.brain.JJ_FAKE === "1" ? "fake" : config.jj.GEMINI_LIVE_MODEL });
 

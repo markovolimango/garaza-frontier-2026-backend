@@ -80,6 +80,14 @@ export const UPLINK_SAMPLES: Up = {
   },
   behavior: { valid: [{ kind: "arms_crossed", phase: "start", clientTs: 1_762_540_011_000, conf: 0.92 }], invalid: [{ why: "speech kinds come from the brain, not the sensor", payload: { kind: "filler_burst", phase: "start", clientTs: 1, conf: 1 } }] },
   "gaze.sample": { valid: [{ yawDeg: -12.5, pitchDeg: 4, clientTs: 1_762_540_011_100, facePresent: true }], invalid: [{ why: "missing facePresent", payload: { yawDeg: 0, pitchDeg: 0, clientTs: 1 } }] },
+  "coach.observation": {
+    valid: [
+      { rule: "body.torso_movement_high", kind: "sway", category: "movement", text: "You have been moving around continuously.", clientTs: 1_762_540_011_000 },
+      { rule: "body.hand_movement_high", kind: null, category: "movement", text: "Your hands have been moving fast for a while.", clientTs: 1_762_540_012_000 },
+      { rule: "heart.above_reference", kind: null, category: null, text: "Heart rate is above your session reference.", clientTs: 1_762_540_013_000 },
+    ],
+    invalid: [{ why: "kind must be a known behaviour", payload: { rule: "x", kind: "juggling", category: null, text: "", clientTs: 1 } }],
+  },
   "sensor.status": { valid: [{ camera: "ok", fps: 29.5, posePresent: true }, { camera: "error", fps: 0, posePresent: false, message: "NotAllowedError" }], invalid: [{ why: "negative fps", payload: { camera: "ok", fps: -1, posePresent: true } }] },
   "sensor.debug": { valid: [{ clientTs: 1, landmarks: [[0.5, 0.4, -0.1, 0.99]], aspect: 1.777 }], invalid: [{ why: "landmark with 3 values", payload: { clientTs: 1, landmarks: [[0.5, 0.4, 0.1]], aspect: 1.7 } }] },
 };

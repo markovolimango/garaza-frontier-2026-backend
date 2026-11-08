@@ -62,8 +62,9 @@ export function defaultScene(voices: string[]): SceneDef {
     voiceId: voices[n - 1] ?? voices[0] ?? "default", toughness, style, priorities: [] as string[],
   });
   return {
-    version: 1, venueId: "greybox", qa: { questions: 2, answerCapMs: 45_000 },
-    judges: [seat(1, "Audience member", 0.3, "warm"), seat(2, "Practical listener", 0.5, "neutral"), seat(3, "Critical listener", 0.8, "skeptical"), seat(4, "Newcomer", 0.4, "warm")],
+    version: 1, venueId: "greybox", qa: { questions: 3, answerCapMs: 45_000 },
+    // A startup pitch panel (Garaža Frontier is judged on startup potential) until the brief is given.
+    judges: [seat(1, "Customer advocate", 0.3, "warm"), seat(2, "Startup mentor", 0.5, "neutral"), seat(3, "VC investor", 0.8, "skeptical"), seat(4, "Technical expert", 0.6, "neutral")],
     audience: { count: 12 }, lighting: "default",
   };
 }

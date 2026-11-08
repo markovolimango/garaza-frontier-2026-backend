@@ -8,12 +8,15 @@ It follows the coach's latest active session and forwards, to the brain
   brain run          -> coach session: created and started when the presentation starts, paused
                         while JJ is listening, stopped when the run ends, so `vision/run.sh --coach`
                         (or the iPhone app) has a running session to send pose frames to
-  coaching.feedback  -> behavior sway start/end   (role "sensor"; only body.torso_movement_high maps
+  coaching.feedback  -> coach.observation (role "sensor"): every rule, with its behaviour kind when it has one, for
+                        the brain's run report and coach policy
+                     -> behavior sway start/end   (role "sensor"; only body.torso_movement_high maps
                         to a sensor behaviour the brain protocol accepts)
                      -> operator.override vignette (role "operator") while a run is live, so the stage
                         shows the red edge vignette. Follows the brain's run settings: nothing in the
                         baseline/test runs (feedbackLevel off), nothing while JJ is listening (paused),
-                        only for categories in run.enabledCategories; gentle = softer.
+                        only for the run's targets when it has some (else for run.enabledCategories);
+                        gentle = softer.
 
 Why the operator override: the brain accepts `behavior` but has no feedback controller yet, so
 nothing would show. The override is a message the brain already handles. The brain allows one
@@ -53,6 +56,13 @@ RULE_CATEGORY: dict[str, str] = {
     "speech.long_pauses": "pace",
     "speech.fillers": "disfluencies",
 }
+# coach rule -> brain BehaviorKind (fast hands have none in the protocol)
+RULE_KIND: dict[str, str] = {
+    "body.torso_movement_high": "sway",
+    "speech.rate_high": "pace_fast",
+    "speech.fillers": "filler_burst",
+    "speech.long_pauses": "long_pause",
+}
 # coach rule -> brain `behavior` uplink kind (the protocol only accepts arms_crossed, sway, face_touch, looking_down)
 RULE_SENSOR_BEHAVIOR: dict[str, str] = {"body.torso_movement_high": "sway"}
 
@@ -91,6 +101,14 @@ def hold_ms(feedback: dict, now: datetime | None = None) -> int:
     return int(min(HOLD_MS_MAX, max(HOLD_MS_MIN, left)))
 
 
+def observation(feedback: dict) -> dict:
+    """coaching.feedback payload -> brain coach.observation payload."""
+    rule = str(feedback.get("rule_id", ""))[:64] or "unknown"
+    return {"rule": rule, "kind": RULE_KIND.get(rule), "category": RULE_CATEGORY.get(rule),
+            "text": str(feedback.get("display_text") or feedback.get("observation") or "")[:400],
+            "clientTs": int(time.time() * 1000)}
+
+
 def run_is_live(run: dict | None, session_phase: str | None) -> bool:
     return bool(run) and session_phase == "running" and run.get("phase") in LIVE_RUN_PHASES and not run.get("paused")
 
@@ -102,8 +120,14 @@ def vignette_for(feedback: dict, run: dict | None, session_phase: str | None, *,
     if category is None or not run_is_live(run, session_phase):
         return None
     level = run.get("feedbackLevel")
-    if not force and (level not in INTENSITY or category not in run.get("enabledCategories", [])):
-        return None
+    targets = run.get("targets") or []
+    if not force:
+        if level not in INTENSITY:
+            return None
+        if targets and RULE_KIND.get(feedback.get("rule_id", "")) not in targets:
+            return None
+        if not targets and category not in run.get("enabledCategories", []):
+            return None
     return {"action": "vignette", "kind": "warn", "intensity": INTENSITY.get(level, INTENSITY["strong"]),
             "holdMs": hold_ms(feedback, now)}
 
@@ -276,6 +300,8 @@ class Bridge:
         self.stats["feedback"] += 1
         rule = fb.get("rule_id", "")
         hold = hold_ms(fb)
+        if run_is_live(self.run_state, self.session_phase) and await self.sensor.send("coach.observation", observation(fb)):
+            self.stats["observations"] = self.stats.get("observations", 0) + 1
         behavior = RULE_SENSOR_BEHAVIOR.get(rule)
         if behavior:
             await self._behavior(behavior, hold)
@@ -283,7 +309,7 @@ class Bridge:
         sent = bool(vignette and self.operator and await self.operator.send("operator.override", vignette))
         self.stats["vignettes"] += sent
         why = ("vignette" if sent else "not a presenter behaviour" if rule not in RULE_CATEGORY
-               else "run not live / feedback off" if not vignette else "operator role unavailable")
+               else "run not live / feedback off / not a target" if not vignette else "operator role unavailable")
         log.info("coach feedback %-26s -> %s  (%s)", rule, why, fb.get("display_text", "")[:60])
 
     async def _behavior(self, kind: str, hold: int) -> None:

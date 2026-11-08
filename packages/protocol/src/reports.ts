@@ -1,7 +1,7 @@
 /** Event store records, run summaries and reports (spec: "Event store …", "Reports"). */
 import { z } from "zod";
 import {
-  BehaviorEvent, BehaviorKind, CoachState, FeedbackCommand, FeedbackLevel, JudgeId, Recommendation,
+  BehaviorEvent, BehaviorKind, CoachState, FeedbackCategory, FeedbackCommand, FeedbackLevel, JudgeId, Recommendation,
   RunId, RunMode, RunState, WordToken,
 } from "./domain.ts";
 
@@ -110,3 +110,31 @@ export const FinalReport = z.object({
   timelines: z.object({ baseline: RunTimeline, final: RunTimeline }),
 });
 export type FinalReport = z.infer<typeof FinalReport>;
+
+/**
+ * RunDigest: the run report the brain can build today, from what it actually observes (coach
+ * observations, slides, feedback, wakes, Q&A), without STT or gaze. `GET /api/runs/:runId/report`.
+ * The full RunReport above needs the event store's word and gaze streams.
+ */
+export const RunDigestObservation = z.object({
+  rule: z.string(), kind: BehaviorKind.nullable(), category: FeedbackCategory.nullable(), label: z.string(),
+  count: z.number().int(),
+  examples: z.array(z.object({ tRunMs: z.number(), segment: Segment, slideIndex: z.number().int(), text: z.string() })).max(3),
+  isTarget: z.boolean(),
+});
+export type RunDigestObservation = z.infer<typeof RunDigestObservation>;
+
+export const RunDigest = z.object({
+  runId: RunId, index: z.number().int(), mode: RunMode, level: FeedbackLevel, targets: z.array(BehaviorKind),
+  endedBy: z.enum(["qa_done", "end_run", "presentation_done", "aborted"]).nullable(),
+  durations: z.object({ presentationMs: z.number(), qaMs: z.number(), pausedMs: z.number() }),
+  slides: z.array(z.object({ index: z.number().int(), dwellMs: z.number(), visits: z.number().int() })),
+  observations: z.array(RunDigestObservation),
+  feedback: z.object({ warnings: z.number().int(), rewards: z.number().int() }),
+  wakes: z.number().int(),
+  qa: z.array(z.object({ judgeId: JudgeId, judgeTitle: z.string(), question: z.string(), answerMs: z.number() })),
+  strengths: z.array(z.string()),
+  next: Recommendation.nullable(),
+  sources: z.object({ coach: z.boolean() }),
+});
+export type RunDigest = z.infer<typeof RunDigest>;

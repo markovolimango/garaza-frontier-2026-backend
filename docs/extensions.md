@@ -19,6 +19,35 @@ Lanes: `lead` (protocol), `brain`, `sensing`, `agents`, `stage`, `report`.
 
 ---
 
+### 2026-11-08T03:15+01:00 · lead · `coach.observation` uplink and `RunDigest`
+- **Where:** `packages/protocol/src/messages.ts` (`UPLINK["coach.observation"]`, sender `sensor`), `scripts/samples.ts`, `fixtures/messages/up.coach.observation.json`; `packages/protocol/src/reports.ts` (`RunDigest`, `RunDigestObservation`)
+- **What:** `coach.observation {rule, kind: BehaviorKind|null, category: FeedbackCategory|null, text, clientTs}` carries every coaching observation of the coach backend (not only the 4 sensor behaviours). `RunDigest` is the report the brain can build today (observations, slides, feedback, wakes, Q&A, strengths, next run) without STT or gaze.
+- **Why:** reports and the coach policy need what the camera/speech coach saw; the full `RunReport` needs word and gaze streams that don't exist yet.
+- **Impact:** reports lane: `RunReport` can be built later next to `RunDigest`.
+
+### 2026-11-08T03:15+01:00 · brain · RunLog, run digest, `report.ready`, observed coach, Director, auto fake JJ
+- **Where:** `apps/brain/src/{runlog.ts, digest.ts, observedCoach.ts}`, `apps/brain/src/director/{director.ts, questions.ts}`, `server.ts` (wiring), `config.ts`, `brain.ts` (`defaultScene`)
+- **What:**
+  - `RunLog` records per run: slides, `coach.observation`s, `feedback.set` warnings, wakes, Q&A turns. `GET /api/runs` and `GET /api/runs/:runId/report` (RunDigest); `report.ready {kind: "run"}` to the stage when a run ends; `ReportsPort.compactRunReport` returns the digest (JJ's debrief).
+  - `observedCoach` (CoachPolicy): after the baseline the two most frequent observed behaviours become targets and the next run is training/strong; clean training runs fix targets and move training → fading → test. JJ's set_targets / set_level still override.
+  - `Director`: in the Q&A the judges ask `scene.qa.questions` (now 3) questions built from the deck's slide text and each judge's style (no LLM; `planQuestions`), through `JudgeVoices`; it listens on the mic (speech, then 1.8 s silence; 12 s without speech; answer cap), holds while JJ is woken, closes, and dispatches `qa_done`. Ending the run cancels it.
+  - Default panel: Customer advocate, Startup mentor, VC investor, Technical expert.
+  - No `GEMINI_API_KEY` → fake JJ automatically (`jj.fake_no_key` warning) instead of refusing to start.
+- **Why:** judges never asked anything, the report screen was empty, and without JJ the coach never left the baseline.
+- **Impact:** agents lane: an LLM question source can replace `planQuestions` (same `PlannedQuestion[]`). Rules lane: `observedCoach` is the stand-in for `packages/rules` coach. Reports lane: build `RunReport` beside the digest.
+
+### 2026-11-08T03:15+01:00 · stage · Report screen and "Hey JJ" by voice
+- **Where:** `apps/frontend/src/brain/{BrainReport.tsx, wake.ts}`, `BrainSource.ts`; tagged edit in `src/routes/report.tsx` (brain mode renders `BrainReport`)
+- **What:** the report screen fetches the run's digest on `report.ready` (or the last run after a reload): what the coach noticed (with time and slide), time per slide, the judges' questions and answer lengths, strengths, next run. `WakeListener` (browser speech recognition, no key) hears "Hey JJ" during a run and sends the same `ptt` as holding J.
+- **Why:** the report was a placeholder; the wake phrase needs STT the brain doesn't have yet.
+- **Impact:** Lovable: keep the `isBrainMode()` branch in `report.tsx`. Sensing lane: drop `wake.ts` once the brain's WakeDetector runs on Deepgram.
+
+### 2026-11-08T03:15+01:00 · sensing · Bridge sends every observation; vignette only for the run's targets
+- **Where:** `services/coach/coach/brain_bridge.py` (`observation`, `RULE_KIND`, `vignette_for`)
+- **What:** each `coaching.feedback` during a live run → `coach.observation` (speech.rate_high → pace_fast, speech.fillers → filler_burst, speech.long_pauses → long_pause, body.torso_movement_high → sway; fast hands and heart rate have no kind). When the run has targets, the vignette fires only for them; without targets, for the enabled categories.
+- **Why:** the brain's report and coach need all observations; the spec gives feedback on targets only.
+- **Impact:** none.
+
 ### 2026-11-08T02:30+01:00 · brain · Four judges in the default panel (`judge_seat_4`)
 - **Where:** `packages/protocol/src/venue.ts` (`GREYBOX_VENUE.anchors.judge_seat_4`), `apps/brain/src/brain.ts` (`defaultScene`: + "Newcomer", warm, 0.4), `fixtures/messages/down.scene.sync.json` (regenerated), `apps/brain/test/session.test.ts` (non-existent seat is now `judge_seat_5`)
 - **What:** the default panel has 4 judges, matching the 4 seats of the stage's 3D room and the 4 judge voices.

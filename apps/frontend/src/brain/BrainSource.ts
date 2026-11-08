@@ -20,6 +20,7 @@ import { AudioOut, MicIn } from "./audio";
 import { pdfToSlides, uploadDeck } from "./deck";
 import { JudgeRelay } from "./judges";
 import { preloadJudges } from "./preload";
+import { WakeListener } from "./wake";
 import { feedbackToBus, orbTarget, reportsSlides, runClockChanges } from "./mapping";
 
 export interface BrainSourceOptions {
@@ -27,6 +28,8 @@ export interface BrainSourceOptions {
   httpBase: string;
   /** Turn off for tests / headless (no AudioContext). */
   audio?: boolean;
+  /** "Hey JJ" by voice via the browser's speech recognition (default on where supported). */
+  wakePhrase?: boolean;
   WebSocketImpl?: typeof WebSocket;
 }
 
@@ -63,6 +66,7 @@ export class BrainSource implements SignalSource {
   private readonly unsubs: (() => void)[] = [];
   private audioOut: AudioOut | null = null;
   private micIn: MicIn | null = null;
+  private wake: WakeListener | null = null;
   private orbTimer: ReturnType<typeof setInterval> | null = null;
   private orb = 0.15;
   private lastCommandedSlide: number | null = null;
@@ -78,6 +82,7 @@ export class BrainSource implements SignalSource {
   }
 
   get wsBase(): string { return this.o.httpBase.replace(/^http/, "ws"); }
+  get httpBase(): string { return this.o.httpBase; }
 
   // ---------------- SignalSource ----------------
 
@@ -132,6 +137,7 @@ export class BrainSource implements SignalSource {
     this.client.close();
     this.audioOut?.close();
     this.micIn?.close();
+    this.wake?.stop();
     this.judges.clear();
     this.started = false;
   }
@@ -172,6 +178,15 @@ export class BrainSource implements SignalSource {
 
   ptt(down: boolean): void { this.send("ptt", { down }); }
 
+  /** "Hey JJ" heard: during a live run, the same wake as holding J (outside runs JJ already listens). */
+  private onWakePhrase(): void {
+    const run = this.snap.run;
+    if (!run || run.paused || (run.phase !== "presentation" && run.phase !== "qa" && run.phase !== "countdown")) return;
+    this.ptt(true);
+    this.ptt(false);
+    this.toast("Hey JJ: JJ is listening");
+  }
+
   /** Ends a wake ("Hey JJ" / hold J) when JJ doesn't resume the run by itself. */
   resume(): void { void this.invoke("resume_run").then((r) => { if (!r.ok) this.toast(r.hint ?? r.reason, "warn"); }); }
 
@@ -182,6 +197,10 @@ export class BrainSource implements SignalSource {
       this.audioOut = new AudioOut(`${this.wsBase}/ws/audio`, (p) => { this.send("audio.playback", p); this.judges.playback(p); });
       this.micIn = new MicIn(`${this.wsBase}/ws/mic`);
       void this.micIn.start().catch((err) => this.toast(`Microphone unavailable: ${String(err)}`, "warn"));
+      if (this.o.wakePhrase !== false && WakeListener.supported()) {
+        this.wake = new WakeListener(() => this.onWakePhrase());
+        this.wake.start();
+      }
     }
     this.audioOut.start();
     if (!this.snap.audioOn) this.set({ audioOn: true });

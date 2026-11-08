@@ -1,5 +1,6 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { NextButton } from "@/components/NextButton";
+import { BrainReport, isBrainMode } from "@/brain/BrainReport"; // brain integration
 
 export const Route = createFileRoute("/report")({
   head: () => ({
@@ -12,7 +13,7 @@ export const Route = createFileRoute("/report")({
       { name: "twitter:card", content: "summary_large_image" },
     ],
   }),
-  component: () => (
+  component: () => isBrainMode() ? <BrainReport /> : (   // brain integration: the run's real report
     <main className="flex h-screen flex-col items-center justify-center gap-10">
       <h1 className="text-8xl font-semibold tracking-tight">REPORT DASHBOARD</h1>
       <NextButton to="/" label="Back to JJ" />

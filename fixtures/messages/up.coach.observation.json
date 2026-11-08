@@ -1,0 +1,63 @@
+{
+  "type": "coach.observation",
+  "direction": "up",
+  "valid": [
+    {
+      "v": 1,
+      "type": "coach.observation",
+      "id": "fx_coach_observation_0",
+      "ts": 1762540000000,
+      "payload": {
+        "rule": "body.torso_movement_high",
+        "kind": "sway",
+        "category": "movement",
+        "text": "You have been moving around continuously.",
+        "clientTs": 1762540011000
+      }
+    },
+    {
+      "v": 1,
+      "type": "coach.observation",
+      "id": "fx_coach_observation_1",
+      "ts": 1762540000001,
+      "payload": {
+        "rule": "body.hand_movement_high",
+        "kind": null,
+        "category": "movement",
+        "text": "Your hands have been moving fast for a while.",
+        "clientTs": 1762540012000
+      }
+    },
+    {
+      "v": 1,
+      "type": "coach.observation",
+      "id": "fx_coach_observation_2",
+      "ts": 1762540000002,
+      "payload": {
+        "rule": "heart.above_reference",
+        "kind": null,
+        "category": null,
+        "text": "Heart rate is above your session reference.",
+        "clientTs": 1762540013000
+      }
+    }
+  ],
+  "invalid": [
+    {
+      "why": "kind must be a known behaviour",
+      "message": {
+        "v": 1,
+        "type": "coach.observation",
+        "id": "fx_coach_observation_100",
+        "ts": 1762540000100,
+        "payload": {
+          "rule": "x",
+          "kind": "juggling",
+          "category": null,
+          "text": "",
+          "clientTs": 1
+        }
+      }
+    }
+  ]
+}

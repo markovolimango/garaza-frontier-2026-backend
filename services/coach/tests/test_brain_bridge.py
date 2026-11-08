@@ -3,7 +3,7 @@
 import asyncio
 from datetime import datetime, timedelta, timezone
 
-from coach.brain_bridge import Bridge, coach_session_plan, hold_ms, sensor_status, vignette_for
+from coach.brain_bridge import Bridge, coach_session_plan, hold_ms, observation, sensor_status, vignette_for
 
 NOW = datetime(2026, 11, 8, 12, 0, tzinfo=timezone.utc)
 LIVE = {"phase": "presentation", "paused": False, "feedbackLevel": "strong", "enabledCategories": ["movement", "pace"]}
@@ -81,7 +81,10 @@ def test_bridge_tracks_run_state_and_sends_vignette_and_sway():
     assert [k for k, _ in b.operator.sent] == ["operator.override", "operator.override"]
     behaviors = [p for k, p in b.sensor.sent if k == "behavior"]
     assert [(p["kind"], p["phase"]) for p in behaviors] == [("sway", "start"), ("sway", "end")]
-    assert b.stats == {"feedback": 2, "vignettes": 2, "behaviors": 1, "status": 0}
+    assert b.stats == {"feedback": 2, "vignettes": 2, "behaviors": 1, "status": 0, "observations": 2}
+    sent = [p for k, p in b.sensor.sent if k == "coach.observation"]
+    assert [(p["rule"], p["kind"], p["category"]) for p in sent] == [
+        ("body.torso_movement_high", "sway", "movement"), ("speech.rate_high", "pace_fast", "pace")]
 
 
 def test_bridge_no_vignette_outside_runs_and_status_throttled():
@@ -154,3 +157,18 @@ def test_no_sessions_flag_leaves_coach_sessions_alone():
                                                        "sessionPhase": "running"}})
         return b._session_task
     assert asyncio.run(scenario()) is None
+
+
+def test_observation_payload_maps_rules_to_behaviours():
+    assert observation({"rule_id": "speech.fillers", "display_text": "3 fillers"})["kind"] == "filler_burst"
+    o = observation({"rule_id": "body.hand_movement_high", "display_text": "fast hands"})
+    assert (o["kind"], o["category"], o["text"]) == (None, "movement", "fast hands")
+    assert observation({"rule_id": "heart.above_reference"})["category"] is None
+
+
+def test_vignette_only_for_targets_when_the_run_has_some():
+    targeted = {**LIVE, "targets": ["pace_fast"]}
+    assert vignette_for(fb("speech.rate_high"), targeted, "running", now=NOW) is not None
+    assert vignette_for(fb("body.torso_movement_high"), targeted, "running", now=NOW) is None
+    assert vignette_for(fb("body.hand_movement_high"), targeted, "running", now=NOW) is None
+    assert vignette_for(fb("body.hand_movement_high"), targeted, "running", force=True, now=NOW) is not None

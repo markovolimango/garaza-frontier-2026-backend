@@ -109,6 +109,7 @@ try {
   check("key 3 → presentation.done → Q&A room (/judges)", !!(await waitFor(async () => snap?.session?.run?.phase === "qa" && path() === "/judges")), path());
   await page.keyboard.press("4");     // Judges → Report = end run (pressed right after the view changed: race check)
   check("key 4 → end_run → report (/report)", !!(await waitFor(async () => snap?.session?.phase === "debrief" && path() === "/report")), path());
+  check("report screen shows run 1 (baseline)", !!(await waitFor(async () => (await page.locator("text=Baseline run · no feedback").count()) > 0, 6000)));
   await shot("6-report");
 
   await page.keyboard.press("3");     // meaningless move: snaps back with a hint
@@ -128,19 +129,19 @@ try {
 
   // second run, straight to the judges: the 3D scene runs on BrainSource's connection (bus judgeCommand)
   await page.mouse.click(960, 540);   // unlock audio again after the reload
-  await page.getByText("With live feedback").click();
+  await page.getByRole("button", { name: "With live feedback", exact: true }).click();
   check("run 2 'With live feedback' → training/strong presentation", !!(await waitFor(() => snap?.session?.run?.index === 2 && snap?.session?.run?.phase === "presentation" && snap?.session?.run?.feedbackLevel === "strong", 10000)), `${snap?.session?.run?.mode}/${snap?.session?.run?.feedbackLevel}`);
   await page.keyboard.press("3");
   check("run 2 → Q&A room (/judges)", !!(await waitFor(async () => snap?.session?.run?.phase === "qa" && path() === "/judges")), path());
   check("judges screen renders the 3D scene", !!(await waitFor(async () => (await page.locator("canvas").count()) > 0, 20000)));
-  const line = "What does your retention look like after a week?";
-  const said = await waitFor(async () => {   // the scene loads its models first; the brain queues lines one at a time
-    await fetch(`${BRAIN}/debug/judge-say`, { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ judge: 2, text: line }) });
-    return waitFor(async () => (await page.locator(`text=${line}`).count()) > 0, 5000);
-  }, 45000, 200);
-  check("brain judge line (actor.say) → subtitle on the judges screen", !!said);
+  // The director asks by itself, from the deck: run 2 opens with judge_4 (neutral) on the traction slide.
+  check("director: a judge asks about the deck by itself", !!(await waitFor(async () => (await page.locator("text=/still active after the first month/").count()) > 0, 20000)));
   await shot("7-judges");
   check("judges screen keeps the single stage connection", (await health()).connected.includes("stage") && (await page.locator("text=Opened in another tab").count()) === 0);
+  await page.getByText("Report →").click();
+  check("report screen shows run 2 (training, strong)", !!(await waitFor(async () => path() === "/report" && (await page.locator("text=Training run · strong feedback").count()) > 0, 8000)), path());
+  check("report: time per slide from the brain", (await page.locator("text=Time per slide").count()) > 0 && (await page.locator("text=Slide 1").count()) > 0);
+  await shot("8-report");
 } catch (e) {
   check("script", false, String(e));
 } finally {
