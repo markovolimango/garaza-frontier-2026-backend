@@ -18,20 +18,6 @@ import type { Logger } from "./log.ts";
 import { viewFor } from "./views.ts";
 
 // ---------------- actions ----------------
-export type SessionAction =
-  | { type: "session_start" }
-  | { type: "save_brief"; brief: PresentationBrief }
-  | { type: "start_run"; mode?: RunMode; level?: FeedbackLevel }
-  | { type: "slide"; index: number; from?: "stage" | "brain" }
-  | { type: "presentation_done" } | { type: "qa_done" } | { type: "end_run" } | { type: "abort_run" }
-  | { type: "run_it_back" }
-  | { type: "wake"; via: "phrase" | "ptt" | "operator" } | { type: "resume" }
-  | { type: "set_targets"; targets: BehaviorKind[] }
-  | { type: "set_level"; level: FeedbackLevel }
-  | { type: "set_categories"; enabled: FeedbackCategory[] }
-  | { type: "start_calibration" } | { type: "calibration_done"; calibration: GazeCalibration }
-  | { type: "show_final" } | { type: "reset" };
-
 /** Changes that are not user actions, also delivered to subscribers. */
 export type SessionEvent =
   | { type: "countdown"; secondsLeft: 3 | 2 | 1 | 0 }
@@ -40,7 +26,7 @@ export type SessionEvent =
 
 export type SessionCause = SessionAction | SessionEvent | SceneOp[];
 
-const ActionSchema: z.ZodType<SessionAction> = z.discriminatedUnion("type", [
+const ActionSchema = z.discriminatedUnion("type", [
   z.object({ type: z.literal("session_start") }),
   z.object({ type: z.literal("save_brief"), brief: PresentationBrief }),
   z.object({ type: z.literal("start_run"), mode: RunMode.optional(), level: FeedbackLevel.optional() }),
@@ -54,6 +40,8 @@ const ActionSchema: z.ZodType<SessionAction> = z.discriminatedUnion("type", [
   z.object({ type: z.literal("start_calibration") }), z.object({ type: z.literal("calibration_done"), calibration: GazeCalibration }),
   z.object({ type: z.literal("show_final") }), z.object({ type: z.literal("reset") }),
 ]);
+/** Spec "Brain core" SessionAction; slide.from is an extension (see docs/extensions.md). */
+export type SessionAction = z.infer<typeof ActionSchema>;
 
 // ---------------- coaching policy port ----------------
 /** Implemented by packages/rules (coach.ts + summarizeRun). The brain only calls it. */

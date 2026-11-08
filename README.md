@@ -12,11 +12,16 @@ corepack pnpm install
 cp .env.example .env               # JJ_FAKE=1 runs without a Gemini key
 corepack pnpm test && corepack pnpm typecheck
 corepack pnpm dev:brain            # brain on :8787
+corepack pnpm dev:frontend         # Lovable app on :5174, wired to the brain
 ```
+
+The main app is built in Lovable in a separate repo and carried here as a git subtree at
+`apps/frontend`; pull new Lovable commits with `pnpm frontend:pull` (docs/integration.md §14).
 
 | Path | Lane | |
 | --- | --- | --- |
 | `packages/protocol` | lead | schemas, types, message catalogue |
 | `apps/brain` | brain, agents, sensing | hub, session, JJ, mic routing |
-| `apps/web` | stage, sensing, brain | pages; `src/net` is the shared WS client |
+| `apps/frontend` | stage (Lovable) | the main app; `src/brain/` is our integration layer |
+| `apps/web` | stage, sensing, brain | `src/net`: the shared WS client |
 | `fixtures/` | all | message samples (generated), later pose/audio/sessions |

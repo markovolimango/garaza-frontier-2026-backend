@@ -7,12 +7,18 @@
     "test": "vitest run",
     "typecheck": "tsc -b packages/protocol apps/web apps/brain",
     "gen:fixtures": "tsx packages/protocol/scripts/gen-fixtures.ts",
-    "dev:brain": "pnpm --filter @coach/brain dev"
+    "dev:brain": "pnpm --filter @coach/brain dev",
+    "dev:frontend": "VITE_SIGNAL_SOURCE=brain pnpm --filter tanstack_start_ts exec vite dev --port 5174",
+    "test:frontend": "pnpm --filter tanstack_start_ts exec vitest run && pnpm --filter tanstack_start_ts exec vitest run -c vitest.brain.config.ts",
+    "e2e:browser": "node e2e/frontend-brain.mjs",
+    "frontend:pull": "git subtree pull --prefix=apps/frontend frontend main --squash"
   },
   "devDependencies": {
     "@types/node": "22.18.0",
+    "playwright-core": "1.56.1",
     "tsx": "4.20.6",
     "typescript": "5.9.3",
-    "vitest": "5.1.0"
+    "vitest": "5.1.0",
+    "ws": "8.18.3"
   }
 }

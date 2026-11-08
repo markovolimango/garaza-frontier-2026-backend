@@ -24,7 +24,7 @@ const log = consoleLogger(config.brain.LOG_LEVEL);
 let judgesHttp: ReturnType<typeof judgeVoicesHttp> | null = null;
 
 const brain = createBrain({
-  jj: config.jj, log,
+  jj: config.jj, log, sessionDir: resolve(REPO, config.brain.SESSION_DIR), corsOrigins: config.brain.CORS_ORIGINS,
   ...(config.brain.JJ_FAKE === "1" ? { agent: new FakeVoiceAgent() } : {}),
   http: (req, res) => judgesHttp ? judgesHttp(req, res) : false,
 });

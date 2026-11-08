@@ -1,0 +1,116 @@
+// Browser e2e: the Lovable frontend (BrainSource) ⇄ a real brain, in headless Chrome.
+//
+// Needs, already running:
+//   brain:     JJ_FAKE=1 pnpm dev:brain                       (fresh session, port 8787)
+//   frontend:  pnpm dev:frontend                               (VITE_SIGNAL_SOURCE=brain, port 5174)
+// Then:        pnpm e2e:browser   (CHROME=/path/to/chrome to override the browser)
+// Screenshots: data/e2e/shot-*.png
+import { chromium } from "playwright-core";
+import WebSocket from "ws";
+import { fileURLToPath } from "node:url";
+import { dirname, join } from "node:path";
+import { mkdirSync } from "node:fs";
+
+const HERE = dirname(fileURLToPath(import.meta.url));
+const REPO = join(HERE, "..");
+const OUT = join(REPO, "data", "e2e");
+mkdirSync(OUT, { recursive: true });
+const FE = process.env.FRONTEND_URL ?? "http://localhost:5174";
+const BRAIN = process.env.BRAIN_URL ?? "http://127.0.0.1:8787";
+const results = [];
+const check = (name, ok, detail = "") => { results.push({ name, ok, detail }); console.log(`${ok ? "✅" : "❌"} ${name}${detail ? " — " + detail : ""}`); };
+const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
+async function waitFor(fn, ms = 8000, step = 100) { const end = Date.now() + ms; while (Date.now() < end) { try { const v = await fn(); if (v) return v; } catch {} await sleep(step); } return false; }
+const health = async () => (await fetch(`${BRAIN}/health`)).json();
+if ((await health()).phase !== "setup") { console.error("The brain must be in a fresh session (phase setup): restart it."); process.exit(2); }
+
+// operator socket: watches state.snapshot, sends overrides and tools
+const op = new WebSocket(`${BRAIN.replace("http", "ws")}/ws/control`);
+let snap = null; const replies = new Map(); let n = 0;
+const env = (type, payload) => ({ v: 1, type, id: `op_${++n}`, ts: Date.now(), payload });
+op.on("message", (d) => { const m = JSON.parse(String(d)); if (m.type === "state.snapshot") snap = m.payload; if (m.type === "ping") op.send(JSON.stringify(env("pong", {}))); if (m.replyTo) replies.get(m.replyTo)?.(m); });
+await new Promise((r) => op.on("open", r));
+op.send(JSON.stringify(env("hello", { role: "operator", clientId: "e2e", protocol: 1 })));
+const opSend = (type, payload) => { const e = env(type, payload); op.send(JSON.stringify(e)); return new Promise((r) => { replies.set(e.id, r); setTimeout(() => r(null), 5000); }); };
+
+const browser = await chromium.launch({
+  executablePath: process.env.CHROME ?? "/usr/bin/google-chrome", headless: true,
+  args: ["--use-fake-ui-for-media-stream", "--use-fake-device-for-media-stream", "--autoplay-policy=no-user-gesture-required"],
+});
+const ctx = await browser.newContext({ viewport: { width: 1920, height: 1080 }, permissions: ["microphone"] });
+const page = await ctx.newPage();
+const errors = [];
+page.on("pageerror", (e) => errors.push(`pageerror: ${e.message}`));
+page.on("console", (m) => { if (m.type() === "error") errors.push(`console: ${m.text()}`); });
+const shot = (name) => page.screenshot({ path: join(OUT, `shot-${name}.png`) });
+const path = () => new URL(page.url()).pathname;
+
+try {
+  await page.goto(FE + "/", { waitUntil: "networkidle" });
+  check("SSR + hydrate: page loads", (await page.title()).length > 0, await page.title());
+  check("stage connects to the brain", !!(await waitFor(async () => (await health()).connected.includes("stage"))));
+  check("view setup → presenter screen", !!(await waitFor(() => path() === "/presenter")), path());
+  await shot("1-setup");
+
+  await page.mouse.click(960, 900);   // first gesture: unlock audio + mic
+  check("mic streams to /ws/mic after the first click", !!(await waitFor(async () => (await health()).mic)));
+
+  await page.setInputFiles('input[type=file][accept="application/pdf"]', join(REPO, "fixtures", "decks", "sample-3-slides.pdf"));
+  check("PDF upload → brain has a 3-slide deck", !!(await waitFor(() => snap?.session?.context?.deck?.slides?.length === 3, 15000)), snap?.session?.context?.deck?.name);
+  check("session.start → intro, JJ connected", !!(await waitFor(async () => { const h = await health(); return h.phase === "intro" && h.jj === "connected"; })));
+  check("view jj → JJ screen (/)", !!(await waitFor(() => path() === "/")), path());
+  await shot("2-jj");
+  const slideText = snap?.session?.context?.deck?.slides?.map((s) => s.text).join(" | ");
+  check("slide text extracted by pdf.js", /Traction/.test(slideText ?? ""), slideText);
+  const img = await fetch(BRAIN + snap.session.context.deck.slides[0].url);
+  check("slide PNG served by the brain", img.status === 200 && img.headers.get("content-type") === "image/png");
+
+  await page.keyboard.press("2");     // JJ → Presenter = start the run
+  check("key 2 on JJ screen → start_run", !!(await waitFor(() => snap?.session?.phase === "running")), snap?.session?.run?.runId);
+  check("countdown overlay shows", !!(await waitFor(async () => (await page.locator("text=/^[321]$/").count()) > 0, 3000)));
+  await shot("3-countdown");
+  check("presentation starts after the countdown", !!(await waitFor(() => snap?.session?.run?.phase === "presentation", 6000)));
+  check("presenter screen with the PDF re-opened (1 / 3)", !!(await waitFor(async () => path() === "/presenter" && (await page.locator("text=/1 \\/ 3/").count()) > 0)), path());
+
+  await page.keyboard.press("ArrowRight");
+  check("→ arrow reaches the brain (slideIndex 1)", !!(await waitFor(() => snap?.session?.run?.slideIndex === 1)));
+  const r = await opSend("tool.invoke", { tool: "go_to_slide", args: { index: 2 } });
+  check("operator go_to_slide 2 → presenter shows 3 / 3", r?.payload?.ok && !!(await waitFor(async () => (await page.locator("text=/3 \\/ 3/").count()) > 0)));
+
+  op.send(JSON.stringify(env("operator.override", { action: "vignette", kind: "warn", intensity: 0.65, holdMs: 4000 })));   // no reply for overrides
+  const red = await waitFor(async () => { const o = await page.locator(".vignette-red").evaluate((el) => Number(getComputedStyle(el).opacity)); return o > 0.1 ? o : false; });
+  check("feedback.set warn → red vignette on the presenter", !!red, `opacity ${red}`);
+  await shot("4-vignette");
+
+  await page.keyboard.down("j");
+  check("hold J → run paused (push-to-talk)", !!(await waitFor(() => snap?.session?.run?.paused === true)));
+  check("'JJ is listening' chip shows", !!(await waitFor(async () => (await page.locator("text=JJ is listening").count()) > 0)));
+  await shot("5-woken");
+  await page.keyboard.up("j");
+  await opSend("tool.invoke", { tool: "resume_run", args: {} });
+  check("resume_run → run continues", !!(await waitFor(() => snap?.session?.run?.paused === false)));
+
+  await page.keyboard.press("3");     // Presenter → Judges = slides done
+  check("key 3 → presentation.done → Q&A room (/judges)", !!(await waitFor(async () => snap?.session?.run?.phase === "qa" && path() === "/judges")), path());
+  await page.keyboard.press("4");     // Judges → Report = end run (pressed right after the view changed: race check)
+  check("key 4 → end_run → report (/report)", !!(await waitFor(async () => snap?.session?.phase === "debrief" && path() === "/report")), path());
+  await shot("6-report");
+
+  await page.keyboard.press("1");     // meaningless move: snaps back with a hint
+  check("key 1 on report → hint toast, stays on /report", !!(await waitFor(async () => (await page.locator("text=/Tell JJ when you're ready/").count()) > 0)) && !!(await waitFor(() => path() === "/report", 3000)));
+
+  const s = await opSend("tool.invoke", { tool: "set_audience", args: { count: 30 } });
+  check("scene tool → stage acks scene.apply → ok", s?.payload?.ok === true, JSON.stringify(s?.payload));
+
+  await page.reload({ waitUntil: "networkidle" });
+  check("reload restores the brain's view (/report)", !!(await waitFor(() => path() === "/report")), path());
+} catch (e) {
+  check("script", false, String(e));
+} finally {
+  const relevant = errors.filter((e) => !/favicon|DevTools|Download the React DevTools/.test(e));
+  check("no page errors / console errors", relevant.length === 0, relevant.slice(0, 5).join(" || "));
+  await browser.close(); op.close();
+  const failed = results.filter((r) => !r.ok).length;
+  console.log(`\n${results.length - failed}/${results.length} passed`);
+  process.exit(failed ? 1 : 0);
+}

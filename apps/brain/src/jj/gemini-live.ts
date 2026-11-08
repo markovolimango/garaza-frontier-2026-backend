@@ -11,7 +11,7 @@
  */
 import { Behavior, FunctionResponseScheduling, GoogleGenAI, Modality } from "@google/genai";
 import type {
-  FunctionDeclaration, FunctionResponse, LiveConnectParameters, LiveSendClientContentParameters,
+  FunctionDeclaration, FunctionResponse, LiveConnectConfig, LiveConnectParameters, LiveSendClientContentParameters,
   LiveSendRealtimeInputParameters, LiveServerMessage,
 } from "@google/genai";
 import type { ToolName, ToolResult } from "@coach/protocol";
@@ -122,7 +122,7 @@ export class GeminiLiveAgent implements VoiceAgent {
 
   // ---------------- connection management ----------------
 
-  private buildConfig(handle: string | null): LiveConnectParameters["config"] {
+  private buildConfig(handle: string | null): LiveConnectConfig {
     const ctx = this.ctx!;
     const functionDeclarations: FunctionDeclaration[] = ctx.tools.map((t) => ({
       name: t.name,

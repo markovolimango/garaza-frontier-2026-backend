@@ -12,6 +12,8 @@ export const BrainConfig = z.object({
   COACH_MAX_TRAINING_RUNS: z.coerce.number().int().min(1).default(5),
   WAKE_PHRASES: z.string().default(""),
   LOG_LEVEL: z.enum(["debug", "info", "warn", "error"]).default("info"),
+  /** Extra CORS origins (comma-separated); localhost on any port is always allowed. */
+  CORS_ORIGINS: z.string().default("").transform((s) => s.split(",").map((x) => x.trim()).filter(Boolean)),
   /** 1 = run without Gemini (FakeVoiceAgent); buttons and the operator panel still work. */
   JJ_FAKE: z.enum(["0", "1"]).default("0"),
   /** Judge TTS (voices/judgeVoice.ts). Empty = judges send actor.say/gestures but no audio. Independent of JJ_FAKE. */

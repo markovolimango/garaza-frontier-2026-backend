@@ -20,6 +20,7 @@ import { placeholderCoach, placeholderContext, placeholderReports } from "./plac
 import { SessionStore, type CoachPolicy } from "./session.ts";
 import type { SttStream } from "./speech.ts";
 import { StateSync } from "./sync.ts";
+import { Uploads } from "./context/uploads.ts";
 
 export interface BrainOptions {
   jj: JJConfig;
@@ -34,8 +35,12 @@ export interface BrainOptions {
   reports?: ReportsPort;               // rules/report: compact RunReport for JJ
   agent?: VoiceAgent;                  // FakeVoiceAgent for tests / voice-less demos
   stt?: () => SttStream | null;        // sensing: the current run's STT stream
-  /** Extra HTTP routes (uploads, reports …). Return true when handled. */
+  /** Extra HTTP routes (reports …). Return true when handled. */
   http?: (req: IncomingMessage, res: ServerResponse, brain: Brain) => boolean | Promise<boolean>;
+  /** Where uploads and session logs go (SESSION_DIR). Default ./data/sessions. */
+  sessionDir?: string;
+  /** Extra allowed CORS origins; localhost / 127.0.0.1 on any port are always allowed. */
+  corsOrigins?: string[];
 }
 
 export interface Brain {
@@ -46,6 +51,7 @@ export interface Brain {
   tools: ToolRegistry;
   jj: ReturnType<typeof createJJ>["engine"];
   mic: MicRouter;
+  uploads: Uploads;
   listen(port: number, host?: string): Promise<number>;
   close(): Promise<void>;
 }
@@ -122,15 +128,27 @@ export function createBrain(o: BrainOptions): Brain {
 
   // ---------------- http ----------------
   const json = (res: ServerResponse, code: number, body: unknown) => { res.writeHead(code, { "content-type": "application/json" }); res.end(JSON.stringify(body)); };
+  const uploads = new Uploads({ session, sessionDir: o.sessionDir ?? "./data/sessions", log });
+  const localOrigin = /^https?:\/\/(localhost|127\.0\.0\.1|\[::1\])(:\d+)?$/;
+  const allowOrigin = (origin: string | undefined) => !!origin && (localOrigin.test(origin) || (o.corsOrigins ?? []).includes(origin));
   const brain: Brain = {
-    server: createServer(), hub, session, sync, tools, jj, mic,
+    server: createServer(), hub, session, sync, tools, jj, mic, uploads,
     listen: (port, host = "127.0.0.1") => new Promise((resolve) => brain.server.listen(port, host, () => resolve((brain.server.address() as AddressInfo).port))),
     close: async () => { await jj.stop().catch(() => {}); hub.close(); await new Promise<void>((r) => brain.server.close(() => r())); },
   };
   brain.server.on("request", async (req, res) => {
     const path = (req.url ?? "/").split("?")[0] ?? "/";
+    const origin = req.headers.origin;
+    if (allowOrigin(origin)) {
+      res.setHeader("access-control-allow-origin", origin!);
+      res.setHeader("vary", "origin");
+      res.setHeader("access-control-allow-methods", "GET, POST, OPTIONS");
+      res.setHeader("access-control-allow-headers", "content-type");
+    }
+    if (req.method === "OPTIONS") { res.writeHead(allowOrigin(origin) ? 204 : 403); res.end(); return; }
     try {
       if (o.http && (await o.http(req, res, brain))) return;
+      if (await uploads.handle(req, res)) return;
       if (path === "/health") {
         const c = hub.connections();
         json(res, 200, { ok: true, connected: (Object.keys(c) as ClientRole[]).filter((r) => c[r]), mic: hub.micConnected(), jj: jj.status().connected ? "connected" : "down", phase: session.get().phase });
