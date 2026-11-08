@@ -7,7 +7,8 @@ import type { RunId } from "@coach/protocol";
 import { MediaStore } from "../../src/media.ts";
 import type { EpisodeRecord, RunRecord } from "../../src/runlog.ts";
 import { SwarmBoard } from "../../src/swarm/board.ts";
-import { installBody, videoAnalysisEnabled } from "../../src/swarm/body.ts";
+import { readConfig } from "../../src/config.ts";
+import { installBody } from "../../src/swarm/body.ts";
 import type { VideoClient } from "../../src/swarm/bodyVideo.ts";
 import type { SwarmContext } from "../../src/swarm/context.ts";
 import { flush, VirtualClock } from "../helpers.ts";
@@ -63,9 +64,9 @@ function setup(o: { apiKey?: string | null; recording?: boolean; sensor?: boolea
       hub: { connections: () => conns, onConnect: (_r: string, fn: () => void) => fns.connect.push(fn), onDisconnect: (fn: () => void) => fns.disconnect.push(fn) },
       session: { get: () => ({ sessionId: "sess1" }), subscribe: () => () => {} },
     },
-    sessionDir: dir, sessionFolder: () => join(dir, "sess1"),
+    sessionDir: dir, sessionFolder: () => join(dir, "sess1"), videoAnalysis: o.enabled ?? true,
   } as unknown as SwarmContext;
-  installBody(ctx, { client: () => client, enabled: o.enabled ?? true });
+  installBody(ctx, { client: () => client });
   if (o.recording ?? true) {
     media.append("run_1", 0, Buffer.from("webm-bytes"), { startedAt: T0, mimeType: "video/webm;codecs=vp8,opus" });
     media.finish("run_1", T0 + 40_000);
@@ -165,9 +166,9 @@ describe("body agent · after a run", () => {
     ]);
   });
 
-  it("SWARM_VIDEO_ANALYSIS defaults to on; 0 turns the upload off", () => {
-    expect(videoAnalysisEnabled({})).toBe(true);
-    expect(videoAnalysisEnabled({ SWARM_VIDEO_ANALYSIS: "1" })).toBe(true);
-    expect(videoAnalysisEnabled({ SWARM_VIDEO_ANALYSIS: "0" })).toBe(false);
+  it("SWARM_VIDEO_ANALYSIS (config) defaults to on; 0 turns the upload off", () => {
+    expect(readConfig({}).brain.SWARM_VIDEO_ANALYSIS).toBe("1");
+    expect(readConfig({ SWARM_VIDEO_ANALYSIS: "0" }).brain.SWARM_VIDEO_ANALYSIS).toBe("0");
+    expect(() => readConfig({ SWARM_VIDEO_ANALYSIS: "yes" })).toThrow(/SWARM_VIDEO_ANALYSIS/);
   });
 });

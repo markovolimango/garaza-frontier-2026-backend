@@ -8,11 +8,8 @@ export const BrainConfig = z.object({
   SESSION_DIR: z.string().default("./data/sessions"),
   /** 1 = don't continue the session saved in SESSION_DIR (same as `--fresh`). */
   BRAIN_FRESH: z.enum(["0", "1"]).default("0"),
-  RECORD_AUDIO: z.enum(["0", "1"]).default("0"),
-  AUDIO_OUTPUT: z.enum(["headphones", "speakers"]).default("headphones"),
   COACH_CLEAN_RUNS: z.coerce.number().int().min(1).default(1),
   COACH_MAX_TRAINING_RUNS: z.coerce.number().int().min(1).default(5),
-  WAKE_PHRASES: z.string().default(""),
   LOG_LEVEL: z.enum(["debug", "info", "warn", "error"]).default("info"),
   /** Extra CORS origins (comma-separated); localhost on any port is always allowed. */
   CORS_ORIGINS: z.string().default("").transform((s) => s.split(",").map((x) => x.trim()).filter(Boolean)),
@@ -25,9 +22,12 @@ export const BrainConfig = z.object({
   SWARM_REPORT_MODEL: z.string().default("gemini-3.5-flash-lite"),
   SWARM_LISTENER_MODEL: z.string().default("gemini-3.1-flash-live-preview"),
   SWARM_VIDEO_MODEL: z.string().default("gemini-3.5-flash-lite"),
-  /** 1 = after each run the body agent uploads the recording to Gemini (Files API), asks once, deletes it
-   *  there right after (swarm/body.ts reads it from the env). 0 = recordings never leave this computer. */
+  /** 1 = after each run the body agent uploads a copy of the recording to Gemini (Files API), asks once,
+   *  deletes it there right after (swarm/body.ts, through the swarm context). 0 = recordings never leave
+   *  this computer. The session report says which. */
   SWARM_VIDEO_ANALYSIS: z.enum(["0", "1"]).default("1"),
+  /** Chrome or Chromium for the session report PDF (swarm/reportPdf.ts); empty = the usual install paths. */
+  CHROME: z.string().default(""),
   /** Judge TTS (voices/judgeVoice.ts). Empty = judges send actor.say/gestures but no audio. Independent of JJ_FAKE. */
   ELEVENLABS_API_KEY: z.string().default(""),
   /** Comma-separated ElevenLabs voiceIds for judge_1..judge_4; empty entries fall back to premade defaults. */

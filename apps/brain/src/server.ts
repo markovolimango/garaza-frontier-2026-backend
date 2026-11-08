@@ -117,6 +117,7 @@ judgesHttp = judgeVoicesHttp(judges);
 // The agent swarm JJ leads: listener, director (owns the Q&A Director), body, reporter, feedback (swarm/).
 swarm = installSwarm({
   brain, runLog, judges, media, clock, log, sessionDir, speechRms: config.jj.JJ_SPEECH_RMS,
+  videoAnalysis: config.brain.SWARM_VIDEO_ANALYSIS === "1", chrome: config.brain.CHROME,
   models: {
     apiKey: config.brain.JJ_FAKE === "1" ? null : config.jj.GEMINI_API_KEY,
     text: config.brain.SWARM_TEXT_MODEL, report: config.brain.SWARM_REPORT_MODEL,

@@ -4,7 +4,7 @@
  * Live: keeps its status current from the RunLog (episodes, observations) and the sensor role
  *   (services/coach bridge): "off · no camera", "watching · crossed arms now · 2 episodes so far".
  * After a run (RunLog.onRunEnded): when the run has a recording (media.ts), a key and
- *   SWARM_VIDEO_ANALYSIS=1, Gemini (ctx.models.video) watches the recording (Files API: uploaded,
+ *   SWARM_VIDEO_ANALYSIS=1 (ctx.videoAnalysis), Gemini (ctx.models.video) watches the recording (Files API: uploaded,
  *   asked once, deleted right after) and writes one sentence per body episode (≤ 8, the longest) plus
  *   ≤ 3 things it noticed by itself → board `video.note`s + one "[BODY] …" note to JJ (who can offer
  *   `show_moments`). Without a key, a recording or Gemini: deterministic notes from the episodes.
@@ -31,8 +31,6 @@ const secs = (ms: number) => Math.max(1, Math.round(ms / 1000));
 export interface BodyOptions {
   /** The video client for a key (tests inject a fake). Default: Gemini Files API. */
   client?: (apiKey: string) => VideoClient;
-  /** SWARM_VIDEO_ANALYSIS: send recordings to Gemini at all. Default: env, "1". */
-  enabled?: boolean;
   /** How long to wait for the stage to finish the recording after the run ended. */
   waitDoneMs?: number;
   pollMs?: number;
@@ -42,15 +40,11 @@ export interface BodyOptions {
   askTimeoutMs?: number;
 }
 
-export function videoAnalysisEnabled(env: Record<string, string | undefined> = process.env): boolean {
-  return (env.SWARM_VIDEO_ANALYSIS ?? "1").trim() !== "0";
-}
-
 export interface Found { notes: VideoNote[]; extras: VideoNote[]; source: "gemini" | "episodes" }
 
 export function installBody(ctx: SwarmContext, opts: BodyOptions = {}): void {
   const o = {
-    client: opts.client ?? geminiVideoClient, enabled: opts.enabled ?? videoAnalysisEnabled(),
+    client: opts.client ?? geminiVideoClient, enabled: ctx.videoAnalysis,
     waitDoneMs: opts.waitDoneMs ?? 6_000, pollMs: opts.pollMs ?? 500, maxEpisodes: opts.maxEpisodes ?? 8,
     activeTimeoutMs: opts.activeTimeoutMs ?? 60_000, askTimeoutMs: opts.askTimeoutMs ?? 60_000,
   };

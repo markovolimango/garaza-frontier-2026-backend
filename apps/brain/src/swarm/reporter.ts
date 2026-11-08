@@ -37,7 +37,7 @@ export interface ReporterOptions {
   maxWaitMs?: number;
   /** LLM timeout (default 20 s). */
   timeoutMs?: number;
-  /** Chrome for the PDF; undefined = findChrome(), null = none. */
+  /** Chrome for the PDF; undefined = findChrome(ctx.chrome), null = none. */
   chromePath?: string | null;
   /** HTML → PDF (default playwright-core + chromePath). */
   renderPdf?: (html: string) => Promise<Buffer>;
@@ -295,7 +295,7 @@ export function installReporter(ctx: SwarmContext, opts: ReporterOptions = {}): 
       return true;
     }
     if (path === "/api/swarm/report/session.pdf") {
-      const chrome = opts.chromePath !== undefined ? opts.chromePath : findChrome();
+      const chrome = opts.chromePath !== undefined ? opts.chromePath : findChrome(ctx.chrome);
       const render = opts.renderPdf ?? (chrome ? (html: string) => renderPdf(html, chrome) : null);
       if (!render) {
         json(res, 501, { ok: false, reason: "no_chrome", hint: "Install Google Chrome or set CHROME=/path/to/chrome for the PDF; the printable page is at /api/swarm/report/session.html" });

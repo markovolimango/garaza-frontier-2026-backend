@@ -38,7 +38,7 @@ function rig(opts: ReporterOptions = {}) {
   const routes: HttpRoute[] = [];
   const ctx = {
     board, brain: { session: store } as never, runLog, clock, log: () => {}, media: null as never, judges: null as never,
-    models: { apiKey: null, text: "t", report: "r", listener: "l", video: "v" }, speechRms: 500,
+    models: { apiKey: null, text: "t", report: "r", listener: "l", video: "v" }, speechRms: 500, videoAnalysis: true, chrome: "",
     sessionDir: dir, sessionFolder: () => join(dir, store.get().sessionId), http: (r: HttpRoute) => { routes.push(r); },
   } satisfies SwarmContext;
   const reporter = installReporter(ctx, opts);

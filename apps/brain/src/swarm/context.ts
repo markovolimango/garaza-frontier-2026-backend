@@ -25,6 +25,10 @@ export interface SwarmContext {
   models: SwarmModels;
   /** Mic RMS (Int16) that counts as speech (JJ_SPEECH_RMS). */
   speechRms: number;
+  /** SWARM_VIDEO_ANALYSIS: the body agent sends a copy of each run's recording to Gemini (deleted there right after). */
+  videoAnalysis: boolean;
+  /** CHROME: the browser for the report PDF; "" = a usual install path (reportPdf.ts `findChrome`). */
+  chrome: string;
   /** SESSION_DIR root. Store files under sessionFolder() so a full reset erases them. */
   sessionDir: string;
   sessionFolder(): string;

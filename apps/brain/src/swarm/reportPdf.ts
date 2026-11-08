@@ -99,10 +99,9 @@ const CHROMES = [
   "/Applications/Chromium.app/Contents/MacOS/Chromium",
   "/usr/bin/google-chrome", "/usr/bin/google-chrome-stable", "/usr/bin/chromium", "/usr/bin/chromium-browser",
 ];
-/** CHROME env, else a usual install path; null = none found. */
-export function findChrome(): string | null {
-  const env = process.env.CHROME;
-  if (env && existsSync(env)) return env;
+/** The configured browser (CHROME) if it exists, else a usual install path; null = none found. */
+export function findChrome(configured = ""): string | null {
+  if (configured && existsSync(configured)) return configured;
   return CHROMES.find((p) => existsSync(p)) ?? null;
 }
 
