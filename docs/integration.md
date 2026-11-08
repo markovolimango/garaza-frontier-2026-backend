@@ -267,7 +267,7 @@ JJ depends only on the narrow ports in `jj/ports.ts` (`SessionPort`, `HubPort`, 
 | `pnpm --filter @coach/brain jj:smoke` | headless live JJ test |
 | `pnpm dev:frontend` | Lovable app on :5174 wired to the brain (`VITE_SIGNAL_SOURCE=brain`) |
 | `pnpm test:frontend` | frontend unit tests + BrainSource integration tests against a real brain |
-| `pnpm e2e:browser` | headless-Chrome e2e (needs a fresh `pnpm dev:brain` with `JJ_FAKE=1` and `pnpm dev:frontend`); screenshots in `data/e2e/` |
+| `pnpm e2e:browser` | headless-Chrome e2e (needs `pnpm dev:brain` in a fresh session, `JJ_FAKE=1 BRAIN_FRESH=1` with its own `SESSION_DIR` (a restart restores the saved session), and `pnpm dev:frontend`); screenshots in `data/e2e/` |
 | `pnpm frontend:pull` | pull new Lovable commits into `apps/frontend` (git subtree) |
 
 ## 14. The Lovable frontend (`apps/frontend`)

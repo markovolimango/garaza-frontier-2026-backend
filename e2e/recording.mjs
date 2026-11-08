@@ -1,11 +1,14 @@
 // Browser e2e: run recording and JJ's replay of moments, in headless Chrome with a fake camera.
 //
 // Needs, already running (a fresh session):
-//   brain:     JJ_FAKE=1 pnpm dev:brain                       (port 8787; BRAIN_URL overrides)
+//   brain:     JJ_FAKE=1 BRAIN_FRESH=1 SESSION_DIR=data/e2e-sessions pnpm dev:brain   (port 8787; BRAIN_URL overrides)
 //   frontend:  pnpm dev:frontend                               (port 5174; FRONTEND_URL overrides)
 // Then:        node e2e/recording.mjs
 // Flow: talk to JJ before the deck → consent → upload slides on JJ's screen → recorded run with an
 // arms_crossed episode from the sensor role → show_moments plays it → reset erases the recording.
+// A fresh session (phase setup): the brain restores its saved session on restart, so start it with
+// BRAIN_FRESH=1 and a separate SESSION_DIR (your real session stays untouched), or reset a running one
+// with curl -X POST localhost:8787/api/session/reset (this erases the saved session from disk).
 import { chromium } from "playwright-core";
 import WebSocket from "ws";
 import { fileURLToPath } from "node:url";

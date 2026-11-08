@@ -1,10 +1,13 @@
 // Browser e2e: the Lovable frontend (BrainSource) ⇄ a real brain, in headless Chrome.
 //
 // Needs, already running:
-//   brain:     JJ_FAKE=1 pnpm dev:brain                       (fresh session, port 8787)
+//   brain:     JJ_FAKE=1 BRAIN_FRESH=1 SESSION_DIR=data/e2e-sessions pnpm dev:brain   (fresh session, port 8787)
 //   frontend:  pnpm dev:frontend                               (VITE_SIGNAL_SOURCE=brain, port 5174)
 // Then:        pnpm e2e:browser   (Chrome on macOS or /usr/bin/google-chrome; CHROME=/path/to/chrome overrides)
 // Screenshots: data/e2e/shot-*.png
+// A fresh session (phase setup): the brain restores its saved session on restart, so start it with
+// BRAIN_FRESH=1 and a separate SESSION_DIR (your real session stays untouched), or reset a running one
+// with curl -X POST localhost:8787/api/session/reset (this erases the saved session from disk).
 import { chromium } from "playwright-core";
 import WebSocket from "ws";
 import { fileURLToPath } from "node:url";

@@ -1,8 +1,12 @@
 // Browser e2e: a PowerPoint deck. Microsoft PowerPoint on this Mac converts it (it opens in the
 // background), the slides reach the brain, and the presenter keeps the .pptx slide durations.
 //
-// Needs, already running (a fresh session): the brain (JJ_FAKE=1 pnpm dev:brain) and the frontend
-// (pnpm dev:frontend); BRAIN_URL / FRONTEND_URL override the ports. Then: node e2e/pptx.mjs
+// Needs, already running (a fresh session): the brain (JJ_FAKE=1 BRAIN_FRESH=1 SESSION_DIR=data/e2e-sessions
+// pnpm dev:brain) and the frontend (pnpm dev:frontend); BRAIN_URL / FRONTEND_URL override the ports.
+// Then: node e2e/pptx.mjs
+// A fresh session (phase setup): the brain restores its saved session on restart, so start it with
+// BRAIN_FRESH=1 and a separate SESSION_DIR (your real session stays untouched), or reset a running one
+// with curl -X POST localhost:8787/api/session/reset (this erases the saved session from disk).
 import { chromium } from "playwright-core";
 import WebSocket from "ws";
 import { execFileSync } from "node:child_process";
