@@ -7,11 +7,12 @@ It follows the coach's latest active session and forwards, to the brain
   body.metrics       -> sensor.status   (role "sensor": camera ok / no_person / error, fps), on change or 1 Hz
   brain run          -> coach session: created and started when the presentation starts, paused
                         while JJ is listening, stopped when the run ends, so `vision/run.sh --coach`
-                        (or the iPhone app) has a running session to send pose frames to
+                        (or the iPhone app) has a running session to send pose frames to. The session
+                        config comes from services/coach/tuning.json (--tuning), re-read for every run
   coaching.feedback  -> coach.observation (role "sensor"): every rule, with its behaviour kind when it has one, for
                         the brain's run report and coach policy
-                     -> behavior sway start/end   (role "sensor"; only body.torso_movement_high maps
-                        to a sensor behaviour the brain protocol accepts)
+                     -> behavior start/end   (role "sensor") for the camera rules with a sensor behaviour:
+                        sway, fast_hands, arms_crossed, face_touch, looking_down
                      -> operator.override vignette (role "operator") while a run is live, so the stage
                         shows the red edge vignette. Follows the brain's run settings: nothing in the
                         baseline/test runs (feedbackLevel off), nothing while JJ is listening (paused),
@@ -23,6 +24,7 @@ nothing would show. The override is a message the brain already handles. The bra
 connection per role, so use --no-vignette when a real operator panel is open.
 
   python -m coach brain-bridge [--url http://127.0.0.1:8765] [--brain http://127.0.0.1:8787] [--force] [--no-sessions]
+                               [--tuning services/coach/tuning.json]
 """
 
 from __future__ import annotations
@@ -34,12 +36,14 @@ import socket
 import time
 import uuid
 from datetime import datetime, timezone
+from pathlib import Path
 from typing import Any, Callable
 
 import websockets
 from websockets.exceptions import ConnectionClosed, InvalidHandshake, InvalidStatus
 
-from coach.client import CoachClient, ws_url
+from coach.client import ApiError, CoachClient, ws_url
+from coach.tuning import load_tuning
 
 log = logging.getLogger("coach.brain_bridge")
 
@@ -52,19 +56,28 @@ STREAM_TYPES = ["coaching.feedback", "body.metrics", "session.state"]
 RULE_CATEGORY: dict[str, str] = {
     "body.torso_movement_high": "movement",
     "body.hand_movement_high": "movement",
+    "body.arms_crossed": "posture",
+    "body.face_touch": "posture",
+    "body.looking_down": "gaze",
     "speech.rate_high": "pace",
     "speech.long_pauses": "pace",
     "speech.fillers": "disfluencies",
 }
-# coach rule -> brain BehaviorKind (fast hands have none in the protocol)
+# coach rule -> brain BehaviorKind (what the brain's coach can pick as a training target)
 RULE_KIND: dict[str, str] = {
     "body.torso_movement_high": "sway",
+    "body.hand_movement_high": "fast_hands",
+    "body.arms_crossed": "arms_crossed",
+    "body.face_touch": "face_touch",
+    "body.looking_down": "looking_down",
     "speech.rate_high": "pace_fast",
     "speech.fillers": "filler_burst",
     "speech.long_pauses": "long_pause",
 }
-# coach rule -> brain `behavior` uplink kind (the protocol only accepts arms_crossed, sway, face_touch, looking_down)
-RULE_SENSOR_BEHAVIOR: dict[str, str] = {"body.torso_movement_high": "sway"}
+# coach rule -> brain `behavior` uplink kind (protocol SENSOR_BEHAVIORS: the camera's behaviours; speech kinds
+# come from the brain itself)
+RULE_SENSOR_BEHAVIOR: dict[str, str] = {rule: RULE_KIND[rule] for rule in (
+    "body.torso_movement_high", "body.hand_movement_high", "body.arms_crossed", "body.face_touch", "body.looking_down")}
 
 INTENSITY = {"strong": 0.7, "gentle": 0.4}
 HOLD_MS_MIN, HOLD_MS_MAX, HOLD_MS_DEFAULT = 1500, 6000, 3000
@@ -212,9 +225,10 @@ class BrainLink:
 
 class Bridge:
     def __init__(self, coach_url: str, brain_url: str, token: Callable[[], str], *, vignette: bool = True,
-                 force: bool = False, sessions: bool = True):
+                 force: bool = False, sessions: bool = True, tuning: Path | None = None):
         self.coach_url, self.token = coach_url, token   # re-read per connect: the coach writes a new token per run
         self.force = force
+        self.tuning = tuning                            # session config overrides, re-read for every new session
         self.run_state: dict | None = None
         self.session_phase: str | None = None
         self.sensor = BrainLink(brain_url, "sensor", self._on_brain)
@@ -257,7 +271,15 @@ class Bridge:
             client = CoachClient(self.coach_url, self.token())
             try:
                 if action == "create":
-                    return client.create_session(label=f"brain {(self.run_state or {}).get('runId', '')}", timeline="live")
+                    label = f"brain {(self.run_state or {}).get('runId', '')}"
+                    config = load_tuning(self.tuning, log) if self.tuning else None   # invalid -> logged, defaults
+                    try:
+                        return client.create_session(label=label, timeline="live", config=config)
+                    except ApiError as exc:   # e.g. a coach server older than the tuning file
+                        if config is None or exc.code != "invalid_config":
+                            raise
+                        log.error("coach refused %s (%s); session uses the default thresholds", self.tuning, exc)
+                        return client.create_session(label=label, timeline="live")
                 return client.action(self.coach_session["id"], action)
             finally:
                 client.http.close()
@@ -380,9 +402,13 @@ class Bridge:
 
 
 def run_bridge(coach_url: str, brain_url: str, token: Callable[[], str], *, vignette: bool = True,
-               force: bool = False, sessions: bool = True) -> None:
+               force: bool = False, sessions: bool = True, tuning: Path | None = None) -> None:
     logging.basicConfig(level=logging.INFO, format="%(asctime)s %(message)s", datefmt="%H:%M:%S")
     logging.getLogger("httpx").setLevel(logging.WARNING)   # one line per REST call is noise here
     log.info("bridge: coach %s -> brain %s (vignette: %s)", coach_url, brain_url,
              "off" if not vignette else "always during runs" if force else "follows the brain's run settings")
-    asyncio.run(Bridge(coach_url, brain_url, token, vignette=vignette, force=force, sessions=sessions).run())
+    if sessions and tuning:
+        load_tuning(tuning, log)   # report a broken file at start, not only at the first run
+        log.info("bridge: run sessions use the thresholds in %s (re-read for every run)", tuning)
+    asyncio.run(Bridge(coach_url, brain_url, token, vignette=vignette, force=force, sessions=sessions,
+                       tuning=tuning).run())

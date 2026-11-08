@@ -115,13 +115,22 @@ def cmd_stream(args) -> int:
 def cmd_brain_bridge(args) -> int:
     from coach.brain_bridge import run_bridge
     from coach.client import operator_token
+    from coach.tuning import tuning_path
 
     try:
         run_bridge(args.url, args.brain, operator_token, vignette=not args.no_vignette, force=args.force,
-                   sessions=not args.no_sessions)
+                   sessions=not args.no_sessions, tuning=tuning_path(args.tuning))
     except KeyboardInterrupt:
         pass
     return 0
+
+
+def cmd_tune(args) -> int:
+    from coach.tuning import Tuner, tuning_path
+
+    tuner = Tuner(args.url, tuning_path(args.tuning), create=not (args.no_create or args.once),
+                  interval=args.interval, color=False if args.no_color else None, ca_file=args.ca)
+    return tuner.run(once=args.once)
 
 
 def cmd_request(args) -> int:
@@ -240,7 +249,20 @@ def main(argv: list[str] | None = None) -> int:
     p.add_argument("--force", action="store_true", help="vignette on every coaching feedback during a run (demo)")
     p.add_argument("--no-sessions", action="store_true",
                    help="don't create coach sessions for brain runs (the iPhone app or an operator manages them)")
+    p.add_argument("--tuning", default=None, help="threshold overrides for run sessions (default: "
+                   "$COACH_TUNING_FILE or services/coach/tuning.json; '' = code defaults)")
     p.set_defaults(func=cmd_brain_bridge)
+
+    p = sub.add_parser("tune", help="live readout of the body measures next to their thresholds (camera tuning)")
+    client_args(p)
+    p.add_argument("--tuning", default=None, help="threshold overrides (default: $COACH_TUNING_FILE or "
+                   "services/coach/tuning.json; '' = code defaults)")
+    p.add_argument("--no-create", action="store_true",
+                   help="only follow existing sessions (brain runs); never create a 'tune' session")
+    p.add_argument("--interval", type=float, default=0.5, help="refresh period in seconds")
+    p.add_argument("--once", action="store_true", help="print one readout of the current session and exit")
+    p.add_argument("--no-color", action="store_true")
+    p.set_defaults(func=cmd_tune)
 
     p = sub.add_parser("request", help="authenticated REST request, e.g. request GET /v1/sessions")
     client_args(p)

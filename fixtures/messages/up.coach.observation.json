@@ -22,7 +22,7 @@
       "ts": 1762540000001,
       "payload": {
         "rule": "body.hand_movement_high",
-        "kind": null,
+        "kind": "fast_hands",
         "category": "movement",
         "text": "Your hands have been moving fast for a while.",
         "clientTs": 1762540012000
@@ -33,6 +33,19 @@
       "type": "coach.observation",
       "id": "fx_coach_observation_2",
       "ts": 1762540000002,
+      "payload": {
+        "rule": "body.looking_down",
+        "kind": "looking_down",
+        "category": "gaze",
+        "text": "Your head has been tilted down for 3 s.",
+        "clientTs": 1762540012500
+      }
+    },
+    {
+      "v": 1,
+      "type": "coach.observation",
+      "id": "fx_coach_observation_3",
+      "ts": 1762540000003,
       "payload": {
         "rule": "heart.above_reference",
         "kind": null,

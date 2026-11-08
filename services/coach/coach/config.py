@@ -1,7 +1,8 @@
 """Server settings (environment / .env) and per-session tunables.
 
 Every threshold below is a demo heuristic chosen for a first prototype, not a validated norm.
-Override them per session (POST /v1/sessions {"config": {...}}) or via environment defaults.
+Override them per session (POST /v1/sessions {"config": {...}}) or via environment defaults. The
+brain bridge and `python -m coach tune` pass services/coach/tuning.json as that config (tuning.py).
 """
 
 from __future__ import annotations
@@ -138,13 +139,50 @@ class PoseConfig(_Cfg):
         0.4, gt=0, description="Rule body.torso_movement_high: torso-center speed (torso lengths/s) above this is 'high'.")
     torso_movement_clear_per_s: float = Field(
         0.25, gt=0, description="Hysteresis: torso-center speed must drop below this to re-arm the rule.")
+    # Postures (2D keypoints; see metrics/body.py for the geometry). Distances in torso lengths.
+    posture_window_s: float = Field(
+        1.0, gt=0, description="Posture measures are medians over this window (one noisy frame does not count; "
+                               "adds about half of it as delay).")
+    arms_crossed_min_cross: float = Field(
+        0.10, description="Rule body.arms_crossed: both wrists at least this far past the body midline, towards the "
+                          "other side (torso lengths).")
+    arms_crossed_clear_cross: float = Field(
+        0.0, description="Hysteresis: re-arms once a wrist is back to the midline (score below this).")
+    arms_crossed_min_height: float = Field(
+        0.0, description="Crossed wrists must be at least this low on the torso (0 = shoulder line, 1 = hip line).")
+    arms_crossed_max_height: float = Field(
+        0.8, description="... and at most this low (hands crossed in front of the hips do not count).")
+    arms_crossed_max_reach: float = Field(
+        0.8, gt=0, description="Wrists further than this from the body midline (torso lengths) are not folded arms.")
+    face_touch_max_distance: float = Field(
+        0.35, gt=0, description="Rule body.face_touch: nearest wrist within this distance of a face point "
+                                "(nose, eyes, ears), in torso lengths. 2D: a hand in front of the face counts too.")
+    face_touch_clear_distance: float = Field(
+        0.5, gt=0, description="Hysteresis: the nearest wrist must move further than this from the face to re-arm.")
+    looking_down_min_delta: float = Field(
+        0.06, description="Rule body.looking_down: head pitch (nose below the ear line, torso lengths) at least this "
+                          "much above the head-up reference (~0.06 = about 20 degrees of head tilt).")
+    looking_down_clear_delta: float = Field(
+        0.03, description="Hysteresis: head pitch must come back within this of the reference to re-arm.")
+    head_pitch_reference_window_s: float = Field(
+        60.0, gt=0, description="Window for the head-up reference (adapts to camera height and the person).")
+    head_pitch_reference_percentile: float = Field(
+        20.0, ge=0, le=100, description="Head-up reference = this percentile of head pitch over the window "
+                                        "(low = most 'up'; works while the head is up at least this % of the time).")
+    head_pitch_reference_min_s: float = Field(
+        5.0, ge=0, description="The reference needs this much history (s) before the rule can evaluate.")
 
     @model_validator(mode="after")
     def _hysteresis_order(self) -> "PoseConfig":
-        if self.hand_movement_clear_per_s >= self.hand_movement_high_per_s:
-            raise ValueError("pose.hand_movement_clear_per_s must be below pose.hand_movement_high_per_s")
-        if self.torso_movement_clear_per_s >= self.torso_movement_high_per_s:
-            raise ValueError("pose.torso_movement_clear_per_s must be below pose.torso_movement_high_per_s")
+        pairs = (("hand_movement_clear_per_s", "hand_movement_high_per_s"),
+                 ("torso_movement_clear_per_s", "torso_movement_high_per_s"),
+                 ("arms_crossed_clear_cross", "arms_crossed_min_cross"),
+                 ("looking_down_clear_delta", "looking_down_min_delta"),
+                 ("face_touch_max_distance", "face_touch_clear_distance"),
+                 ("arms_crossed_min_height", "arms_crossed_max_height"))
+        for low, high in pairs:
+            if getattr(self, low) >= getattr(self, high):
+                raise ValueError(f"pose.{low} must be below pose.{high}")
         return self
 
 
@@ -186,6 +224,10 @@ def _default_rules() -> dict[str, RuleConfig]:
         "body.tracking_lost": RuleConfig(priority=1, sustain_s=3.0, cooldown_s=20.0),
         "body.hand_movement_high": RuleConfig(priority=3, sustain_s=10.0, cooldown_s=60.0),
         "body.torso_movement_high": RuleConfig(priority=3, sustain_s=10.0, cooldown_s=60.0),
+        # postures: short sustains (the posture window adds ~0.5 s)
+        "body.arms_crossed": RuleConfig(priority=3, sustain_s=3.0, cooldown_s=45.0),
+        "body.face_touch": RuleConfig(priority=3, sustain_s=1.0, cooldown_s=30.0),
+        "body.looking_down": RuleConfig(priority=3, sustain_s=3.0, cooldown_s=30.0),
         "speech.rate_high": RuleConfig(priority=2, sustain_s=8.0, cooldown_s=45.0),
         "speech.long_pauses": RuleConfig(priority=3, sustain_s=0.0, cooldown_s=60.0, count=3, window_s=60.0),
         "speech.fillers": RuleConfig(priority=3, sustain_s=0.0, cooldown_s=60.0, count=4, window_s=60.0),

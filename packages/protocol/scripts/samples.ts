@@ -78,12 +78,13 @@ export const UPLINK_SAMPLES: Up = {
     valid: [{ action: "vignette", kind: "warn", intensity: 0.65, holdMs: 3000 }, { action: "wake" }, { action: "jj_reconnect" }, { action: "replay", file: "fixtures/sessions/demo_short.jsonl", speed: 1 }],
     invalid: [{ why: "unknown action", payload: { action: "self_destruct" } }, { why: "vignette without intensity", payload: { action: "vignette", kind: "warn", holdMs: 1 } }],
   },
-  behavior: { valid: [{ kind: "arms_crossed", phase: "start", clientTs: 1_762_540_011_000, conf: 0.92 }], invalid: [{ why: "speech kinds come from the brain, not the sensor", payload: { kind: "filler_burst", phase: "start", clientTs: 1, conf: 1 } }] },
+  behavior: { valid: [{ kind: "arms_crossed", phase: "start", clientTs: 1_762_540_011_000, conf: 0.92 }, { kind: "fast_hands", phase: "end", clientTs: 1_762_540_014_000, conf: 1 }], invalid: [{ why: "speech kinds come from the brain, not the sensor", payload: { kind: "filler_burst", phase: "start", clientTs: 1, conf: 1 } }] },
   "gaze.sample": { valid: [{ yawDeg: -12.5, pitchDeg: 4, clientTs: 1_762_540_011_100, facePresent: true }], invalid: [{ why: "missing facePresent", payload: { yawDeg: 0, pitchDeg: 0, clientTs: 1 } }] },
   "coach.observation": {
     valid: [
       { rule: "body.torso_movement_high", kind: "sway", category: "movement", text: "You have been moving around continuously.", clientTs: 1_762_540_011_000 },
-      { rule: "body.hand_movement_high", kind: null, category: "movement", text: "Your hands have been moving fast for a while.", clientTs: 1_762_540_012_000 },
+      { rule: "body.hand_movement_high", kind: "fast_hands", category: "movement", text: "Your hands have been moving fast for a while.", clientTs: 1_762_540_012_000 },
+      { rule: "body.looking_down", kind: "looking_down", category: "gaze", text: "Your head has been tilted down for 3 s.", clientTs: 1_762_540_012_500 },
       { rule: "heart.above_reference", kind: null, category: null, text: "Heart rate is above your session reference.", clientTs: 1_762_540_013_000 },
     ],
     invalid: [{ why: "kind must be a known behaviour", payload: { rule: "x", kind: "juggling", category: null, text: "", clientTs: 1 } }],

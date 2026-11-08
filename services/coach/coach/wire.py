@@ -281,6 +281,14 @@ class BodyMetricsPayload(Strict):
                                            description="Mean torso-center speed along its path over the window "
                                                        "(walking back and forth does not cancel out), torso lengths per second.")
     joint_angles_deg: dict[str, Any] = Field(description="Angles only where all three joints are valid; plane given.")
+    posture: dict[str, Any] = Field(
+        default_factory=dict,
+        description="Posture measures in torso lengths, medians over `window_s` (null = unavailable): arms_cross "
+                    "(both wrists past the body midline; > 0 = crossed), arms_in_zone, wrist_cross/wrist_height per "
+                    "side (height 0 = shoulder line, 1 = hip line), face_touch_distance (nearest wrist to a face "
+                    "point), head_pitch (nose below the ear line, or below the shoulder line without ears; "
+                    "head_pitch_source), head_pitch_reference (head-up percentile over a longer window) and "
+                    "head_pitch_delta; arms_crossed/face_touch/looking_down = measure past its rule threshold.")
     frames_in_window: int
     smoothing: dict[str, Any]
     note: str = "Movement observations only; they do not indicate emotional state."

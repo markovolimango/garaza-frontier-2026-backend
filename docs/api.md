@@ -200,11 +200,16 @@ Person-related names (`left_*`, `right_*`) are anatomical, the subject's own sid
 | `torso_displacement.value` | net torso-center displacement over the window, in torso lengths (`meters` in 3D when the root camera position is present) |
 | `torso_movement.value` | mean torso-center speed along its path over `window_s`, in torso lengths per second (walking back and forth does not cancel out; 3D needs the root camera position) |
 | `joint_angles_deg` | elbows and shoulders, only when all three joints are valid; `plane: image_2d` is a projected angle, `3d` is a true angle |
+| `posture.arms_cross` | both wrists past the body midline towards the other side, the smaller of the two (> 0 = crossed), in torso lengths; `wrist_cross`/`wrist_height` per side (height 0 = shoulder line, 1 = hip line); `arms_in_zone` = both wrists in the chest zone |
+| `posture.face_touch_distance` | nearest wrist to a face point (nose, eyes, ears), in torso lengths (2D only) |
+| `posture.head_pitch` | nose below the ear line along the torso axis (`head_pitch_source: ears`, or `shoulders` without visible ears), in torso lengths; `head_pitch_reference` = p20 over 60 s (head up for this person and camera), `head_pitch_delta` = pitch − reference (2D only) |
+| `posture.arms_crossed` / `face_touch` / `looking_down` | the measure is past its rule threshold right now (no sustain, no hysteresis) |
 | `tracking_state` | `tracking`, `partial`, `lost` (fresh frames, no usable body for 1 s), `stale` (no frames for 1.5 s), or `unknown` |
 
 - Smoothing uses a timestamp-aware One-Euro filter and resets after a gap of 0.5 s, after tracking loss or after a 2D/3D mode change.
-- These are movement observations only; no posture is labelled as an emotion.
-- Face-touch detection is not implemented: the 17–19 body joints have no hand landmarks.
+- Posture values are medians over `posture.window_s` (1 s) and need samples in half of its frames; `null` = unavailable (joints missing, e.g. a wrist hidden under the other arm). The geometry and its reasoning are in `services/coach/coach/metrics/body.py`.
+- These are movement and posture observations only; no posture is labelled as an emotion.
+- Face touch is a 2D proximity of the wrist keypoint to the face (no hand landmarks, no depth): a hand held in front of the face counts too.
 
 ## 6. Speech, heart rate, coaching
 
@@ -239,13 +244,16 @@ Selection rules:
 - At most one suggestion is active at a time (`display_s`).
 - The highest priority wins.
 - After firing, a rule must first clear (hysteresis) and wait for its cooldown before it can fire again.
-- Body movement rules need a visible body (`tracking` = good, `partial` = limited quality); without enough frames in the window they are suppressed, never guessed. Their thresholds are demo heuristics, not validated on real devices; tune them per session under `config.pose`.
+- Body movement and posture rules need a visible body (`tracking` = good, `partial` = limited quality); without enough frames in the window they are suppressed, never guessed. Their thresholds are demo heuristics, not validated on real devices; tune them per session under `config.pose` (the brain bridge and `python -m coach tune` pass `services/coach/tuning.json`).
 
 | rule | condition (defaults = demo heuristics) | priority |
 |---|---|---|
 | `body.tracking_lost` | `tracking_state = lost` for 3 s (fresh frames) | 1 |
 | `body.hand_movement_high` | faster wrist > `pose.hand_movement_high_per_s` (1.5 torso lengths/s, relative to the torso) for 10 s; clears below 1.0 | 3 |
 | `body.torso_movement_high` | `torso_movement` > `pose.torso_movement_high_per_s` (0.4 torso lengths/s) for 10 s; clears below 0.25 | 3 |
+| `body.arms_crossed` | `posture.arms_cross` ≥ `pose.arms_crossed_min_cross` (0.10) with both wrists in the chest zone, for 3 s; clears when a wrist is back to the midline (< 0) or leaves the zone | 3 |
+| `body.face_touch` | `posture.face_touch_distance` ≤ `pose.face_touch_max_distance` (0.35) for 1 s; clears beyond 0.5 | 3 |
+| `body.looking_down` | `posture.head_pitch_delta` ≥ `pose.looking_down_min_delta` (0.06, ~20° of head tilt) for 3 s; clears below 0.03; unavailable until the head-up reference has 5 s of history | 3 |
 | `speech.rate_high` | final rate > `target_wpm_max` (165) for 8 s; clears below 153 | 2 |
 | `speech.long_pauses` | ≥ 3 pauses ≥ 2 s in 60 s while speaking | 3 |
 | `speech.fillers` | ≥ 4 fillers in 60 s (final transcripts) | 3 |

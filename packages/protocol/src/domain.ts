@@ -18,16 +18,16 @@ export type AnchorId = z.infer<typeof AnchorId>;
 
 // ---- behaviours ----
 export const BehaviorKind = z.enum([
-  "arms_crossed", "sway", "face_touch", "looking_down", "not_facing_judge",
+  "arms_crossed", "sway", "fast_hands", "face_touch", "looking_down", "not_facing_judge",
   "filler_burst", "pace_fast", "long_pause",
 ]);
 export type BehaviorKind = z.infer<typeof BehaviorKind>;
 export const FeedbackCategory = z.enum(["posture", "movement", "gaze", "disfluencies", "pace"]);
 export type FeedbackCategory = z.infer<typeof FeedbackCategory>;
-export const FEEDBACK_ELIGIBLE = ["arms_crossed", "sway", "face_touch", "looking_down", "filler_burst", "pace_fast"] as const;
+export const FEEDBACK_ELIGIBLE = ["arms_crossed", "sway", "fast_hands", "face_touch", "looking_down", "filler_burst", "pace_fast"] as const;
 export const FeedbackEligibleKind = z.enum(FEEDBACK_ELIGIBLE);
 export const CATEGORY_OF: Record<BehaviorKind, FeedbackCategory> = {
-  arms_crossed: "posture", face_touch: "posture", sway: "movement",
+  arms_crossed: "posture", face_touch: "posture", sway: "movement", fast_hands: "movement",
   looking_down: "gaze", not_facing_judge: "gaze",
   filler_burst: "disfluencies", pace_fast: "pace", long_pause: "pace",
 };

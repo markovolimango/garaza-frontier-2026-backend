@@ -17,7 +17,8 @@ import type { RunRecord } from "./runlog.ts";
 import type { CoachPolicy } from "./session.ts";
 
 export const BEHAVIOR_WORDS: Record<BehaviorKind, string> = {
-  arms_crossed: "crossed arms", sway: "swaying", face_touch: "touching your face", looking_down: "looking down",
+  arms_crossed: "crossed arms", sway: "swaying", fast_hands: "fast hand movements", face_touch: "touching your face",
+  looking_down: "looking down",
   not_facing_judge: "not facing the judges", filler_burst: "filler words", pace_fast: "speaking too fast", long_pause: "long pauses",
 };
 

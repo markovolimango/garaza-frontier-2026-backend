@@ -29,6 +29,12 @@ TEMPLATES = {
                                     "Try holding one gesture still while you make your next point."),
         "body.torso_movement_high": ("You have been moving around continuously ({speed:.1f} torso lengths per second).",
                                      "Try planting your feet while you make your next point."),
+        "body.arms_crossed": ("Your arms have been crossed in front of you for {held_s:.0f} s.",
+                              "Try letting your arms hang loosely and gesturing with one hand."),
+        "body.face_touch": ("A hand has been at your face for about {held_s:.0f} s.",
+                            "Try lowering your hand and keeping it free for gestures."),
+        "body.looking_down": ("Your head has been tilted down for {held_s:.0f} s.",
+                              "Try lifting your eyes to the audience for your next point."),
         "speech.rate_high": ("Speaking rate is above your practice target ({rate:.0f} vs {target:.0f} words per minute).",
                              "Try slowing your next sentence."),
         "speech.long_pauses": ("{count} long pauses (at least {threshold:.1f} s) in the last {window:.0f} s of speaking.",
@@ -45,6 +51,12 @@ TEMPLATES = {
                                     "Pokušajte da zadržite jedan pokret mirno dok iznosite sledeću tačku."),
         "body.torso_movement_high": ("Neprekidno se krećete ({speed:.1f} dužina trupa u sekundi).",
                                      "Pokušajte da stojite na mestu dok iznosite sledeću tačku."),
+        "body.arms_crossed": ("Ruke su vam prekrštene ispred tela već {held_s:.0f} s.",
+                              "Pokušajte da opustite ruke niz telo i gestikulirate jednom rukom."),
+        "body.face_touch": ("Ruka vam je oko {held_s:.0f} s na licu.",
+                            "Pokušajte da spustite ruku i ostavite je slobodnu za gestove."),
+        "body.looking_down": ("Glava vam je oborena nadole već {held_s:.0f} s.",
+                              "Pokušajte da pogledate publiku dok iznosite sledeću tačku."),
         "speech.rate_high": ("Tempo govora je iznad vašeg cilja za vežbu ({rate:.0f} naspram {target:.0f} reči u minuti).",
                              "Pokušajte da sledeću rečenicu izgovorite sporije."),
         "speech.long_pauses": ("{count} duge pauze (najmanje {threshold:.1f} s) u poslednjih {window:.0f} s govora.",
@@ -77,16 +89,39 @@ class _RuleState:
     suppressed_by_quality: int = 0
 
 
-def _movement_eval(rule_id: str, value: float | None, body: dict, high: float, clear: float,
-                   evidence: list[str]) -> RuleEval:
-    """Movement rules need a visible body; partial tracking counts as limited quality."""
+def _body_quality(body: dict, value: float | None) -> str:
+    """Body rules need a visible body; partial tracking counts as limited quality."""
     quality = {"tracking": "good", "partial": "limited", "stale": "stale"}.get(body.get("tracking_state"),
                                                                               "unavailable")
-    if quality in USABLE_QUALITY and value is None:
-        quality = "insufficient_data"
-    return RuleEval(rule_id, value is not None and value > high, quality,
+    return "insufficient_data" if quality in USABLE_QUALITY and value is None else quality
+
+
+def _movement_eval(rule_id: str, value: float | None, body: dict, high: float, clear: float,
+                   evidence: list[str]) -> RuleEval:
+    return RuleEval(rule_id, value is not None and value > high, _body_quality(body, value),
                     clear=value is not None and value < clear, evidence=evidence,
                     values={"speed": value or 0.0, "threshold": high})
+
+
+def _posture_evals(body: dict, cfg: PoseConfig, evidence: list[str]) -> list[RuleEval]:
+    """Posture rules on the medians in body.metrics `posture` (geometry: metrics/body.py)."""
+    posture = body.get("posture") or {}
+    cross, zone = posture.get("arms_cross"), posture.get("arms_in_zone")
+    face = posture.get("face_touch_distance")
+    delta = posture.get("head_pitch_delta")
+    return [
+        # both wrists past the midline in the chest zone; clears when a wrist is back or the hands leave the zone
+        RuleEval("body.arms_crossed", cross is not None and bool(zone) and cross >= cfg.arms_crossed_min_cross,
+                 _body_quality(body, cross), evidence=evidence, values={"cross": cross or 0.0},
+                 clear=cross is not None and (not zone or cross < cfg.arms_crossed_clear_cross)),
+        RuleEval("body.face_touch", face is not None and face <= cfg.face_touch_max_distance, _body_quality(body, face),
+                 clear=face is not None and face > cfg.face_touch_clear_distance, evidence=evidence,
+                 values={"distance": face or 0.0}),
+        # head pitch against this person's head-up reference (unavailable until the reference has history)
+        RuleEval("body.looking_down", delta is not None and delta >= cfg.looking_down_min_delta,
+                 _body_quality(body, delta), clear=delta is not None and delta < cfg.looking_down_clear_delta,
+                 evidence=evidence, values={"delta": delta or 0.0}),
+    ]
 
 
 def build_evals(now: float, body: dict, speech: dict, heart: dict, speech_cfg: SpeechConfig,
@@ -118,6 +153,7 @@ def build_evals(now: float, body: dict, speech: dict, heart: dict, speech_cfg: S
     evals.append(_movement_eval("body.torso_movement_high", (body.get("torso_movement") or {}).get("value"), body,
                                 pose_cfg.torso_movement_high_per_s, pose_cfg.torso_movement_clear_per_s,
                                 pose_evidence))
+    evals.extend(_posture_evals(body, pose_cfg, pose_evidence))
 
     sr = speech.get("_rule", {})
     rate = sr.get("rate")
@@ -207,11 +243,12 @@ class CoachingEngine:
         self.last_feedback_at = now
         self.active_until = now + self.cfg.display_s
         observation_t, action = TEMPLATES[self.language][ev.rule_id]
+        observation = observation_t.format(held_s=now - (st.since or now), **ev.values)  # held_s: posture texts
         feedback = {
             "feedback_id": f"fb-{uuid.uuid4().hex[:12]}",
             "rule_id": ev.rule_id,
             "evidence_event_ids": ev.evidence[:50],
-            "observation": observation_t.format(**ev.values),
+            "observation": observation,
             "suggested_action": action,
             "priority": rule_cfg.priority,
             "quality_state": ev.quality,
@@ -221,7 +258,7 @@ class CoachingEngine:
                          "global_min_interval_s": self.cfg.global_min_interval_s,
                          "sustained_s": round(now - (st.since or now), 2)},
             "language": self.language,
-            "display_text": f"{observation_t.format(**ev.values)} {action}",
+            "display_text": f"{observation} {action}",
             "text_source": "template",
             "expires_at": to_iso(now + self.cfg.display_s),
         }

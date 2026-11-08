@@ -149,7 +149,8 @@ describe("RunLog, digest and the observed coach", () => {
     expect(d.slides[0]!.dwellMs).toBe(1000);
     expect(d.observations.map((o) => [o.label, o.count])).toEqual([["Moving around / swaying", 1], ["Fast hand movement", 1]]);
     expect(d.observations[0]!.examples[0]).toMatchObject({ slideIndex: 1, segment: "presentation" });
-    expect(d.strengths).toEqual(["Comfortable speaking pace", "No long pauses", "No filler words"]);
+    expect(d.strengths).toEqual(["Arms open, not crossed", "Hands away from your face", "Kept your head up",
+      "Comfortable speaking pace", "No long pauses", "No filler words"]);
     expect(d.qa).toHaveLength(1);
     expect(d.durations.presentationMs).toBe(2000);
     expect(d.next).toMatchObject({ mode: "training", level: "strong" });
@@ -167,6 +168,16 @@ describe("RunLog, digest and the observed coach", () => {
     t.store.dispatch({ type: "presentation_done" });
     expect(t.store.get().coach.stage).toBe("fading");    // sway not seen: clean run, cleanRuns 1 → fixed → next stage
     expect(t.store.get().coach.recommendation).toMatchObject({ mode: "training", level: "gentle" });
+  });
+
+  it("picks camera behaviours (fast hands, looking down) as targets from the baseline", () => {
+    const seen = (kind: string, n: number) => Array.from({ length: n }, () => ({ kind, category: "movement" }));
+    const log = { get: () => ({ observations: [...seen("fast_hands", 3), ...seen("looking_down", 2), ...seen("sway", 1)] }) };
+    const coach = observedCoach(log as never, { cleanRuns: 1, maxTrainingRuns: 5 });
+    const run = { runId: "run_1", mode: "baseline" } as never;
+    const next = coach.afterRun(coach.initial(), run);
+    expect(next.targets.map((x) => x.kind)).toEqual(["fast_hands", "looking_down"]);
+    expect(coach.recommend(next).reason).toBe("Next run with strong live feedback on fast hand movements and looking down.");
   });
 
   it("serves the digest over HTTP", async () => {

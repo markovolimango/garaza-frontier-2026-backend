@@ -70,10 +70,11 @@ Coach (`services/coach`, Python) i brain (`apps/brain`, Node) su odvojeni proces
 aktivnu coach sesiju (`/v1/stream`) i šalje brainu (`/ws/control`):
 
 - `body.metrics` → `sensor.status` (kamera ok / nema osobe, fps), uloga `sensor`;
-- `body.torso_movement_high` → `behavior sway` start/end, uloga `sensor`;
-- coaching predlozi o ponašanju (ruke, kretanje, tempo, pauze, poštapalice) → crvena vinjeta na
-  ekranu (`operator.override`), samo dok traje run, kad JJ ne sluša i kad run ima uključen feedback
-  (baseline i test run su namerno bez feedbacka). Puls i gubitak praćenja ne pale vinjetu.
+- pravila kamere → `behavior` start/end, uloga `sensor`: kretanje → `sway`, brze ruke → `fast_hands`,
+  prekrštene ruke → `arms_crossed`, ruka na licu → `face_touch`, pogled nadole → `looking_down`;
+- coaching predlozi o ponašanju (ruke, kretanje, držanje, pogled, tempo, pauze, poštapalice) → crvena
+  vinjeta na ekranu (`operator.override`), samo dok traje run, kad JJ ne sluša i kad run ima uključen
+  feedback (baseline i test run su namerno bez feedbacka). Puls i gubitak praćenja ne pale vinjetu.
 
 ```bash
 JJ_FAKE=1 corepack pnpm dev:brain             # brain → :8787
@@ -95,8 +96,55 @@ bash vision/run.sh --camera 1 --coach         # slika + tačke, šalje pokrete c
 ```
 
 Redosled: brain, `coach-serve.sh`, `coach-brain-bridge.sh`, pa kamera. Kamera se sama upari sa coachom na
-istom Macu i šalje pokrete samo dok traje run. Vinjeta se pali u runu "With live feedback" (ruke, kretanje);
-predlozi o govoru (tempo, pauze, poštapalice) traže iPhone aplikaciju (`apple/`), jer Mac kamera nema zvuk.
+istom Macu i šalje pokrete samo dok traje run. Vinjeta se pali u runu "With live feedback" (ruke, kretanje,
+prekrštene ruke, ruka na licu, pogled nadole); predlozi o govoru (tempo, pauze, poštapalice) traže iPhone
+aplikaciju (`apple/`), jer Mac kamera nema zvuk.
+
+#### Podešavanje pragova kamerom (tuning)
+
+Pragovi za telo su procene, provereni samo na sintetičkim tačkama. Podešavaju se u jednom fajlu,
+`services/coach/tuning.json` (bez izmene koda): most ga čita za svaki novi run, a `coach-tune.sh` ga
+primenjuje na svoju sesiju čim sačuvaš fajl. Neispravan fajl se prijavi (koji ključ i zašto) i koriste se
+podrazumevane vrednosti.
+
+```bash
+bash scripts/coach-serve.sh                    # 1. coach → :8765
+bash scripts/coach-tune.sh                     # 2. merenja uživo; bez aktivne sesije napravi "tune" sesiju
+bash vision/run.sh --camera 1 --coach          # 3. kamera se priključi toj sesiji (1 je primer)
+```
+
+Brain i most nisu potrebni. Ako uz to radi i most, `coach-tune.sh` prati i sesiju runa iz aplikacije (svoju
+tada zaustavi, pa kamera pređe na run). Ekran pokazuje, za svako ponašanje, trenutnu vrednost (`now`), prag
+na kom se pali (`fires`), prag na kom se ponovo naoružava (`clears`) i stanje pravila (`ready`, `pending
+1.2/3.0s`, `fired, waits to clear`, `cooldown`). Crveno = preko praga, žuto = između, zeleno = čisto.
+
+Pred kamerom (stani kao na prezentaciji, ceo gornji deo tela u kadru). Između dva ponašanja sačekaj
+~8 s: coach daje jedan predlog na 8 s (`coaching.global_min_interval_s`), pa pravilo do tada stoji na
+`pending …, held back`.
+
+1. **10 s mirno, glava gore, ruke niz telo.** Tada nastaje referenca "glava gore" (`head-up reference`,
+   treba joj 5 s). `looking down` treba da bude oko 0, `arms crossed` negativan, `hand at face` iznad 0.5.
+2. **Prekrsti ruke** 5 s, pa spusti. `arms crossed` treba da pređe `fires` (obično 0.3–0.5) i da `in chest
+   zone` bude `yes`. Ako je vrednost `-` dok su ruke prekrštene, model ne vidi zglob: smanji
+   `min_confidence_2d`. Probaj i spojene šake ispred sebe: one ne smeju da pređu prag.
+3. **Ruka na bradi, nosu, obrazu**, po 3 s. `hand at face` treba da padne ispod `fires`; gestovi u visini
+   grudi treba da ostanu iznad `clears`.
+4. **Gledaj u papir/laptop** 5 s, pa podigni glavu. `looking down` treba da pređe `fires`, a kad podigneš
+   glavu da padne ispod `clears`.
+5. **Mahni rukama** i **šetaj** (brze ruke, kretanje): `fast hands` i `moving around`.
+
+Šta menjati u `tuning.json` (`pose`):
+
+| ponašanje | ne pali se kad treba | pali se kad ne treba |
+| --- | --- | --- |
+| prekrštene ruke | smanji `arms_crossed_min_cross`, povećaj `arms_crossed_max_height` | povećaj `arms_crossed_min_cross` |
+| ruka na licu | povećaj `face_touch_max_distance` | smanji `face_touch_max_distance` (i `face_touch_clear_distance`) |
+| pogled nadole | smanji `looking_down_min_delta` | povećaj `looking_down_min_delta` |
+| brze ruke / kretanje | smanji `hand_movement_high_per_s` / `torso_movement_high_per_s` | povećaj ih |
+
+Prag za ponovno paljenje (`*_clear_*`) mora ostati na "čistoj" strani praga (inače fajl nije ispravan).
+Koliko dugo ponašanje mora da traje i pauza između dva ista predloga su u `coaching.rules`
+(`sustain_s`, `cooldown_s`); `enabled: false` gasi pravilo. Kad završiš, commituj `tuning.json`.
 
 Dokumentacija:
 

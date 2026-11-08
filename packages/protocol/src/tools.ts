@@ -5,7 +5,7 @@
  * forms from the same schema.
  */
 import { z } from "zod";
-import { FeedbackCategory, FeedbackEligibleKind, FeedbackLevel, JudgeStyle, LightingPreset, RunMode } from "./domain.ts";
+import { BehaviorKind, FeedbackCategory, FeedbackEligibleKind, FeedbackLevel, JudgeStyle, LightingPreset, RunMode } from "./domain.ts";
 
 export const ToolName = z.enum([
   "save_brief", "start_run", "end_run", "run_it_back", "resume_run", "go_to_slide",
@@ -38,8 +38,7 @@ export const ToolArgs = {
   set_feedback_level: z.object({ level: FeedbackLevel }),
   set_feedback_categories: z.object({ enabled: z.array(FeedbackCategory) }),
   highlight_pattern: z.object({
-    kind: z.enum(["arms_crossed", "sway", "face_touch", "looking_down", "not_facing_judge",
-      "filler_burst", "pace_fast", "long_pause", "none"]).describe('A behaviour, or "none" to clear'),
+    kind: z.enum([...BehaviorKind.options, "none"]).describe('A behaviour, or "none" to clear'),
   }),
   get_last_run_report: none,
   get_session_state: none,

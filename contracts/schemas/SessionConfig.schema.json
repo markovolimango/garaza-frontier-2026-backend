@@ -211,6 +211,92 @@
           "exclusiveMinimum": 0,
           "title": "Torso Movement Clear Per S",
           "type": "number"
+        },
+        "posture_window_s": {
+          "default": 1.0,
+          "description": "Posture measures are medians over this window (one noisy frame does not count; adds about half of it as delay).",
+          "exclusiveMinimum": 0,
+          "title": "Posture Window S",
+          "type": "number"
+        },
+        "arms_crossed_min_cross": {
+          "default": 0.1,
+          "description": "Rule body.arms_crossed: both wrists at least this far past the body midline, towards the other side (torso lengths).",
+          "title": "Arms Crossed Min Cross",
+          "type": "number"
+        },
+        "arms_crossed_clear_cross": {
+          "default": 0.0,
+          "description": "Hysteresis: re-arms once a wrist is back to the midline (score below this).",
+          "title": "Arms Crossed Clear Cross",
+          "type": "number"
+        },
+        "arms_crossed_min_height": {
+          "default": 0.0,
+          "description": "Crossed wrists must be at least this low on the torso (0 = shoulder line, 1 = hip line).",
+          "title": "Arms Crossed Min Height",
+          "type": "number"
+        },
+        "arms_crossed_max_height": {
+          "default": 0.8,
+          "description": "... and at most this low (hands crossed in front of the hips do not count).",
+          "title": "Arms Crossed Max Height",
+          "type": "number"
+        },
+        "arms_crossed_max_reach": {
+          "default": 0.8,
+          "description": "Wrists further than this from the body midline (torso lengths) are not folded arms.",
+          "exclusiveMinimum": 0,
+          "title": "Arms Crossed Max Reach",
+          "type": "number"
+        },
+        "face_touch_max_distance": {
+          "default": 0.35,
+          "description": "Rule body.face_touch: nearest wrist within this distance of a face point (nose, eyes, ears), in torso lengths. 2D: a hand in front of the face counts too.",
+          "exclusiveMinimum": 0,
+          "title": "Face Touch Max Distance",
+          "type": "number"
+        },
+        "face_touch_clear_distance": {
+          "default": 0.5,
+          "description": "Hysteresis: the nearest wrist must move further than this from the face to re-arm.",
+          "exclusiveMinimum": 0,
+          "title": "Face Touch Clear Distance",
+          "type": "number"
+        },
+        "looking_down_min_delta": {
+          "default": 0.06,
+          "description": "Rule body.looking_down: head pitch (nose below the ear line, torso lengths) at least this much above the head-up reference (~0.06 = about 20 degrees of head tilt).",
+          "title": "Looking Down Min Delta",
+          "type": "number"
+        },
+        "looking_down_clear_delta": {
+          "default": 0.03,
+          "description": "Hysteresis: head pitch must come back within this of the reference to re-arm.",
+          "title": "Looking Down Clear Delta",
+          "type": "number"
+        },
+        "head_pitch_reference_window_s": {
+          "default": 60.0,
+          "description": "Window for the head-up reference (adapts to camera height and the person).",
+          "exclusiveMinimum": 0,
+          "title": "Head Pitch Reference Window S",
+          "type": "number"
+        },
+        "head_pitch_reference_percentile": {
+          "default": 20.0,
+          "description": "Head-up reference = this percentile of head pitch over the window (low = most 'up'; works while the head is up at least this % of the time).",
+          "maximum": 100,
+          "minimum": 0,
+          "title": "Head Pitch Reference Percentile",
+          "type": "number"
+        },
+        "head_pitch_reference_min_s": {
+          "default": 5.0,
+          "description": "The reference needs this much history (s) before the rule can evaluate.",
+          "minimum": 0,
+          "title": "Head Pitch Reference Min S",
+          "type": "number"
         }
       },
       "title": "PoseConfig",

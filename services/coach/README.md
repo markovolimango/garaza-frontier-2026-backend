@@ -12,13 +12,15 @@ bash scripts/coach-stream.sh         # print the live event stream (--types "coa
 bash scripts/coach-requests.sh       # sample REST requests with curl
 bash scripts/coach-pair.sh           # pairing code for the iPhone app
 bash scripts/coach-contracts.sh      # regenerate contracts/ (schemas, OpenAPI, TypeScript)
+bash scripts/coach-tune.sh           # camera tuning: body measures next to their thresholds, live
 ```
 
-CLI: `services/coach/.venv/bin/python -m coach {serve,pair,simulate,stream,request,export,replay,fixture,contracts}`.
+CLI: `services/coach/.venv/bin/python -m coach {serve,pair,simulate,stream,brain-bridge,tune,request,export,replay,fixture,contracts}`.
 
 - Configuration: environment or `services/coach/.env` (see `.env.example`). Per-session thresholds
   go in `POST /v1/sessions {"config": ...}`; the defaults are listed in `GET /v1/capabilities`.
-  All thresholds are demo heuristics.
+  All thresholds are demo heuristics. `tuning.json` holds the camera thresholds the brain bridge and
+  `coach tune` pass as that config (`$COACH_TUNING_FILE` or `--tuning` for another file).
 - Storage: in-memory and bounded, with TTL cleanup. No raw audio or video. Explicit JSONL export
   and deterministic replay (`python -m coach replay file.jsonl --strict`).
 - Tests: `cd services/coach && .venv/bin/python -m pytest -q`.

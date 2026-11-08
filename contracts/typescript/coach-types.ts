@@ -59,6 +59,8 @@ export interface BodyMetricsPayload {
   torso_movement?: Record<string, unknown>;
   /** Angles only where all three joints are valid; plane given. */
   joint_angles_deg: Record<string, unknown>;
+  /** Posture measures in torso lengths, medians over `window_s` (null = unavailable): arms_cross (both wrists past the body midline; > 0 = crossed), arms_in_zone, wrist_cross/wrist_height per side (height 0 = shoulder line, 1 = hip line), face_touch_distance (nearest wrist to a face point), head_pitch (nose below the ear line, or below the shoulder line without ears; head_pitch_source), head_pitch_reference (head-up percentile over a longer window) and head_pitch_delta; arms_crossed/face_touch/looking_down = measure past its rule threshold. */
+  posture?: Record<string, unknown>;
   frames_in_window: number;
   smoothing: Record<string, unknown>;
   note?: string;
@@ -368,6 +370,32 @@ export interface PoseConfig {
   torso_movement_high_per_s?: number;
   /** Hysteresis: torso-center speed must drop below this to re-arm the rule. */
   torso_movement_clear_per_s?: number;
+  /** Posture measures are medians over this window (one noisy frame does not count; adds about half of it as delay). */
+  posture_window_s?: number;
+  /** Rule body.arms_crossed: both wrists at least this far past the body midline, towards the other side (torso lengths). */
+  arms_crossed_min_cross?: number;
+  /** Hysteresis: re-arms once a wrist is back to the midline (score below this). */
+  arms_crossed_clear_cross?: number;
+  /** Crossed wrists must be at least this low on the torso (0 = shoulder line, 1 = hip line). */
+  arms_crossed_min_height?: number;
+  /** ... and at most this low (hands crossed in front of the hips do not count). */
+  arms_crossed_max_height?: number;
+  /** Wrists further than this from the body midline (torso lengths) are not folded arms. */
+  arms_crossed_max_reach?: number;
+  /** Rule body.face_touch: nearest wrist within this distance of a face point (nose, eyes, ears), in torso lengths. 2D: a hand in front of the face counts too. */
+  face_touch_max_distance?: number;
+  /** Hysteresis: the nearest wrist must move further than this from the face to re-arm. */
+  face_touch_clear_distance?: number;
+  /** Rule body.looking_down: head pitch (nose below the ear line, torso lengths) at least this much above the head-up reference (~0.06 = about 20 degrees of head tilt). */
+  looking_down_min_delta?: number;
+  /** Hysteresis: head pitch must come back within this of the reference to re-arm. */
+  looking_down_clear_delta?: number;
+  /** Window for the head-up reference (adapts to camera height and the person). */
+  head_pitch_reference_window_s?: number;
+  /** Head-up reference = this percentile of head pitch over the window (low = most 'up'; works while the head is up at least this % of the time). */
+  head_pitch_reference_percentile?: number;
+  /** The reference needs this much history (s) before the rule can evaluate. */
+  head_pitch_reference_min_s?: number;
 }
 
 export interface PoseFramePayload {

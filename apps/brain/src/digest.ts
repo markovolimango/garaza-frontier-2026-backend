@@ -11,6 +11,9 @@ import type { RunLog, RunRecord } from "./runlog.ts";
 export const RULE_LABELS: Record<string, { label: string; strength: string }> = {
   "body.hand_movement_high": { label: "Fast hand movement", strength: "Calm, controlled hands" },
   "body.torso_movement_high": { label: "Moving around / swaying", strength: "Stood your ground" },
+  "body.arms_crossed": { label: "Crossed arms", strength: "Arms open, not crossed" },
+  "body.face_touch": { label: "Hand at your face", strength: "Hands away from your face" },
+  "body.looking_down": { label: "Looking down", strength: "Kept your head up" },
   "speech.rate_high": { label: "Speaking too fast", strength: "Comfortable speaking pace" },
   "speech.long_pauses": { label: "Long pauses", strength: "No long pauses" },
   "speech.fillers": { label: "Filler words", strength: "No filler words" },

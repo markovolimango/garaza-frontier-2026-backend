@@ -86,6 +86,12 @@
       "title": "Joint Angles Deg",
       "type": "object"
     },
+    "posture": {
+      "additionalProperties": true,
+      "description": "Posture measures in torso lengths, medians over `window_s` (null = unavailable): arms_cross (both wrists past the body midline; > 0 = crossed), arms_in_zone, wrist_cross/wrist_height per side (height 0 = shoulder line, 1 = hip line), face_touch_distance (nearest wrist to a face point), head_pitch (nose below the ear line, or below the shoulder line without ears; head_pitch_source), head_pitch_reference (head-up percentile over a longer window) and head_pitch_delta; arms_crossed/face_touch/looking_down = measure past its rule threshold.",
+      "title": "Posture",
+      "type": "object"
+    },
     "frames_in_window": {
       "title": "Frames In Window",
       "type": "integer"

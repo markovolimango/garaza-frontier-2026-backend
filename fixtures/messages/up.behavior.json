@@ -13,6 +13,18 @@
         "clientTs": 1762540011000,
         "conf": 0.92
       }
+    },
+    {
+      "v": 1,
+      "type": "behavior",
+      "id": "fx_behavior_1",
+      "ts": 1762540000001,
+      "payload": {
+        "kind": "fast_hands",
+        "phase": "end",
+        "clientTs": 1762540014000,
+        "conf": 1
+      }
     }
   ],
   "invalid": [

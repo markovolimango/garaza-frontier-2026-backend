@@ -3,7 +3,8 @@
 import asyncio
 from datetime import datetime, timedelta, timezone
 
-from coach.brain_bridge import Bridge, coach_session_plan, hold_ms, observation, sensor_status, vignette_for
+from coach.brain_bridge import (RULE_CATEGORY, RULE_KIND, RULE_SENSOR_BEHAVIOR, Bridge, coach_session_plan, hold_ms,
+                                observation, sensor_status, vignette_for)
 
 NOW = datetime(2026, 11, 8, 12, 0, tzinfo=timezone.utc)
 LIVE = {"phase": "presentation", "paused": False, "feedbackLevel": "strong", "enabledCategories": ["movement", "pace"]}
@@ -162,8 +163,22 @@ def test_no_sessions_flag_leaves_coach_sessions_alone():
 def test_observation_payload_maps_rules_to_behaviours():
     assert observation({"rule_id": "speech.fillers", "display_text": "3 fillers"})["kind"] == "filler_burst"
     o = observation({"rule_id": "body.hand_movement_high", "display_text": "fast hands"})
-    assert (o["kind"], o["category"], o["text"]) == (None, "movement", "fast hands")
+    assert (o["kind"], o["category"], o["text"]) == ("fast_hands", "movement", "fast hands")
+    mapped = {rule: (observation({"rule_id": rule})["kind"], observation({"rule_id": rule})["category"])
+              for rule in ("body.arms_crossed", "body.face_touch", "body.looking_down")}
+    assert mapped == {"body.arms_crossed": ("arms_crossed", "posture"), "body.face_touch": ("face_touch", "posture"),
+                      "body.looking_down": ("looking_down", "gaze")}
     assert observation({"rule_id": "heart.above_reference"})["category"] is None
+    assert observation({"rule_id": "body.tracking_lost"})["kind"] is None
+
+
+def test_every_coach_rule_is_mapped_or_deliberately_not():
+    from coach.coaching import RULE_IDS
+    not_behaviours = {"body.tracking_lost", "heart.above_reference"}
+    assert set(RULE_CATEGORY) == set(RULE_IDS) - not_behaviours
+    assert set(RULE_KIND) == set(RULE_IDS) - not_behaviours
+    # the protocol's SENSOR_BEHAVIORS (packages/protocol/src/messages.ts): camera behaviours only
+    assert sorted(RULE_SENSOR_BEHAVIOR.values()) == ["arms_crossed", "face_touch", "fast_hands", "looking_down", "sway"]
 
 
 def test_vignette_only_for_targets_when_the_run_has_some():
@@ -172,3 +187,53 @@ def test_vignette_only_for_targets_when_the_run_has_some():
     assert vignette_for(fb("body.torso_movement_high"), targeted, "running", now=NOW) is None
     assert vignette_for(fb("body.hand_movement_high"), targeted, "running", now=NOW) is None
     assert vignette_for(fb("body.hand_movement_high"), targeted, "running", force=True, now=NOW) is not None
+    hands = {**LIVE, "targets": ["fast_hands", "looking_down"]}       # fast hands can be a target now
+    assert vignette_for(fb("body.hand_movement_high"), hands, "running", now=NOW) is not None
+    assert vignette_for(fb("body.looking_down"), hands, "running", now=NOW) is not None
+    assert vignette_for(fb("body.arms_crossed"), hands, "running", now=NOW) is None
+
+
+def test_posture_rules_send_behavior_start_and_end():
+    async def scenario():
+        b = make_bridge()
+        b._on_brain({"type": "run.state", "payload": {"run": LIVE, "sessionPhase": "running"}})
+        soon = datetime.now(timezone.utc)
+        for rule in ("body.arms_crossed", "body.face_touch", "body.looking_down", "body.hand_movement_high"):
+            await b.handle_event({"event_type": "coaching.feedback", "payload": fb(rule, expires_in=0.2, base=soon)})
+        await asyncio.sleep(1.7)
+        return b
+
+    b = asyncio.run(scenario())
+    behaviors = [(p["kind"], p["phase"]) for k, p in b.sensor.sent if k == "behavior"]
+    kinds = ["arms_crossed", "face_touch", "looking_down", "fast_hands"]
+    assert behaviors == [(k, "start") for k in kinds] + [(k, "end") for k in kinds]
+
+
+class FakeCoach:
+    created: list = []
+
+    def __init__(self, url, token):
+        self.http = type("H", (), {"close": lambda self: None})()
+
+    def create_session(self, **body):
+        FakeCoach.created.append(body)
+        return {"session_id": "ses_t", "state": "created"}
+
+
+def test_run_sessions_use_the_tuning_file(tmp_path, monkeypatch, caplog):
+    import coach.brain_bridge as bridge_mod
+    monkeypatch.setattr(bridge_mod, "CoachClient", FakeCoach)
+    good, bad = tmp_path / "good.json", tmp_path / "bad.json"
+    good.write_text('{"_note": "x", "pose": {"face_touch_max_distance": 0.3}}')
+    bad.write_text('{"pose": {"face_touch_max_distanse": 0.3}}')
+
+    async def create(path):
+        b = Bridge("http://coach", "http://brain", lambda: "t", tuning=path)
+        b.run_state = {"runId": "run_3"}
+        return await b._session_action("create")
+
+    FakeCoach.created = []
+    assert asyncio.run(create(good)) and asyncio.run(create(bad)) and asyncio.run(create(None))
+    assert [c["config"] for c in FakeCoach.created] == [{"pose": {"face_touch_max_distance": 0.3}}, None, None]
+    assert FakeCoach.created[0]["label"] == "brain run_3"
+    assert "face_touch_max_distanse" in caplog.text and "default thresholds" in caplog.text
