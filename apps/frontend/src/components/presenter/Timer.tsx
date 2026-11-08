@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { getLast, subscribe } from "@/signals/bus";
+import { Button } from "@/components/ui/button";
 
 export function fmt(sec: number) {
   const s = Math.max(0, Math.round(Math.abs(sec)));
@@ -36,10 +37,10 @@ export function Timer({ totalSec, onTotalChange }: TimerProps) {
   const tone = remaining <= 0 ? "text-destructive" : remaining <= 60 ? "text-warning" : "text-foreground";
 
   return (
-    <div className="rounded-xl border border-border bg-card p-4">
+    <div>
       <div className="flex items-baseline justify-between">
-        <span className={`font-mono text-5xl tabular-nums ${tone}`}>{fmt(remaining)}</span>
-        <span className="font-mono text-sm text-muted-foreground">elapsed {fmt(elapsed)}</span>
+        <span className={`font-sans text-5xl tabular-nums ${tone}`}>{fmt(remaining)}</span>
+        <span className="text-sm tabular-nums text-muted-foreground">elapsed {fmt(elapsed)}</span>
       </div>
       <div className="mt-3 flex items-center gap-2 text-sm">
         <label className="text-muted-foreground">Total (min)</label>
@@ -48,7 +49,7 @@ export function Timer({ totalSec, onTotalChange }: TimerProps) {
           min={1}
           value={Math.round(totalSec / 60)}
           onChange={(e) => onTotalChange(Math.max(1, Number(e.target.value)) * 60)}
-          className="w-16 rounded border border-input bg-background px-2 py-1"
+          className="w-16 rounded-md border border-input bg-background px-2 py-1 text-center tabular-nums"
         />
         <div className="ml-auto flex gap-1">
           <Btn onClick={() => setRunning((r) => !r)}>{running ? "Pause" : "Start"}</Btn>
@@ -61,11 +62,8 @@ export function Timer({ totalSec, onTotalChange }: TimerProps) {
 
 export function Btn({ children, onClick, active }: { children: React.ReactNode; onClick: () => void; active?: boolean }) {
   return (
-    <button
-      onClick={onClick}
-      className={`rounded-md border border-border px-3 py-1 text-sm transition-colors hover:bg-accent ${active ? "bg-primary text-primary-foreground hover:bg-primary/90" : "bg-secondary"}`}
-    >
+    <Button variant={active ? "default" : "ghost"} size="sm" onClick={onClick}>
       {children}
-    </button>
+    </Button>
   );
 }

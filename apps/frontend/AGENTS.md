@@ -34,3 +34,5 @@ use the editor.
 - Debug reloads JJ by publishing a selected mood followed by a typed reload signal that remounts the screen, preserving the sample-on-mount behavior without reloading the whole app.
 - Never create or modify anything under src/judges/ or public/judges/: a teammate builds the 3D judges directly in GitHub, so edits there collide with their commits. The JUDGES screen now integrates their handed-off scene; preserve /judges-demo.
 - JudgesStage is a client-only adapter for the teammate's scene and useJudgesLive hook; Debug sends typed judgeCommand signals, keeping controls decoupled from the scene. The app defaults to mock/WebSpeech unless source=backend explicitly opts into the brain.
+- Preload judges through a browser-only app adapter on startup using the scene's exported asset URLs and identical useLoader cache keys; this avoids duplicate parsing without mounting a hidden canvas or starting audio.
+- JJ lyric playback accepts complete lines through the typed jjLine bus channel; sample playback stops on the first incoming line so demo text never interrupts real text.

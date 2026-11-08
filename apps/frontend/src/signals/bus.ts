@@ -16,6 +16,8 @@ export interface Channels {
   jjMoodSampled: number;
   /** Explicit debug request to reload JJ with a selected mood. */
   jjReload: number;
+  /** One complete transcript line; publishing takes over from the looping demo. */
+  jjLine: string;
   judgeCommand: JudgeCommand;
   judgesReady: boolean;
   /** brain integration: the brain asks the presenter to show this slide. */
@@ -38,6 +40,7 @@ const listeners: { [C in Channel]: Set<Listener<C>> } = {
   jjMood: new Set(),
   jjMoodSampled: new Set(),
   jjReload: new Set(),
+  jjLine: new Set(),
   judgeCommand: new Set(),
   judgesReady: new Set(),
   slideCommand: new Set(),

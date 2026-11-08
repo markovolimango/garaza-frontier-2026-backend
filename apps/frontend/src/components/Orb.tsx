@@ -37,6 +37,10 @@ export function Orb({ min = 0, max = 1, size = 360 }: OrbProps) {
   const shell = useRef<SVGPathElement>(null);
   const inner = useRef<SVGPathElement>(null);
   const core = useRef<SVGPathElement>(null);
+  const mid = useRef<SVGPathElement>(null);
+  const rim = useRef<SVGPathElement>(null);
+  const extra = useRef<(SVGPathElement | null)[]>([]);
+  const squares = useRef<(SVGPolygonElement | null)[]>([]);
   const swirl = useRef<SVGGElement>(null);
   const turb = useRef<SVGFETurbulenceElement>(null);
   const target = useRef(0);
@@ -59,6 +63,28 @@ export function Orb({ min = 0, max = 1, size = 360 }: OrbProps) {
       const amp = 0.025 + cur * 0.09;
       shell.current?.setAttribute("d", blobPath(78 + breathe * 78, time, amp, 0));
       inner.current?.setAttribute("d", blobPath(58, time * 1.3, amp * 1.4, 1.7));
+      mid.current?.setAttribute("d", blobPath(46, -time * 1.5, amp * 1.6, 5.3));
+      rim.current?.setAttribute("d", blobPath(86 + breathe * 86, -time * 0.8, amp * 0.9, 2.4));
+      extra.current[0]?.setAttribute("d", blobPath(70, time * 1.1, amp * 1.2, 7.1));
+      extra.current[1]?.setAttribute("d", blobPath(52, time * -1.9, amp * 1.7, 8.6));
+      extra.current[2]?.setAttribute("d", blobPath(40, time * 2.2, amp * 2.0, 9.9));
+      extra.current[3]?.setAttribute("d", blobPath(64, time * -1.2, amp * 1.3, 11.3));
+      extra.current[4]?.setAttribute("d", blobPath(28, time * 2.6, amp * 2.2, 12.7));
+      extra.current[5]?.setAttribute("d", blobPath(24.0, time * 1.0, amp * 1.1, 14.0));
+      extra.current[6]?.setAttribute("d", blobPath(29.3, time * -1.45, amp * 1.35, 15.37));
+      extra.current[7]?.setAttribute("d", blobPath(34.6, time * 1.9, amp * 1.6, 16.74));
+      extra.current[8]?.setAttribute("d", blobPath(39.9, time * -2.35, amp * 1.85, 18.11));
+      extra.current[9]?.setAttribute("d", blobPath(45.2, time * 1.0, amp * 2.1, 19.48));
+      extra.current[10]?.setAttribute("d", blobPath(50.5, time * -1.45, amp * 1.1, 20.85));
+      extra.current[11]?.setAttribute("d", blobPath(55.8, time * 1.9, amp * 1.35, 22.22));
+      extra.current[12]?.setAttribute("d", blobPath(61.1, time * -2.35, amp * 1.6, 23.59));
+      extra.current[13]?.setAttribute("d", blobPath(66.4, time * 1.0, amp * 1.85, 24.96));
+      extra.current[14]?.setAttribute("d", blobPath(71.7, time * -1.45, amp * 2.1, 26.33));
+      squares.current.forEach((sq, i) => {
+        const dir = i % 2 ? -1 : 1;
+        const pulse = 1 + Math.sin(time * (1.2 + i * 0.3) + i) * (0.04 + cur * 0.08);
+        sq?.setAttribute("transform", `translate(100 100) rotate(${(time * (18 + i * 9) * dir + i * 18) % 360}) scale(${pulse.toFixed(3)})`);
+      });
       core.current?.setAttribute("d", blobPath(34, time * 1.7, amp * 1.8, 3.1));
       swirl.current?.setAttribute("transform", `rotate(${(time * 25) % 360} 100 100)`);
       turb.current?.setAttribute("baseFrequency", `${(0.012 + cur * 0.01).toFixed(4)}`);
@@ -104,10 +130,32 @@ export function Orb({ min = 0, max = 1, size = 360 }: OrbProps) {
           </filter>
           <filter id="orb-soft"><feGaussianBlur stdDeviation="4" /></filter>
         </defs>
+        <path ref={rim} fill="none" stroke="url(#orb-g2)" strokeWidth="1.2" opacity="0.6" filter="url(#orb-soft)" style={{ mixBlendMode: "screen" }} />
         <path ref={shell} fill="url(#orb-g1)" />
         <g ref={swirl} filter="url(#orb-turb)" style={{ mixBlendMode: "screen" }}>
           <path ref={inner} fill="url(#orb-g2)" opacity="0.75" />
         </g>
+        <path ref={mid} fill="url(#orb-g1)" opacity="0.45" style={{ mixBlendMode: "screen" }} />
+        <path ref={(el) => { extra.current[0] = el; }} fill="url(#orb-g2)" opacity="0.35" style={{ mixBlendMode: "screen" }} />
+        <path ref={(el) => { extra.current[1] = el; }} fill="url(#orb-g3)" opacity="0.5" style={{ mixBlendMode: "screen" }} />
+        <path ref={(el) => { extra.current[2] = el; }} fill="url(#orb-g2)" opacity="0.4" style={{ mixBlendMode: "screen" }} />
+        <path ref={(el) => { extra.current[3] = el; }} fill="url(#orb-g1)" opacity="0.3" style={{ mixBlendMode: "screen" }} />
+        <path ref={(el) => { extra.current[4] = el; }} fill="url(#orb-g3)" opacity="0.6" style={{ mixBlendMode: "screen" }} />
+        <path ref={(el) => { extra.current[5] = el; }} fill="url(#orb-g1)" opacity="0.18" style={{ mixBlendMode: "screen" }} />
+        <path ref={(el) => { extra.current[6] = el; }} fill="url(#orb-g2)" opacity="0.24" style={{ mixBlendMode: "screen" }} />
+        <path ref={(el) => { extra.current[7] = el; }} fill="url(#orb-g3)" opacity="0.3" style={{ mixBlendMode: "screen" }} />
+        <path ref={(el) => { extra.current[8] = el; }} fill="url(#orb-g1)" opacity="0.36" style={{ mixBlendMode: "screen" }} />
+        <path ref={(el) => { extra.current[9] = el; }} fill="url(#orb-g2)" opacity="0.18" style={{ mixBlendMode: "screen" }} />
+        <path ref={(el) => { extra.current[10] = el; }} fill="url(#orb-g3)" opacity="0.24" style={{ mixBlendMode: "screen" }} />
+        <path ref={(el) => { extra.current[11] = el; }} fill="url(#orb-g1)" opacity="0.3" style={{ mixBlendMode: "screen" }} />
+        <path ref={(el) => { extra.current[12] = el; }} fill="url(#orb-g2)" opacity="0.36" style={{ mixBlendMode: "screen" }} />
+        <path ref={(el) => { extra.current[13] = el; }} fill="url(#orb-g3)" opacity="0.18" style={{ mixBlendMode: "screen" }} />
+        <path ref={(el) => { extra.current[14] = el; }} fill="url(#orb-g1)" opacity="0.24" style={{ mixBlendMode: "screen" }} />
+        <polygon ref={(el) => { squares.current[0] = el; }} points="60.00,0.00 30.00,51.96 -30.00,51.96 -60.00,0.00 -30.00,-51.96 30.00,-51.96" fill="none" stroke="url(#orb-g2)" strokeWidth="1" opacity="0.55" style={{ mixBlendMode: "screen" }} />
+        <polygon ref={(el) => { squares.current[1] = el; }} points="50.00,0.00 25.00,43.30 -25.00,43.30 -50.00,0.00 -25.00,-43.30 25.00,-43.30" fill="none" stroke="url(#orb-g1)" strokeWidth="1" opacity="0.50" style={{ mixBlendMode: "screen" }} />
+        <polygon ref={(el) => { squares.current[2] = el; }} points="40.00,0.00 20.00,34.64 -20.00,34.64 -40.00,0.00 -20.00,-34.64 20.00,-34.64" fill="none" stroke="url(#orb-g2)" strokeWidth="1" opacity="0.45" style={{ mixBlendMode: "screen" }} />
+        <polygon ref={(el) => { squares.current[3] = el; }} points="30.00,0.00 15.00,25.98 -15.00,25.98 -30.00,0.00 -15.00,-25.98 15.00,-25.98" fill="none" stroke="url(#orb-g3)" strokeWidth="1" opacity="0.40" style={{ mixBlendMode: "screen" }} />
+        <polygon ref={(el) => { squares.current[4] = el; }} points="20.00,0.00 10.00,17.32 -10.00,17.32 -20.00,0.00 -10.00,-17.32 10.00,-17.32" fill="none" stroke="url(#orb-g1)" strokeWidth="1" opacity="0.35" style={{ mixBlendMode: "screen" }} />
         <path ref={core} fill="url(#orb-g3)" filter="url(#orb-soft)" style={{ mixBlendMode: "screen" }} />
       </svg>
     </div>

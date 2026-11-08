@@ -29,7 +29,9 @@
  * - Assets: public/judges/character.fbx + public/judges/animations/*.fbx.
  * - Optional prop `judges` ((JudgeConfig | null)[], one per seat; null = empty seat) overrides
  *   positions/heights/tints/idles and adds nameplates (`title`); default DEFAULT_JUDGES.
+ * - CHARACTER_URL / CLIP_URLS: asset URLs, e.g. for preloading. Import them from "@/judges", not internal files.
  */
 export { JudgesScene, DEFAULT_JUDGES, seatedJudges, type JudgesSceneProps } from "./JudgesScene";
 export { JUDGE_REACTIONS, type JudgesHandle, type JudgeIndex, type JudgeReaction, type JudgeConfig, type JudgeGaze } from "./types";
 export { useJudgesLive, readLiveParams, GESTURE_TO_REACTION, type LiveMode } from "./live/useJudgesLive";
+export { CHARACTER_URL, CLIP_URLS } from "./Judge";
