@@ -192,3 +192,12 @@ def test_lan_requires_tls_or_explicit_flag(settings):
     settings.lan, settings.allow_insecure_lan = False, False
     with pytest.raises(ValueError):
         settings.validate_network()                                         # non-loopback without --lan
+
+
+def test_deleting_a_session_erases_it(client):
+    sid = client.post("/v1/sessions", headers=OP, json={"label": "t"}).json()["session_id"]
+    client.post(f"/v1/sessions/{sid}/start", headers=OP)
+    assert client.delete(f"/v1/sessions/{sid}", headers={"Authorization": "Bearer wrong"}).status_code == 401
+    assert client.delete(f"/v1/sessions/{sid}", headers=OP).json() == {"ok": True, "session_id": sid, "deleted": True}
+    assert client.get(f"/v1/sessions/{sid}", headers=OP).json()["error"]["code"] == "session_not_found"
+    assert client.delete(f"/v1/sessions/{sid}", headers=OP).status_code == 404

@@ -27,6 +27,7 @@ from coach.coaching import CoachingEngine, build_evals
 from coach.config import SessionConfig, Settings, merge_config
 from coach.eventlog import EventLog, type_matches
 from coach.metrics.body import BodyTracker
+from coach.metrics.episodes import EpisodeTracker, readings
 from coach.metrics.heart import HeartTracker
 from coach.metrics.speech import SpeechTracker
 from coach.timeutil import EventTimeClock, SystemClock, epoch, to_iso
@@ -120,6 +121,7 @@ class Session:
         self.running: list[list] = []
         self.log = EventLog(settings.event_buffer, settings.pose_buffer)
         self.body = BodyTracker(self.config.pose)
+        self.episodes = EpisodeTracker(self.config.episodes, self.config.pose)
         self.speech = SpeechTracker(self.config.speech)
         self.heart = HeartTracker(self.config.heart)
         self.coach = CoachingEngine(self.config.coaching)
@@ -179,6 +181,10 @@ class Session:
         if target == "ended":
             self.ended_at = now
             self.ended_wall = SystemClock().now()
+        if previous == "running":   # open episodes end with the running segment (before the state event)
+            reason = "session_ended" if target == "ended" else "session_paused"
+            for episode in self.episodes.close_all(reason, self.body.mode):
+                self._publish(EventType.behavior_episode, episode)
         self.last_activity_wall = SystemClock().now()
         self._dirty.update({"body", "speech", "heart"})
         self._publish(EventType.session_state, {"state": target, "previous": previous, "reason": reason or action})
@@ -472,6 +478,10 @@ class Session:
                 or (triggered_by == EventType.pose_frame and now - self._last_body_emit >= 1 / self.config.pose.metrics_emit_hz)):
             self._last_body_state, self._last_body_emit = body["tracking_state"], now
             self._publish(EventType.body_metrics, _strip(body))
+        if self.state == "running" and body_trigger:
+            for episode in self.episodes.update(now, readings(body, self.config.pose), list(self.body.last_event_ids),
+                                                self.body.mode):
+                self._publish(EventType.behavior_episode, episode)
         if triggered_by in (EventType.speech_transcript_final, EventType.audio_playback) or (
                 triggered_by in SPEECH_TYPES and now - self._last_speech_emit >= 1.0):
             self._last_speech_emit = now
@@ -607,7 +617,7 @@ class Session:
             },
             "body": {"pose_frames": body.frames, "frames_with_body": body.valid_frames,
                      "body_visible_ratio": round(body.valid_frames / body.frames, 3) if body.frames else None,
-                     "mode": body.mode},
+                     "mode": body.mode, "episodes": self.episodes.summary()},
             "heart_rate": {
                 "reference": _strip(heart["reference"]),
                 "samples": len(heart_samples),
@@ -650,6 +660,17 @@ class SessionManager:
     def latest_active(self) -> Session | None:
         active = [s for s in self.sessions.values() if s.state != "ended"]
         return max(active, key=lambda s: s.created_at) if active else None
+
+    def delete(self, session_id: str) -> None:
+        """Erase a session now (the presenter deleted their practice session): stops it, closes its
+        subscribers and drops its events (pose, speech, heart rate) from memory."""
+        session = self.get(session_id)
+        if session.state != "ended":
+            session.transition("stop", "deleted")
+        session.stop_worker()
+        for sub in list(session.subscribers):
+            sub.close("session_deleted")
+        del self.sessions[session_id]
 
     def cleanup(self, now: float | None = None) -> list[str]:
         """Remove sessions ended longer than the TTL ago, or idle (no events/transitions) that long.

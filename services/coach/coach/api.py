@@ -215,6 +215,11 @@ def create_app(settings: Settings | None = None, *, manager: SessionManager | No
     async def get_session(session_id: str, _: Principal = Depends(operator)):
         return manager.get(session_id).public()
 
+    @app.delete("/v1/sessions/{session_id}")
+    async def delete_session(session_id: str, _: Principal = Depends(operator)):
+        manager.delete(session_id)
+        return {"ok": True, "session_id": session_id, "deleted": True}
+
     for action in ("start", "pause", "resume", "stop"):
         def make(action: str):
             async def handler(session_id: str, _: Principal = Depends(operator)):

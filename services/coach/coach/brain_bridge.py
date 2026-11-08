@@ -8,16 +8,21 @@ It follows the coach's latest active session and forwards, to the brain
   brain run          -> coach session: created and started when the presentation starts, paused
                         while JJ is listening, stopped when the run ends, so `vision/run.sh --coach`
                         (or the iPhone app) has a running session to send pose frames to. The session
-                        config comes from services/coach/tuning.json (--tuning), re-read for every run
+                        config comes from services/coach/tuning.json (--tuning), re-read for every run.
+                        When the brain's session is reset (no run, phase setup again: "Delete and start
+                        over"), the coach sessions the bridge created for it are deleted from the coach.
   coaching.feedback  -> coach.observation (role "sensor"): every rule, with its behaviour kind when it has one, for
                         the brain's run report and coach policy
-                     -> behavior start/end   (role "sensor") for the camera rules with a sensor behaviour:
-                        sway, fast_hands, arms_crossed, face_touch, looking_down
                      -> operator.override vignette (role "operator") while a run is live, so the stage
                         shows the red edge vignette. Follows the brain's run settings: nothing in the
                         baseline/test runs (feedbackLevel off), nothing while JJ is listening (paused),
                         only for the run's targets when it has some (else for run.enabledCategories);
                         gentle = softer.
+  behavior.episode   -> behavior start/end (role "sensor"): every arms_crossed / face_touch / looking_down /
+                        sway / fast_hands episode, with the episode's own start and end times (clientTs, epoch
+                        ms). Starts only while a run is live; an end is sent only for a start the brain got.
+                     -> operator.override reward (green vignette) when an episode of one of the run's targets
+                        clears during a live run with feedback on: the presenter corrected it.
 
 Why the operator override: the brain accepts `behavior` but has no feedback controller yet, so
 nothing would show. The override is a message the brain already handles. The brain allows one
@@ -50,7 +55,7 @@ log = logging.getLogger("coach.brain_bridge")
 PROTOCOL = 1
 CLOSE_REPLACED = 4001
 LIVE_RUN_PHASES = {"presentation", "qa"}
-STREAM_TYPES = ["coaching.feedback", "body.metrics", "session.state"]
+STREAM_TYPES = ["coaching.feedback", "body.metrics", "session.state", "behavior.episode"]
 
 # coach rule -> brain FeedbackCategory (rules about the presenter's behaviour only; tracking and heart rate are not)
 RULE_CATEGORY: dict[str, str] = {
@@ -74,10 +79,11 @@ RULE_KIND: dict[str, str] = {
     "speech.fillers": "filler_burst",
     "speech.long_pauses": "long_pause",
 }
-# coach rule -> brain `behavior` uplink kind (protocol SENSOR_BEHAVIORS: the camera's behaviours; speech kinds
-# come from the brain itself)
-RULE_SENSOR_BEHAVIOR: dict[str, str] = {rule: RULE_KIND[rule] for rule in (
-    "body.torso_movement_high", "body.hand_movement_high", "body.arms_crossed", "body.face_touch", "body.looking_down")}
+# coach episode behaviours the brain's `behavior` uplink accepts (protocol SENSOR_BEHAVIORS; speech kinds come
+# from the brain itself)
+SENSOR_BEHAVIORS = {"arms_crossed", "face_touch", "looking_down", "sway", "fast_hands"}
+EPISODE_CONF = 1.0   # the detector's thresholds were crossed; not a calibrated probability
+REWARD_HOLD_MS = 1500
 
 INTENSITY = {"strong": 0.7, "gentle": 0.4}
 HOLD_MS_MIN, HOLD_MS_MAX, HOLD_MS_DEFAULT = 1500, 6000, 3000
@@ -120,6 +126,30 @@ def observation(feedback: dict) -> dict:
     return {"rule": rule, "kind": RULE_KIND.get(rule), "category": RULE_CATEGORY.get(rule),
             "text": str(feedback.get("display_text") or feedback.get("observation") or "")[:400],
             "clientTs": int(time.time() * 1000)}
+
+
+def epoch_ms(iso: str) -> int:
+    return int(datetime.fromisoformat(str(iso).replace("Z", "+00:00")).timestamp() * 1000)
+
+
+def behavior_message(episode: dict) -> dict | None:
+    """behavior.episode payload -> brain `behavior` payload, or None for a behaviour the brain doesn't take."""
+    kind, phase = episode.get("behavior"), episode.get("phase")
+    at = episode.get("started_at") if phase == "start" else episode.get("ended_at")
+    if kind not in SENSOR_BEHAVIORS or phase not in ("start", "end") or not at:
+        return None
+    return {"kind": kind, "phase": phase, "clientTs": epoch_ms(at), "conf": EPISODE_CONF}
+
+
+def reward_for(episode: dict, run: dict | None, session_phase: str | None) -> dict | None:
+    """A target's episode cleared during a live run with feedback on -> green vignette, else None."""
+    if (episode.get("phase") != "end" or episode.get("end_reason") != "cleared"
+            or not run_is_live(run, session_phase) or episode.get("behavior") not in (run.get("targets") or [])):
+        return None
+    level = run.get("feedbackLevel")
+    if level not in INTENSITY:
+        return None
+    return {"action": "vignette", "kind": "reward", "intensity": INTENSITY[level], "holdMs": REWARD_HOLD_MS}
 
 
 def run_is_live(run: dict | None, session_phase: str | None) -> bool:
@@ -235,10 +265,12 @@ class Bridge:
         self.operator = BrainLink(brain_url, "operator") if vignette else None
         self.session_id: str | None = None
         self._last_status: tuple[dict, float] | None = None
-        self._behavior_end: dict[str, asyncio.TimerHandle] = {}
+        self._open_episodes: dict[str, str] = {}   # behaviour -> episode id whose start the brain got
         self.stats = {"feedback": 0, "vignettes": 0, "behaviors": 0, "status": 0}
         self.sessions = sessions
         self.coach_session: dict | None = None   # the session this bridge created for the current run
+        self._created: list[str] = []             # every coach session created for the brain's current session
+        self._purge_pending = False
         self._session_task: asyncio.Task | None = None
         self._session_dirty = False
 
@@ -247,6 +279,8 @@ class Bridge:
         if msg.get("type") == "run.state":
             p = msg.get("payload") or {}
             self.run_state, self.session_phase = p.get("run"), p.get("sessionPhase")
+            if self.run_state is None and self.session_phase == "setup" and self._created:
+                self._purge_pending = True       # the brain's session was reset: its coach data goes too
             if self.sessions:
                 self._kick_sessions()
 
@@ -263,8 +297,35 @@ class Bridge:
             for action in coach_session_plan(self.coach_session, self.run_state, self.session_phase):
                 if not await self._session_action(action):
                     break
+            if self._purge_pending:
+                await self._purge()
             if not self._session_dirty:
                 return
+
+    async def _purge(self) -> None:
+        """Delete the coach sessions created for the brain session that was just reset (pose, speech, heart rate)."""
+        self._purge_pending = False
+        ids, self._created, self.coach_session = self._created, [], None
+
+        def call() -> list[str]:
+            client = CoachClient(self.coach_url, self.token())
+            deleted = []
+            try:
+                for sid in ids:
+                    try:
+                        client.delete_session(sid)
+                        deleted.append(sid)
+                    except ApiError as exc:
+                        if exc.status != 404:     # already gone (expired) is fine
+                            raise
+                return deleted
+            finally:
+                client.http.close()
+        try:
+            deleted = await asyncio.to_thread(call)
+            log.info("coach: deleted %d session(s) of the reset brain session", len(deleted))
+        except (Exception, SystemExit) as exc:
+            log.warning("coach: could not delete the reset brain session's coach sessions (%s); they expire on their own", exc)
 
     async def _session_action(self, action: str) -> bool:
         def call() -> dict:
@@ -293,6 +354,7 @@ class Bridge:
         if action == "create":
             self.coach_session = {"id": session["session_id"], "run_id": (self.run_state or {}).get("runId"),
                                   "state": session.get("state", "created")}
+            self._created.append(session["session_id"])
         else:
             self.coach_session["state"] = session.get("state", self.coach_session["state"])
         log.info("coach: session %s %s for brain %s", self.coach_session["id"][:12],
@@ -307,6 +369,8 @@ class Bridge:
             await self._status(sensor_status(payload))
         elif kind == "coaching.feedback":
             await self._feedback(payload)
+        elif kind == "behavior.episode":
+            await self._episode(payload)
         elif kind == "session.state":
             log.info("coach: session %s is %s", (self.session_id or "")[:12], payload.get("state"))
 
@@ -321,12 +385,8 @@ class Bridge:
     async def _feedback(self, fb: dict) -> None:
         self.stats["feedback"] += 1
         rule = fb.get("rule_id", "")
-        hold = hold_ms(fb)
         if run_is_live(self.run_state, self.session_phase) and await self.sensor.send("coach.observation", observation(fb)):
             self.stats["observations"] = self.stats.get("observations", 0) + 1
-        behavior = RULE_SENSOR_BEHAVIOR.get(rule)
-        if behavior:
-            await self._behavior(behavior, hold)
         vignette = vignette_for(fb, self.run_state, self.session_phase, force=self.force)
         sent = bool(vignette and self.operator and await self.operator.send("operator.override", vignette))
         self.stats["vignettes"] += sent
@@ -334,19 +394,25 @@ class Bridge:
                else "run not live / feedback off / not a target" if not vignette else "operator role unavailable")
         log.info("coach feedback %-26s -> %s  (%s)", rule, why, fb.get("display_text", "")[:60])
 
-    async def _behavior(self, kind: str, hold: int) -> None:
-        loop = asyncio.get_running_loop()
-        timer = self._behavior_end.pop(kind, None)
-        if timer:
-            timer.cancel()   # still active: extend
-        elif await self.sensor.send("behavior", {"kind": kind, "phase": "start", "clientTs": int(time.time() * 1000), "conf": 1.0}):
-            self.stats["behaviors"] += 1
-
-        def end() -> None:
-            self._behavior_end.pop(kind, None)
-            loop.create_task(self.sensor.send("behavior", {"kind": kind, "phase": "end",
-                                                           "clientTs": int(time.time() * 1000), "conf": 1.0}))
-        self._behavior_end[kind] = loop.call_later(hold / 1000, end)
+    async def _episode(self, episode: dict) -> None:
+        msg = behavior_message(episode)
+        if msg is None:
+            return
+        kind, episode_id = msg["kind"], episode.get("episode_id", "")
+        if msg["phase"] == "start":
+            if run_is_live(self.run_state, self.session_phase) and await self.sensor.send("behavior", msg):
+                self._open_episodes[kind] = episode_id
+                self.stats["behaviors"] += 1
+            return
+        if self._open_episodes.get(kind) != episode_id:
+            return
+        del self._open_episodes[kind]
+        await self.sensor.send("behavior", msg)
+        reward = reward_for(episode, self.run_state, self.session_phase)
+        if reward and self.operator and await self.operator.send("operator.override", reward):
+            self.stats["rewards"] = self.stats.get("rewards", 0) + 1
+        log.info("coach episode %-12s %.1f s (%s)%s", kind, episode.get("duration_s") or 0, episode.get("end_reason"),
+                 " -> reward" if reward else "")
 
     async def follow_coach(self) -> None:
         url = ws_url(self.coach_url, "/v1/stream")

@@ -57,6 +57,7 @@ class EventType(str, Enum):
     heart_rate_sample = "heart_rate.sample"
     heart_rate_state = "heart_rate.state"
     coaching_feedback = "coaching.feedback"
+    behavior_episode = "behavior.episode"
     audio_playback = "audio.playback"
     system_warning = "system.warning"
 
@@ -68,7 +69,8 @@ DEVICE_EVENT_TYPES = {
 }
 SERVER_EVENT_TYPES = {
     EventType.session_state, EventType.device_status, EventType.body_metrics, EventType.speech_metrics,
-    EventType.heart_rate_state, EventType.coaching_feedback, EventType.audio_playback, EventType.system_warning,
+    EventType.heart_rate_state, EventType.coaching_feedback, EventType.behavior_episode, EventType.audio_playback,
+    EventType.system_warning,
 }
 # Ingest priority: control and heart-rate before speech before high-rate pose frames.
 PRIORITY_HIGH = {EventType.device_status, EventType.heart_rate_sample, EventType.audio_playback,
@@ -327,12 +329,29 @@ class CoachingFeedbackPayload(Strict):
     expires_at: AwareDatetime
 
 
+class BehaviorEpisodePayload(Strict):
+    """One behaviour occurrence (coach/metrics/episodes.py): published once when it starts and once when
+    it ends. Every occurrence, several at once; not throttled like coaching.feedback."""
+    episode_id: str = Field(description="Same id on the start and the end event.")
+    behavior: Literal["arms_crossed", "face_touch", "looking_down", "sway", "fast_hands"]
+    phase: Literal["start", "end"]
+    started_at: AwareDatetime = Field(description="When the condition began to hold (before min_on_s confirmed it).")
+    ended_at: AwareDatetime | None = Field(None, description="End events: when the condition was last seen.")
+    duration_s: float | None = Field(None, ge=0, description="End events: ended_at - started_at.")
+    end_reason: Literal["cleared", "tracking_lost", "session_paused", "session_ended"] | None = None
+    measure: dict[str, Any] = Field(description="The measured value: name, unit, peak and the enter/exit thresholds.")
+    mode: Literal["3d", "2d"] | None = None
+    evidence_event_ids: list[str] = Field(default_factory=list, max_length=50)
+    note: str = "An observed body position or movement, not an interpretation."
+
+
 SERVER_PAYLOAD_MODELS: dict[EventType, type[Strict]] = {
     EventType.session_state: SessionStatePayload,
     EventType.body_metrics: BodyMetricsPayload,
     EventType.speech_metrics: SpeechMetricsPayload,
     EventType.heart_rate_state: HeartRateStatePayload,
     EventType.coaching_feedback: CoachingFeedbackPayload,
+    EventType.behavior_episode: BehaviorEpisodePayload,
 }
 
 

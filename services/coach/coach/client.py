@@ -70,6 +70,9 @@ class CoachClient:
     def action(self, session_id: str, action: str) -> dict:
         return self.request("POST", f"/v1/sessions/{session_id}/{action}")
 
+    def delete_session(self, session_id: str) -> dict:
+        return self.request("DELETE", f"/v1/sessions/{session_id}")
+
     def calibrate(self, session_id: str, duration_s: float | None = None) -> dict:
         return self.request("POST", f"/v1/sessions/{session_id}/calibration/start", {"duration_s": duration_s})
 

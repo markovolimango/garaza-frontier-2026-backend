@@ -235,6 +235,29 @@ def _default_rules() -> dict[str, RuleConfig]:
     }
 
 
+class EpisodeTiming(_Cfg):
+    """When an episode of one behaviour starts and ends (coach/metrics/episodes.py). The thresholds are the
+    coaching rules' own (config.pose), so tuning.json tunes both."""
+    enabled: bool = True
+    min_on_s: float = Field(ge=0, description="The condition must hold this long before an episode starts "
+                                              "(the episode's start time is when it began to hold).")
+    min_off_s: float = Field(ge=0, description="The condition must be clear this long before an episode ends "
+                                               "(the episode's end time is when it was last seen).")
+
+
+class EpisodesConfig(_Cfg):
+    """Behaviour episodes: every occurrence with a start and an end, for the run record and the replay of
+    moments. Separate from the coaching rules, which are throttled for live feedback."""
+    unknown_grace_s: float = Field(
+        1.5, gt=0, description="An open episode survives this long without a usable measure (occlusion, tracking "
+                               "loss); after that it ends with end_reason 'tracking_lost'.")
+    arms_crossed: EpisodeTiming = Field(default_factory=lambda: EpisodeTiming(min_on_s=1.0, min_off_s=1.0))
+    face_touch: EpisodeTiming = Field(default_factory=lambda: EpisodeTiming(min_on_s=0.5, min_off_s=0.5))
+    looking_down: EpisodeTiming = Field(default_factory=lambda: EpisodeTiming(min_on_s=1.5, min_off_s=1.0))
+    sway: EpisodeTiming = Field(default_factory=lambda: EpisodeTiming(min_on_s=2.0, min_off_s=1.5))
+    fast_hands: EpisodeTiming = Field(default_factory=lambda: EpisodeTiming(min_on_s=2.0, min_off_s=1.5))
+
+
 class CoachingConfig(_Cfg):
     global_min_interval_s: float = Field(8.0, ge=0, description="Minimum time between any two suggestions.")
     display_s: float = Field(6.0, gt=0, description="A suggestion counts as active this long (one at a time).")
@@ -248,6 +271,7 @@ class SessionConfig(_Cfg):
     pose: PoseConfig = Field(default_factory=PoseConfig)
     speech: SpeechConfig = Field(default_factory=SpeechConfig)
     heart: HeartConfig = Field(default_factory=HeartConfig)
+    episodes: EpisodesConfig = Field(default_factory=EpisodesConfig)
     coaching: CoachingConfig = Field(default_factory=CoachingConfig)
 
 

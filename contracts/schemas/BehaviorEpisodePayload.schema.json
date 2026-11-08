@@ -1,0 +1,128 @@
+{
+  "additionalProperties": false,
+  "description": "One behaviour occurrence (coach/metrics/episodes.py): published once when it starts and once when\nit ends. Every occurrence, several at once; not throttled like coaching.feedback.",
+  "properties": {
+    "episode_id": {
+      "description": "Same id on the start and the end event.",
+      "title": "Episode Id",
+      "type": "string"
+    },
+    "behavior": {
+      "enum": [
+        "arms_crossed",
+        "face_touch",
+        "looking_down",
+        "sway",
+        "fast_hands"
+      ],
+      "title": "Behavior",
+      "type": "string"
+    },
+    "phase": {
+      "enum": [
+        "start",
+        "end"
+      ],
+      "title": "Phase",
+      "type": "string"
+    },
+    "started_at": {
+      "description": "When the condition began to hold (before min_on_s confirmed it).",
+      "format": "date-time",
+      "title": "Started At",
+      "type": "string"
+    },
+    "ended_at": {
+      "anyOf": [
+        {
+          "format": "date-time",
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "description": "End events: when the condition was last seen.",
+      "title": "Ended At"
+    },
+    "duration_s": {
+      "anyOf": [
+        {
+          "minimum": 0,
+          "type": "number"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "description": "End events: ended_at - started_at.",
+      "title": "Duration S"
+    },
+    "end_reason": {
+      "anyOf": [
+        {
+          "enum": [
+            "cleared",
+            "tracking_lost",
+            "session_paused",
+            "session_ended"
+          ],
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "End Reason"
+    },
+    "measure": {
+      "additionalProperties": true,
+      "description": "The measured value: name, unit, peak and the enter/exit thresholds.",
+      "title": "Measure",
+      "type": "object"
+    },
+    "mode": {
+      "anyOf": [
+        {
+          "enum": [
+            "3d",
+            "2d"
+          ],
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Mode"
+    },
+    "evidence_event_ids": {
+      "items": {
+        "type": "string"
+      },
+      "maxItems": 50,
+      "title": "Evidence Event Ids",
+      "type": "array"
+    },
+    "note": {
+      "default": "An observed body position or movement, not an interpretation.",
+      "title": "Note",
+      "type": "string"
+    }
+  },
+  "required": [
+    "episode_id",
+    "behavior",
+    "phase",
+    "started_at",
+    "measure"
+  ],
+  "title": "BehaviorEpisodePayload",
+  "type": "object",
+  "$id": "https://garaza-frontier.local/schemas/1.0/BehaviorEpisodePayload.schema.json",
+  "$schema": "https://json-schema.org/draft/2020-12/schema"
+}

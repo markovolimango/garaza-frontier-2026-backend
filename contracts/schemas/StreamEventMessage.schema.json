@@ -93,6 +93,7 @@
         "heart_rate.sample",
         "heart_rate.state",
         "coaching.feedback",
+        "behavior.episode",
         "audio.playback",
         "system.warning"
       ],

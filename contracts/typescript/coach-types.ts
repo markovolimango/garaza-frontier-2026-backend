@@ -43,6 +43,26 @@ export interface BackpressureMessage {
   advice?: string | null;
 }
 
+/** One behaviour occurrence (coach/metrics/episodes.py): published once when it starts and once when */
+export interface BehaviorEpisodePayload {
+  /** Same id on the start and the end event. */
+  episode_id: string;
+  behavior: "arms_crossed" | "face_touch" | "looking_down" | "sway" | "fast_hands";
+  phase: "start" | "end";
+  /** When the condition began to hold (before min_on_s confirmed it). */
+  started_at: string;
+  /** End events: when the condition was last seen. */
+  ended_at?: string | null;
+  /** End events: ended_at - started_at. */
+  duration_s?: number | null;
+  end_reason?: "cleared" | "tracking_lost" | "session_paused" | "session_ended" | null;
+  /** The measured value: name, unit, peak and the enter/exit thresholds. */
+  measure: Record<string, unknown>;
+  mode?: "3d" | "2d" | null;
+  evidence_event_ids?: Array<string>;
+  note?: string;
+}
+
 export interface BodyMetricsPayload {
   body_present: boolean;
   tracking_state: "tracking" | "partial" | "lost" | "stale" | "unknown";
@@ -151,6 +171,26 @@ export interface DeviceStatusPayload {
   reason?: string | null;
 }
 
+/** When an episode of one behaviour starts and ends (coach/metrics/episodes.py). The thresholds are the */
+export interface EpisodeTiming {
+  enabled?: boolean;
+  /** The condition must hold this long before an episode starts (the episode's start time is when it began to hold). */
+  min_on_s: number;
+  /** The condition must be clear this long before an episode ends (the episode's end time is when it was last seen). */
+  min_off_s: number;
+}
+
+/** Behaviour episodes: every occurrence with a start and an end, for the run record and the replay of */
+export interface EpisodesConfig {
+  /** An open episode survives this long without a usable measure (occlusion, tracking loss); after that it ends with end_reason 'tracking_lost'. */
+  unknown_grace_s?: number;
+  arms_crossed?: EpisodeTiming;
+  face_touch?: EpisodeTiming;
+  looking_down?: EpisodeTiming;
+  sway?: EpisodeTiming;
+  fast_hands?: EpisodeTiming;
+}
+
 export interface ErrorBody {
   code: string;
   message: string;
@@ -208,7 +248,7 @@ export interface EventOut {
   payload: Record<string, unknown>;
 }
 
-export type EventType = "session.state" | "device.status" | "pose.frame" | "body.metrics" | "speech.activity" | "speech.transcript.partial" | "speech.transcript.final" | "speech.metrics" | "heart_rate.sample" | "heart_rate.state" | "coaching.feedback" | "audio.playback" | "system.warning";
+export type EventType = "session.state" | "device.status" | "pose.frame" | "body.metrics" | "speech.activity" | "speech.transcript.partial" | "speech.transcript.final" | "speech.metrics" | "heart_rate.sample" | "heart_rate.state" | "coaching.feedback" | "behavior.episode" | "audio.playback" | "system.warning";
 
 export interface EventsMessage {
   type: "events";
@@ -445,6 +485,7 @@ export interface SessionConfig {
   pose?: PoseConfig;
   speech?: SpeechConfig;
   heart?: HeartConfig;
+  episodes?: EpisodesConfig;
   coaching?: CoachingConfig;
 }
 
@@ -624,6 +665,7 @@ export interface UnsubscribedMessage {
 
 export interface EventPayloadMap {
   "audio.playback": AudioPlaybackPayload;
+  "behavior.episode": BehaviorEpisodePayload;
   "body.metrics": BodyMetricsPayload;
   "coaching.feedback": CoachingFeedbackPayload;
   "device.status": DeviceStatusPayload;

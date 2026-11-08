@@ -13,7 +13,8 @@
     "body.metrics": "BodyMetricsPayload",
     "speech.metrics": "SpeechMetricsPayload",
     "heart_rate.state": "HeartRateStatePayload",
-    "coaching.feedback": "CoachingFeedbackPayload"
+    "coaching.feedback": "CoachingFeedbackPayload",
+    "behavior.episode": "BehaviorEpisodePayload"
   },
   "device_event_types": [
     "audio.playback",
@@ -27,6 +28,7 @@
   ],
   "server_event_types": [
     "audio.playback",
+    "behavior.episode",
     "body.metrics",
     "coaching.feedback",
     "device.status",

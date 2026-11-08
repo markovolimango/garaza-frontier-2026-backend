@@ -3,8 +3,9 @@
 import asyncio
 from datetime import datetime, timedelta, timezone
 
-from coach.brain_bridge import (RULE_CATEGORY, RULE_KIND, RULE_SENSOR_BEHAVIOR, Bridge, coach_session_plan, hold_ms,
-                                observation, sensor_status, vignette_for)
+from coach.brain_bridge import (RULE_CATEGORY, RULE_KIND, SENSOR_BEHAVIORS, Bridge, behavior_message,
+                                coach_session_plan, hold_ms, observation, reward_for, sensor_status, vignette_for)
+from coach.metrics.episodes import KINDS
 
 NOW = datetime(2026, 11, 8, 12, 0, tzinfo=timezone.utc)
 LIVE = {"phase": "presentation", "paused": False, "feedbackLevel": "strong", "enabledCategories": ["movement", "pace"]}
@@ -68,21 +69,19 @@ def make_bridge(**kw):
     return b
 
 
-def test_bridge_tracks_run_state_and_sends_vignette_and_sway():
+def test_bridge_tracks_run_state_and_sends_vignette_and_observations():
     async def scenario():
         b = make_bridge()
         b._on_brain({"type": "run.state", "payload": {"run": LIVE, "sessionPhase": "running"}})
         await b.handle_event({"event_type": "coaching.feedback",
                               "payload": fb(expires_in=0.2, base=datetime.now(timezone.utc))})
         await b.handle_event({"event_type": "coaching.feedback", "payload": fb("speech.rate_high")})
-        await asyncio.sleep(1.7)   # sway ends after the (clamped) hold
         return b
 
     b = asyncio.run(scenario())
     assert [k for k, _ in b.operator.sent] == ["operator.override", "operator.override"]
-    behaviors = [p for k, p in b.sensor.sent if k == "behavior"]
-    assert [(p["kind"], p["phase"]) for p in behaviors] == [("sway", "start"), ("sway", "end")]
-    assert b.stats == {"feedback": 2, "vignettes": 2, "behaviors": 1, "status": 0, "observations": 2}
+    assert [k for k, _ in b.sensor.sent if k == "behavior"] == []          # behaviours come from episodes
+    assert b.stats == {"feedback": 2, "vignettes": 2, "behaviors": 0, "status": 0, "observations": 2}
     sent = [p for k, p in b.sensor.sent if k == "coach.observation"]
     assert [(p["rule"], p["kind"], p["category"]) for p in sent] == [
         ("body.torso_movement_high", "sway", "movement"), ("speech.rate_high", "pace_fast", "pace")]
@@ -96,8 +95,6 @@ def test_bridge_no_vignette_outside_runs_and_status_throttled():
         for _ in range(5):
             await b.handle_event({"event_type": "body.metrics", "payload": body})
         await b.handle_event({"event_type": "body.metrics", "payload": {**body, "tracking_state": "lost"}})
-        for t in b._behavior_end.values():
-            t.cancel()
         return b
 
     b = asyncio.run(scenario())
@@ -177,8 +174,10 @@ def test_every_coach_rule_is_mapped_or_deliberately_not():
     not_behaviours = {"body.tracking_lost", "heart.above_reference"}
     assert set(RULE_CATEGORY) == set(RULE_IDS) - not_behaviours
     assert set(RULE_KIND) == set(RULE_IDS) - not_behaviours
-    # the protocol's SENSOR_BEHAVIORS (packages/protocol/src/messages.ts): camera behaviours only
-    assert sorted(RULE_SENSOR_BEHAVIOR.values()) == ["arms_crossed", "face_touch", "fast_hands", "looking_down", "sway"]
+    # the protocol's SENSOR_BEHAVIORS (packages/protocol/src/messages.ts): camera behaviours only, one episode
+    # detector each, and each one is also a coach rule's kind
+    assert sorted(SENSOR_BEHAVIORS) == sorted(KINDS) == ["arms_crossed", "face_touch", "fast_hands", "looking_down", "sway"]
+    assert SENSOR_BEHAVIORS <= set(RULE_KIND.values())
 
 
 def test_vignette_only_for_targets_when_the_run_has_some():
@@ -193,20 +192,59 @@ def test_vignette_only_for_targets_when_the_run_has_some():
     assert vignette_for(fb("body.arms_crossed"), hands, "running", now=NOW) is None
 
 
-def test_posture_rules_send_behavior_start_and_end():
+def episode(kind="arms_crossed", phase="start", eid="ep-1", reason="cleared"):
+    return {"episode_id": eid, "behavior": kind, "phase": phase, "started_at": "2026-11-08T12:00:01.500Z",
+            "ended_at": "2026-11-08T12:00:09.250Z" if phase == "end" else None,
+            "end_reason": reason if phase == "end" else None, "duration_s": 7.75 if phase == "end" else None}
+
+
+def test_behavior_message_uses_the_episode_times():
+    start = behavior_message(episode())
+    assert start == {"kind": "arms_crossed", "phase": "start", "clientTs": int(NOW.timestamp() * 1000) + 1500, "conf": 1.0}
+    assert behavior_message(episode(phase="end"))["clientTs"] == int(NOW.timestamp() * 1000) + 9250
+    assert behavior_message(episode(kind="nodding")) is None
+
+
+def test_episodes_go_to_the_brain_only_while_a_run_is_live():
     async def scenario():
         b = make_bridge()
+        await b.handle_event({"event_type": "behavior.episode", "payload": episode(eid="early")})   # no run yet
         b._on_brain({"type": "run.state", "payload": {"run": LIVE, "sessionPhase": "running"}})
-        soon = datetime.now(timezone.utc)
-        for rule in ("body.arms_crossed", "body.face_touch", "body.looking_down", "body.hand_movement_high"):
-            await b.handle_event({"event_type": "coaching.feedback", "payload": fb(rule, expires_in=0.2, base=soon)})
-        await asyncio.sleep(1.7)
+        await b.handle_event({"event_type": "behavior.episode", "payload": episode(phase="end", eid="early")})
+        for kind in ("arms_crossed", "face_touch", "looking_down", "fast_hands"):
+            await b.handle_event({"event_type": "behavior.episode", "payload": episode(kind, eid=kind)})
+        b._on_brain({"type": "run.state", "payload": {"run": {**LIVE, "paused": True}, "sessionPhase": "running"}})
+        for kind in ("arms_crossed", "face_touch", "looking_down", "fast_hands"):
+            await b.handle_event({"event_type": "behavior.episode", "payload": episode(kind, "end", eid=kind)})
         return b
 
     b = asyncio.run(scenario())
-    behaviors = [(p["kind"], p["phase"]) for k, p in b.sensor.sent if k == "behavior"]
     kinds = ["arms_crossed", "face_touch", "looking_down", "fast_hands"]
-    assert behaviors == [(k, "start") for k in kinds] + [(k, "end") for k in kinds]
+    sent = [(p["kind"], p["phase"]) for k, p in b.sensor.sent if k == "behavior"]
+    assert sent == [(k, "start") for k in kinds] + [(k, "end") for k in kinds]   # ends even while paused
+    assert b.stats["behaviors"] == 4 and b._open_episodes == {}
+    assert b.operator.sent == []                                                  # paused: no reward
+
+
+def test_a_cleared_target_episode_earns_a_green_vignette():
+    targeted = {**LIVE, "targets": ["arms_crossed"]}
+    assert reward_for(episode(phase="end"), targeted, "running") == {
+        "action": "vignette", "kind": "reward", "intensity": 0.7, "holdMs": 1500}
+    assert reward_for(episode(phase="end"), {**targeted, "feedbackLevel": "gentle"}, "running")["intensity"] == 0.4
+    assert reward_for(episode(phase="end"), LIVE, "running") is None                               # not a target
+    assert reward_for(episode(phase="end", reason="tracking_lost"), targeted, "running") is None   # out of view
+    assert reward_for(episode(phase="end"), {**targeted, "feedbackLevel": "off"}, "running") is None
+    assert reward_for(episode(), targeted, "running") is None                                       # a start
+
+    async def scenario():
+        b = make_bridge()
+        b._on_brain({"type": "run.state", "payload": {"run": targeted, "sessionPhase": "running"}})
+        await b.handle_event({"event_type": "behavior.episode", "payload": episode()})
+        await b.handle_event({"event_type": "behavior.episode", "payload": episode(phase="end")})
+        return b
+
+    b = asyncio.run(scenario())
+    assert [p["kind"] for k, p in b.operator.sent] == ["reward"] and b.stats["rewards"] == 1
 
 
 class FakeCoach:
@@ -237,3 +275,41 @@ def test_run_sessions_use_the_tuning_file(tmp_path, monkeypatch, caplog):
     assert [c["config"] for c in FakeCoach.created] == [{"pose": {"face_touch_max_distance": 0.3}}, None, None]
     assert FakeCoach.created[0]["label"] == "brain run_3"
     assert "face_touch_max_distanse" in caplog.text and "default thresholds" in caplog.text
+
+
+def test_a_reset_brain_session_deletes_its_coach_sessions(monkeypatch):
+    import coach.brain_bridge as bridge_mod
+
+    class Coach(FakeCoach):
+        n = 0
+        deleted: list = []
+
+        def create_session(self, **body):
+            Coach.n += 1
+            return {"session_id": f"ses_{Coach.n}", "state": "created"}
+
+        def action(self, sid, action):
+            return {"state": {"start": "running", "stop": "ended", "pause": "paused", "resume": "running"}[action]}
+
+        def delete_session(self, sid):
+            if sid == "ses_1":
+                raise bridge_mod.ApiError(404, {})       # expired already: fine
+            Coach.deleted.append(sid)
+
+    monkeypatch.setattr(bridge_mod, "CoachClient", Coach)
+
+    async def scenario():
+        b = Bridge("http://coach", "http://brain", lambda: "t")
+        b.sensor, b.operator = FakeLink(), FakeLink()
+        for run_id in ("run_1", "run_2"):
+            b._on_brain({"type": "run.state", "payload": {"run": {**LIVE, "runId": run_id}, "sessionPhase": "running"}})
+            await b._session_task
+            b._on_brain({"type": "run.state", "payload": {"run": {**LIVE, "runId": run_id, "phase": "ended"}, "sessionPhase": "debrief"}})
+            await b._session_task
+        assert Coach.deleted == [] and b._created == ["ses_1", "ses_2"]
+        b._on_brain({"type": "run.state", "payload": {"run": None, "sessionPhase": "setup"}})   # "Delete and start over"
+        await b._session_task
+        return b
+
+    b = asyncio.run(scenario())
+    assert Coach.deleted == ["ses_2"] and b._created == [] and b.coach_session is None
