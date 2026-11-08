@@ -3,6 +3,7 @@
  * GET /api/sensors/check (camera coach + microphone; between runs the coach bridge keeps a standby
  * session so the camera status is live) and shows the microphone level and whether runs are recorded.
  * It never blocks a run: JJ also hears what won't be measured (start_run → not_measured).
+ * Polls only while it is on screen (not after ×, not in a background tab).
  */
 import { useEffect, useState } from "react";
 import type { BrainSource } from "./BrainSource";
@@ -17,14 +18,18 @@ export function PreRunCheck({ brain, recording }: { brain: BrainSource; recordin
   const [level, setLevel] = useState(0);
   const [hidden, setHidden] = useState(false);
   useEffect(() => {
+    if (hidden) return;   // dismissed: no polling
     let live = true;
-    const poll = () => fetch(`${brain.httpBase}/api/sensors/check`).then((r) => r.json() as Promise<SensorCheck>)
-      .then((c) => { if (live) setCheck(c); }).catch(() => {});
-    void poll();
+    const poll = () => {
+      if (document.hidden) return;   // background tab
+      fetch(`${brain.httpBase}/api/sensors/check`).then((r) => r.json() as Promise<SensorCheck>)
+        .then((c) => { if (live) setCheck(c); }).catch(() => {});
+    };
+    poll();
     const slow = setInterval(poll, 1000);
     const fast = setInterval(() => setLevel(brain.micLevel() ?? 0), 100);
     return () => { live = false; clearInterval(slow); clearInterval(fast); };
-  }, [brain]);
+  }, [brain, hidden]);
   if (hidden || !check) return null;
 
   const camera: [Mark, string] = !check.coach ? ["bad", "camera coach not connected"]

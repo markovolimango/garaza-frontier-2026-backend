@@ -10,6 +10,8 @@
  *   scene.sync / scene.apply → local scene copy (ops applied, then ack) → bus "judgePanel" (seats + titles)
  *   actor.say / actor.gesture / actor.lookAt / judge audio → bus "judgeCommand" (JudgeRelay, judges screen)
  *   jj.transcript  → captions (CaptionStore, JJ's screen; cleared when a run starts or resumes)
+ *   moments.show   → snapshot.moments (MomentsPlayer; closed when a run starts or resumes)
+ *   report.focus   → snapshot.focus (the report lights up that behaviour; cleared when a run starts)
  *   JJ audio level → bus "orbLevel"
  *   run.state       → bus "runClock" (presenter timer: start / pause / resume / stop)
  *   swarm.activity  → snapshot.agents (AgentsPanel: JJ's team)
@@ -120,8 +122,11 @@ export class BrainSource implements SignalSource {
     c.on("run.state", (p) => {
       for (const cmd of runClockChanges(this.snap.run, p.run)) publish("runClock", cmd);   // presenter timer
       const prev = this.snap.run;
-      if (p.run && ((p.run.phase === "countdown" && prev?.phase !== "countdown") || (prev?.paused && !p.run.paused))) this.captions.clear();
-      this.set({ run: p.run, sessionPhase: p.sessionPhase });
+      const starting = p.run?.phase === "countdown" && prev?.phase !== "countdown";
+      const resumed = !!(p.run && prev?.paused && !p.run.paused);
+      if (starting || resumed) this.captions.clear();
+      // A new run (or the run going on) closes JJ's replay; a new run also clears the report highlight.
+      this.set({ run: p.run, sessionPhase: p.sessionPhase, ...(starting || resumed ? { moments: null } : {}), ...(starting ? { focus: null } : {}) });
       this.syncRecorder();
     });
     c.on("feedback.set", (p) => { if (!this.paused) publish("feedback", feedbackToBus(p)); });
@@ -172,6 +177,7 @@ export class BrainSource implements SignalSource {
     this.audioOut?.close();
     this.micIn?.close();
     this.wake?.stop();
+    void this.recorder?.stop();
     this.judges.clear();
     this.captions.clear();
     this.started = false;
@@ -239,18 +245,22 @@ export class BrainSource implements SignalSource {
   /** The microphone's current level (0..1), or null before the mic is on. */
   micLevel(): number | null { return this.micIn ? this.micIn.level : null; }
 
-  /** Record while a run is under way (countdown → Q&A) and the presenter agreed; a reset forgets the answer. */
+  /**
+   * Record while a run is under way (countdown → Q&A) and the presenter agreed; a reset forgets the answer.
+   * Each run is tried once (run.state comes with every slide change); `recording` follows the recorder.
+   */
   private syncRecorder(): void {
     const { run, sessionPhase, recordConsent } = this.snap;
     if (sessionPhase === "setup" && !run && recordConsent !== null) { saveConsent(null); this.set({ recordConsent: null }); }
     const live = !!run && (run.phase === "countdown" || run.phase === "presentation" || run.phase === "qa");
     if (live && this.snap.recordConsent === "yes" && this.o.audio !== false && RunRecorder.supported()) {
-      this.recorder ??= new RunRecorder({ httpBase: this.o.httpBase, warn: (t) => this.toast(t, "warn") });
-      if (this.recorder.recording !== run!.runId) void this.recorder.start(run!.runId);
-      if (!this.snap.recording) this.set({ recording: true });
-    } else if (this.snap.recording || this.recorder?.recording) {
-      void this.recorder?.stop();
-      this.set({ recording: false });
+      this.recorder ??= new RunRecorder({
+        httpBase: this.o.httpBase, warn: (t) => this.toast(t, "warn"),
+        onChange: (recording) => { if (recording !== this.snap.recording) this.set({ recording }); },
+      });
+      if (this.recorder.runId !== run!.runId) void this.recorder.start(run!.runId);
+    } else if (this.recorder?.runId) {
+      void this.recorder.stop();
     }
   }
 

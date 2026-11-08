@@ -1,7 +1,8 @@
 /**
  * MomentsPlayer (Brain integration layer): plays the clips JJ asked for (`moments.show`, JJ's
  * show_moments) from the run's recording on the brain, one after the other: seek to `fromS`, play
- * to `toS`, next. Muted by default (JJ is talking over it); closes itself a moment after the last clip.
+ * to `toS`, next. Muted by default (JJ is talking over it); closes itself a moment after the last clip,
+ * or when the recording can't be played.
  */
 import type { DownlinkPayload } from "@coach/protocol";
 import { useEffect, useRef, useState } from "react";
@@ -31,11 +32,20 @@ export function MomentsPlayer({ m, httpBase, onClose }: { m: Moments; httpBase: 
       else setDone(true);
     };
     const tick = () => { if (v.currentTime >= clip.toS) next(); };
-    if (v.dataset["src"] !== src) { v.dataset["src"] = src; v.src = src; v.addEventListener("loadedmetadata", go, { once: true }); }
-    else go();
+    const failed = () => { setDone(true); close.current(); };   // missing or unreadable recording: nothing to show
+    v.addEventListener("error", failed);
+    if (v.dataset["src"] !== src) { v.dataset["src"] = src; v.src = src; }
+    if (v.error) failed();
+    else if (v.readyState >= HTMLMediaElement.HAVE_METADATA) go();
+    else v.addEventListener("loadedmetadata", go, { once: true });
     v.addEventListener("timeupdate", tick);
     v.addEventListener("ended", next);
-    return () => { v.removeEventListener("timeupdate", tick); v.removeEventListener("ended", next); };
+    return () => {
+      v.removeEventListener("loadedmetadata", go);
+      v.removeEventListener("error", failed);
+      v.removeEventListener("timeupdate", tick);
+      v.removeEventListener("ended", next);
+    };
   }, [clip, i, done, nonce, httpBase, m.clips.length]);
 
   useEffect(() => {
