@@ -23,6 +23,10 @@ port plus `CORS_ORIGINS`. Errors are JSON `{ok: false, reason, hint?}`; an unkno
 | GET | `/api/swarm/report/run/:runId` | the reporter's written run report: `{status: pending \| ready \| none, report}` (RunNarrative) | `swarm/reporter.ts` |
 | GET | `/api/swarm/report/session` | the same for the whole session (SessionNarrative); starts building it when missing or stale | `swarm/reporter.ts` |
 | GET | `/api/swarm/report/session.html` | the session report as a printable page | `swarm/reporter.ts` |
+| POST | `/api/pitch/start` | pitch mode: JJ goes silent and a pitch run starts listening at once (no deck, no countdown, no Q&A); `{ok, runId}`, 409 while another run is live | `pitch.ts` |
+| POST | `/api/pitch/stop` | ends the pitch (the reporter starts writing); `{ok, runId}` | `pitch.ts` |
+| POST | `/api/pitch/exit` | leaves pitch mode: JJ may talk again; 409 while a pitch is being recorded | `pitch.ts` |
+| GET | `/api/pitch/dashboard[/:runId]` | one pitch as the stage's dashboard (PitchDashboard): duration, words per minute, fillers with their moments, transcript, body behaviours with their episodes; the latest pitch without an id | `pitch.ts` |
 | GET | `/api/swarm/report/session.pdf[?download=1]` | that page as a PDF (local Chrome, `CHROME`; 501 without one), also saved in the session folder | `swarm/reporter.ts` |
 | GET | `/api/sensors/check` | the pre-run check (SensorCheck): coach bridge connected, camera state and fps, person in frame, microphone, `ready` and hints | `sensors.ts` |
 | POST | `/api/uploads/deck` | multipart deck: `manifest` (DeckManifest) + `slide_<n>.png` → Deck; 409 during a run | `context/uploads.ts` |

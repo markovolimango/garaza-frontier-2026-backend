@@ -49,6 +49,24 @@ tougher and ask me about pricing", "how many times did I say um?", "show me wher
 Bez browsera i mikrofona, isti tok sa sintetičkim glasom (pravi Gemini, brain na posebnom portu):
 `BRAIN_URL=http://127.0.0.1:18871 node e2e/swarm-live.mjs pitch.wav answer.wav` (vidi zaglavlje skripte).
 
+### Pitch mod: dashboard posle pitch-a (demo na bini)
+
+JJ ćuti; samo ispričaš pitch, pa jednim klikom dobiješ dashboard: trajanje, tempo (reči u minuti), poštapalice
+sa vremenskom linijom, govor tela (kamera) i analizu JJ-ovog tima.
+
+```bash
+bash scripts/demo.sh --pitch --camera N    # otvori http://localhost:5174/pitch
+```
+
+1. **Start listening** (klik pali mikrofon; kvačica "Record" uključuje snimak za analizu pokreta).
+2. Pričaj. Nema odbrojavanja, slajdova ni pitanja sudija; "Hey JJ" ne prekida.
+3. **Show dashboard** (ili taster D). Brojke su odmah tu, poštapalice stižu za par sekundi, a analiza
+   10–25 s posle (dok se piše, piše "The reporter is writing…"). **New pitch** za sledeći.
+
+Bez Gemini ključa nema transkripta (tempo i poštapalice "—"), ostalo radi. API: `/api/pitch/*`
+([docs/brain-api.md](docs/brain-api.md)). Testovi: `pnpm e2e:pitch` (browser, lažna kamera) i
+`node e2e/pitch-live.mjs pitch.wav` (pravi Gemini, glas iz WAV-a; vidi zaglavlje skripte).
+
 ### Demo: jedna komanda
 
 ```bash

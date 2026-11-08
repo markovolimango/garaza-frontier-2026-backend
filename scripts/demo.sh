@@ -14,6 +14,7 @@
 #   --takeover                 stop whatever already listens on the demo ports (old terminals), and an old
 #                              `coach brain-bridge`, instead of refusing
 #   --no-open                  don't open the browser
+#   --pitch                    open pitch mode (/pitch: JJ silent, talk, then the dashboard) instead of JJ's screen
 #   --dev                      brain in watch mode (restarts on every code change; not for the stage)
 # Ports: BRAIN_PORT (8787, or from .env), FRONTEND_PORT (5174), COACH_PORT (8765).
 #
@@ -31,7 +32,7 @@ FRONTEND_PORT="${FRONTEND_PORT:-5174}"
 COACH_PORT="${COACH_PORT:-8765}"
 CAMERA="${DEMO_CAMERA:-}"
 [[ -z "$CAMERA" && -f .env ]] && CAMERA="$(sed -n 's/^DEMO_CAMERA=\([0-9]*\).*/\1/p' .env | tail -1)"
-FRESH=0 FORCE=0 COACH=1 TAKEOVER=0 OPEN=1 DEV=0 NO_CAMERA=0
+FRESH=0 FORCE=0 COACH=1 TAKEOVER=0 OPEN=1 DEV=0 NO_CAMERA=0 PITCH=0
 
 usage() { awk 'NR == 1 { next } /^#/ { sub(/^# ?/, ""); print; next } { exit }' "${BASH_SOURCE[0]}"; }
 while [[ $# -gt 0 ]]; do
@@ -43,6 +44,7 @@ while [[ $# -gt 0 ]]; do
     --no-coach) COACH=0 ;;
     --takeover) TAKEOVER=1 ;;
     --no-open) OPEN=0 ;;
+    --pitch) PITCH=1 ;;
     --dev) DEV=1 ;;
     -h|--help) usage; exit 0 ;;
     *) echo "unknown option: $1 (see --help)" >&2; exit 2 ;;
@@ -199,12 +201,13 @@ if [[ $COACH == 1 ]]; then
 fi
 wait_http "http://localhost:$FRONTEND_PORT/" frontend 90 || exit 1
 # warm Vite up: the first visit of each screen compiles it; do that now, not in front of the audience
-for route in / /presenter /judges /report; do curl -fsS -o /dev/null --max-time 60 "http://localhost:$FRONTEND_PORT$route" 2>/dev/null; done
+for route in / /presenter /judges /report /pitch; do curl -fsS -o /dev/null --max-time 60 "http://localhost:$FRONTEND_PORT$route" 2>/dev/null; done
 
 session="$(curl -fsS --max-time 2 "http://127.0.0.1:$BRAIN_PORT/api/session" 2>/dev/null || true)"
 echo
 printf '%s  ready%s\n' "$GRN$B" "$R"
-printf '  app        http://localhost:%s/\n' "$FRONTEND_PORT"
+APP_PATH="/"; [[ $PITCH == 1 ]] && APP_PATH="/pitch"
+printf '  app        http://localhost:%s%s%s\n' "$FRONTEND_PORT" "$APP_PATH" "$([[ $PITCH == 1 ]] && echo '   (pitch mode)')"
 printf '  brain      http://127.0.0.1:%s   session %s\n' "$BRAIN_PORT" "$(sed -n 's/.*"sessionId":"\([^"]*\)".*"phase":"\([a-z]*\)".*"runs":\([0-9]*\).*/\1 (\2, \3 runs)/p' <<<"$session")"
 if [[ -z "${GEMINI_API_KEY:-}" ]] && ! grep -qE '^GEMINI_API_KEY=.+' .env 2>/dev/null; then
   printf '  JJ         %sfake (no GEMINI_API_KEY in .env): the loop works, JJ is silent%s\n' "$YEL" "$R"
@@ -214,6 +217,6 @@ if [[ $COACH == 1 ]]; then
   printf '  camera     %s\n' "$([[ -n "$CAMERA" ]] && echo "index $CAMERA (video window)" || echo "${YEL}off${R}")"
 fi
 printf '  %sCtrl+C stops everything. New session: --fresh, or curl -X POST localhost:%s/api/session/reset%s\n\n' "$DIM" "$BRAIN_PORT" "$R"
-[[ $OPEN == 1 ]] && command -v open >/dev/null 2>&1 && open "http://localhost:$FRONTEND_PORT/"
+[[ $OPEN == 1 ]] && command -v open >/dev/null 2>&1 && open "http://localhost:$FRONTEND_PORT$APP_PATH"
 
 wait
