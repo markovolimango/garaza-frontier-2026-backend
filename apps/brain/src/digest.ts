@@ -19,7 +19,7 @@ export const RULE_LABELS: Record<string, { label: string; strength: string }> = 
   "body.hands_in_pockets": { label: "Hands in your pockets (likely)", strength: "Hands out of your pockets" },
   "speech.rate_high": { label: "Speaking too fast", strength: "Comfortable speaking pace" },
   "speech.long_pauses": { label: "Long pauses", strength: "No long pauses" },
-  "speech.fillers": { label: "Filler words", strength: "No filler words" },
+  "speech.fillers": { label: "Filler-word bursts", strength: "No bursts of filler words" },   // ≥ 2 fillers within 10 s (listener), or the coach's window
   "heart.above_reference": { label: "Heart rate above your calm baseline", strength: "" },
   "body.tracking_lost": { label: "Out of the camera's view", strength: "" },
 };

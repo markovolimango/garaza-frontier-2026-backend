@@ -12,7 +12,7 @@ import type { IncomingMessage, ServerResponse } from "node:http";
 import type { BehaviorKind, ProgressRow, ProgressRun, SessionProgress, SessionState } from "@coach/protocol";
 import { buildDigest, RULE_LABELS, ruleOfKind } from "./digest.ts";
 import { BEHAVIOR_WORDS } from "./observedCoach.ts";
-import { episodeTime, type RunLog, type RunRecord } from "./runlog.ts";
+import { episodeTime, perMinute, type RunLog, type RunRecord } from "./runlog.ts";
 
 const capitalize = (s: string) => s.charAt(0).toUpperCase() + s.slice(1);
 const kindLabel = (kind: BehaviorKind) => capitalize(BEHAVIOR_WORDS[kind] ?? kind.replace(/_/g, " "));
@@ -41,10 +41,10 @@ export function buildProgress(records: RunRecord[], s: Readonly<SessionState>): 
     for (const e of r.episodes ?? []) { const rule = ruleOfKind(e.kind); if (!rows.has(rule)) rows.set(rule, { kind: e.kind, label: labelOf(rule, e.kind) }); }
   }
   for (const kind of targets.keys()) {
-    if (![...rows.values()].some((row) => row.kind === kind)) rows.set(`kind:${kind}`, { kind, label: kindLabel(kind) });
+    if (![...rows.values()].some((row) => row.kind === kind)) rows.set(`kind:${kind}`, { kind, label: labelOf(ruleOfKind(kind), kind) });
   }
 
-  const minutes = progressRuns.map((r) => (r.presentationMs + r.qaMs) / 60_000);
+  const runMs = progressRuns.map((r) => r.presentationMs + r.qaMs);
   const round1 = (n: number) => Math.round(n * 10) / 10;
   const progressRows: ProgressRow[] = [...rows.entries()].map(([rule, { kind, label }]) => {
     const counts = runs.map((r) => {
@@ -53,10 +53,10 @@ export function buildProgress(records: RunRecord[], s: Readonly<SessionState>): 
       if (!r.coachConnected && obs === 0) return null;
       return Math.max(obs, kind ? episodeTime(r, kind, r.endedAt ?? 0).count : 0);
     });
-    const perMin = counts.map((c, i) => (c === null || !minutes[i] ? null : round1(c / minutes[i]!)));
+    const perMin = counts.map((c, i) => (c === null || !runMs[i] ? null : perMinute(c, runMs[i]!)));
     const hasEpisodes = !!kind && runs.some((r) => (r.episodes ?? []).some((e) => e.kind === kind));
-    const timePct = hasEpisodes ? runs.map((r, i) => (counts[i] === null || !minutes[i] ? null
-      : round1((episodeTime(r, kind!, r.endedAt ?? 0).totalMs / (minutes[i]! * 60_000)) * 100))) : undefined;
+    const timePct = hasEpisodes ? runs.map((r, i) => (counts[i] === null || !runMs[i] ? null
+      : round1((episodeTime(r, kind!, r.endedAt ?? 0).totalMs / runMs[i]!) * 100))) : undefined;
     const rates = perMin.filter((c): c is number => c !== null);
     const first = rates[0] ?? 0;
     const last = rates.at(-1) ?? 0;
@@ -96,7 +96,7 @@ export function compactProgress(p: SessionProgress) {
       const measured = row.counts.map((c, i) => (c === null ? -1 : i)).filter((i) => i >= 0);
       const at = (i: number | undefined) => (i === undefined ? null : {
         run: runAt(i).index, count: row.counts[i], per_min: row.perMin?.[i] ?? null, pct_of_time: row.timePct?.[i] ?? null });
-      return { label: row.label, target: row.isTarget, status: row.status, trend: row.trend, first: at(measured[0]), last: at(measured.at(-1)) };
+      return { kind: row.kind, label: row.label, target: row.isTarget, status: row.status, trend: row.trend, first: at(measured[0]), last: at(measured.at(-1)) };
     }),
     coach: { stage: p.coach.stage, recommendation: p.coach.recommendation?.reason ?? null },
   };

@@ -14,13 +14,12 @@ import { buildDigest } from "../digest.ts";
 import { mmss } from "../format.ts";
 import { BEHAVIOR_WORDS } from "../observedCoach.ts";
 import { buildProgress, compactProgress } from "../progress.ts";
-import type { RunRecord } from "../runlog.ts";
+import { perMinute, runLengthMs, type RunRecord } from "../runlog.ts";
 import type { Phrase, SwarmBoard, VideoNote } from "./board.ts";
 
 const cap = (s: string) => s.charAt(0).toUpperCase() + s.slice(1);
 const clip = (s: string, n: number) => (s.length > n ? `${s.slice(0, n - 1).trimEnd()}…` : s);
 const plural = (n: number, w: string) => `${n} ${w}${n === 1 ? "" : "s"}`;
-const round1 = (n: number) => Math.round(n * 10) / 10;
 const CAMERA = new Set(["posture", "movement", "gaze"]);
 
 /** One concrete exercise per behaviour, for the next run. */
@@ -72,20 +71,19 @@ export function fillerStats(phrases: Phrase[], runMs: number): RunNarrative["fil
   const examples = phrases.filter((p) => p.fillers.length > 0).sort((a, b) => b.fillers.length - a.fillers.length).slice(0, 3)
     .sort((a, b) => a.startAt - b.startAt).map((p) => `“${clip(markFillers(p), 160)}”`);
   return {
-    count, perMin: runMs > 0 ? round1(count / (runMs / 60_000)) : 0,
+    count, perMin: perMinute(count, runMs),
     top: [...byWord.entries()].sort((a, b) => b[1] - a[1]).slice(0, 5).map(([word, n]) => ({ word, count: n })),
     examples, measured: phrases.length > 0,
   };
 }
 
-export function gatherRun(o: { board: SwarmBoard; rec: RunRecord; session: Readonly<SessionState>; records: RunRecord[]; focus?: string | null }): RunInputs {
+export function gatherRun(o: { board: SwarmBoard; rec: RunRecord; session: Readonly<SessionState>; records: RunRecord[]; focus?: string | null; now?: number }): RunInputs {
   const { board, rec, session: s } = o;
   const digest = buildDigest(rec, s.coach.recommendation);
   const runId = rec.runId;
   const phrases = board.phrases(runId).slice().sort((a, b) => a.startAt - b.startAt);
   const start = rec.run.presentationStartedAt ?? rec.run.startedAt ?? phrases[0]?.startAt ?? 0;
-  const runMs = digest.durations.presentationMs + digest.durations.qaMs
-    || (phrases.length ? Math.max(0, phrases.at(-1)!.endAt - phrases[0]!.startAt) : 0);
+  const runMs = runLengthMs(rec, o.now ?? rec.endedAt ?? 0);
   const at = (t: number) => mmss(t - start);
 
   let transcript = phrases.map((p) => `[${at(p.startAt)} ${p.segment === "qa" ? "Q&A" : `s${p.slideIndex + 1}`}] ${markFillers(p)}`).join("\n");
@@ -305,7 +303,7 @@ export function gatherSession(o: { board: SwarmBoard; session: Readonly<SessionS
   const ended = o.records.filter((r) => r.run.phase === "ended").sort((a, b) => a.run.index - b.run.index);
   const runs = ended.map((rec) => {
     const stored = RunNarrativeSchema.safeParse(o.board.runReport(rec.runId));
-    return stored.success ? stored.data : fallbackRun(gatherRun({ board: o.board, rec, session: o.session, records: o.records }), o.now);
+    return stored.success ? stored.data : fallbackRun(gatherRun({ board: o.board, rec, session: o.session, records: o.records, ...(o.now !== undefined ? { now: o.now } : {}) }), o.now);
   });
   return { runs, progress: compactProgress(progress), totalMs: progress.runs.reduce((n, r) => n + r.presentationMs + r.qaMs, 0), focus: o.focus ?? null };
 }
@@ -338,8 +336,7 @@ export function fallbackSession(i: SessionInputs, now = Date.now()): SessionNarr
   const focus = (last?.improvements ?? []).slice(0, 3).map((x) => ({ title: x.title, why: x.why, drill: x.drill }));
   for (const b of i.progress.behaviours.filter((x) => x.trend === "worse")) {
     if (focus.length >= 3 || focus.some((f) => f.title.toLowerCase() === b.label.toLowerCase())) continue;
-    const kind = Object.entries(BEHAVIOR_WORDS).find(([, w]) => w === b.label.toLowerCase())?.[0] as BehaviorKind | undefined;
-    focus.push({ title: b.label, why: `Went up from ${b.first?.count ?? 0} to ${b.last?.count ?? 0}.`, drill: kind ? DRILLS[kind] : "Run it again with live feedback on this one behaviour." });
+    focus.push({ title: b.label, why: `Went up from ${b.first?.count ?? 0} to ${b.last?.count ?? 0}.`, drill: b.kind ? DRILLS[b.kind] : "Run it again with live feedback on this one behaviour." });
   }
   return {
     headline: i.progress.headline ?? (n === 1 ? last!.headline : `${n} runs practised${last ? `; last one: ${last.headline.replace(/^Run \d+: /, "")}` : ""}`),

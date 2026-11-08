@@ -178,7 +178,7 @@ describe("RunLog, digest and the observed coach", () => {
     expect(d.observations.map((o) => [o.label, o.count])).toEqual([["Moving around / swaying", 1], ["Fast hand movement", 1]]);
     expect(d.observations[0]!.examples[0]).toMatchObject({ slideIndex: 1, segment: "presentation" });
     expect(d.strengths).toEqual(["Arms open, not crossed", "Hands away from your face", "Kept your head up",
-      "Kept your head level", "Hands out of your pockets", "Comfortable speaking pace", "No long pauses", "No filler words"]);
+      "Kept your head level", "Hands out of your pockets", "Comfortable speaking pace", "No long pauses", "No bursts of filler words"]);
     expect(d.qa).toHaveLength(1);
     expect(d.durations.presentationMs).toBe(2000);
     expect(d.next).toMatchObject({ mode: "training", level: "strong" });

@@ -53,6 +53,8 @@ describe("swarm orchestrator", () => {
     const t = setup();
     expect(await t.brain.tools.invoke("ask_agent", { agent: "listener" }, "jj")).toMatchObject({ ok: true, note: "no run yet" });
     const runId = await inRun(t);
+    t.clock.advance(3_000 + 120_000);                   // the countdown, then two minutes of presenting
+    expect(t.brain.session.get().run!.phase).toBe("presentation");
     const phrase = (text: string, fillers: string[], at: number) =>
       t.board.emit({ type: "phrase", phrase: { runId, segment: "presentation", text, fillers, startAt: at, endAt: at + 3000, slideIndex: 0 } });
     phrase("Um so this is, um, our product", ["um", "um"], 0);
@@ -60,7 +62,7 @@ describe("swarm orchestrator", () => {
     phrase("Uh, and um it is cheap", ["Uh", "um"], 57_000);
     const r = await t.brain.tools.invoke("ask_agent", { agent: "listener", question: "how many times did I say um?" }, "jj");
     expect(r).toMatchObject({
-      ok: true, agent: "listener", run: 1, filler_count: 5, phrases: 3, fillers_per_min: 5,
+      ok: true, agent: "listener", run: 1, filler_count: 5, phrases: 3, fillers_per_min: 2.5,   // per minute of the run, as in the report
       top_fillers: [{ word: "um", count: 3 }, { word: "like", count: 1 }, { word: "uh", count: 1 }],
       fillers_by_segment: { presentation: 5, qa: 0 },
       last_phrases: ["Um so this is, um, our product", "Like, it saves time", "Uh, and um it is cheap"],

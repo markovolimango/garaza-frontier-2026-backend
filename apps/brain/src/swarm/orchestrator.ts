@@ -11,11 +11,12 @@
  */
 import type { RunId } from "@coach/protocol";
 import { mmss } from "../format.ts";
-import { behaviorCounts } from "../runlog.ts";
+import { behaviorCounts, runLengthMs } from "../runlog.ts";
 import { agentNoteText } from "../jj/messages.ts";
 import { briefSummary, createSwarmTools, type AskableAgent } from "../jj/tools.ts";
 import type { AgentId, AgentStatus } from "./board.ts";
 import type { SwarmContext } from "./context.ts";
+import { fillerStats } from "./reportData.ts";
 
 /** How long JJ's row shows what it just told an agent before going back to its state. */
 const COMMAND_DETAIL_MS = 8000;
@@ -43,17 +44,15 @@ export function installOrchestrator(ctx: SwarmContext): void {
     switch (agent) {
       case "listener": {
         const phrases = board.phrases(runId!);
-        const words = phrases.flatMap((p) => p.fillers.map((f) => f.toLowerCase().trim()).filter(Boolean));
-        const tally = new Map<string, number>();
-        for (const w of words) tally.set(w, (tally.get(w) ?? 0) + 1);
-        const spanMs = phrases.length ? phrases.at(-1)!.endAt - phrases[0]!.startAt : 0;
         const rec = ctx.runLog.get(runId!);
+        const runMs = rec ? runLengthMs(rec, ctx.clock.now()) : 0;
+        const f = fillerStats(phrases, runMs);               // the run report's numbers: count / run minutes
         const bursts = rec ? behaviorCounts(rec).get("filler_burst") ?? 0 : null;
         return {
           ...base,
-          filler_count: words.length,
-          top_fillers: [...tally].sort((a, b) => b[1] - a[1]).slice(0, 5).map(([word, count]) => ({ word, count })),
-          ...(spanMs >= 30_000 ? { fillers_per_min: Math.round((words.length / (spanMs / 60_000)) * 10) / 10 } : {}),
+          filler_count: f.count,
+          top_fillers: f.top,
+          ...(runMs >= 30_000 ? { fillers_per_min: f.perMin } : {}),
           phrases: phrases.length,
           fillers_by_segment: {
             presentation: phrases.filter((p) => p.segment === "presentation").reduce((n, p) => n + p.fillers.length, 0),

@@ -114,7 +114,7 @@ export function installReporter(ctx: SwarmContext, opts: ReporterOptions = {}): 
       const index = rec.run.index;
       board.status("reporter", "thinking", `writing run ${index} report`);
       try {
-        const inputs = gatherRun({ board, rec, session: session(), records: runLog.list(), focus });
+        const inputs = gatherRun({ board, rec, session: session(), records: runLog.list(), focus, now: ctx.clock.now() });
         const notes = inputs.videoNotes.length;
         const update = storedRun(runId) !== null;
         const { out, ms, err } = await ask<RunLlmOut>(`run_${index}`, RUN_SYSTEM, runPrompt(inputs), RUN_SCHEMA as unknown as Record<string, unknown>);
@@ -258,7 +258,7 @@ export function installReporter(ctx: SwarmContext, opts: ReporterOptions = {}): 
   };
   const page = (n: SessionNarrative | null): string => {
     const now = ctx.clock.now();
-    const runs = endedRuns().map((r) => storedRun(r.runId) ?? fallbackRun(gatherRun({ board, rec: r, session: session(), records: runLog.list() }), now));
+    const runs = endedRuns().map((r) => storedRun(r.runId) ?? fallbackRun(gatherRun({ board, rec: r, session: session(), records: runLog.list(), now }), now));
     return buildReportHtml({ s: session(), records: runLog.list(), session: n, runs, now, recordingsSent: ctx.videoAnalysis && !!ctx.models.apiKey });
   };
   /** The page with the LLM's session narrative (waits for it). null = no finished run. */

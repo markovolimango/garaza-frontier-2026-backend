@@ -49,12 +49,27 @@ export interface RunLogHub {
   connections(): Record<ClientRole, boolean>;
 }
 
-/** The coach rule that measures each camera behaviour (services/coach coaching.py / episodes.py). */
+/** The coach rule that measures each behaviour (services/coach coaching.py / episodes.py; fillers also the swarm listener). */
 export const RULE_OF_KIND: Partial<Record<BehaviorKind, string>> = {
   arms_crossed: "body.arms_crossed", face_touch: "body.face_touch", looking_down: "body.looking_down",
   sway: "body.torso_movement_high", fast_hands: "body.hand_movement_high",
   head_tilt: "body.head_tilt", hands_in_pockets: "body.hands_in_pockets",   // episodes only (no coach rule)
+  filler_burst: "speech.fillers", pace_fast: "speech.rate_high", long_pause: "speech.long_pauses",
 };
+
+/** How long a run took, for rates: presentation + Q&A (ms), as the digest counts them; a run still under way counts until `now`. */
+export function runLengthMs(rec: Pick<RunRecord, "run" | "qaStartedAt" | "endedAt">, now: number): number {
+  const end = rec.endedAt ?? now;
+  const start = rec.run.presentationStartedAt;
+  const presentationMs = start ? Math.max(0, (rec.run.presentationEndedAt ?? end) - start) : 0;
+  const qaMs = rec.qaStartedAt !== null ? Math.max(0, end - rec.qaStartedAt) : 0;
+  return presentationMs + qaMs;
+}
+
+/** The one "per minute" (fillers, behaviours): count / run minutes, one decimal; 0 for a run without time. */
+export function perMinute(count: number, runMs: number): number {
+  return runMs > 0 ? Math.round((count / (runMs / 60_000)) * 10) / 10 : 0;
+}
 
 /** How often each behaviour showed in a run: episodes (every occurrence) or, for behaviours without
  *  episodes (speech, or an older coach), the throttled rule observations; the larger of the two. */

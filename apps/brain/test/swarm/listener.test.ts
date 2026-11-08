@@ -272,7 +272,7 @@ describe("listener: phrases, fillers and the run log", () => {
     t.d({ type: "end_run" });
     const rec = t.runLog.latest()!;
     expect(behaviorCounts(rec).get("filler_burst")).toBe(2);
-    expect(JSON.stringify(buildDigest(rec, null))).toContain("Filler words");
+    expect(buildDigest(rec, null).observations).toContainEqual(expect.objectContaining({ rule: "speech.fillers", label: "Filler-word bursts", count: 2 }));   // bursts, named as such
     expect(t.store.get().coach.targets.map((x) => x.kind)).toContain("filler_burst");   // baseline → a training target
   });
 });

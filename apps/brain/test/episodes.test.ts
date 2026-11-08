@@ -168,8 +168,17 @@ describe("the end of a session: final progress and delete", () => {
     t.start(); t.episode("looking_down", 30_000); t.clock.advance(30_000); t.finish();
     t.start(); t.clock.advance(60_000); t.finish();
     const c = compactProgress(buildProgress(t.runLog.list(), t.store.get()));
-    expect(c.behaviours).toEqual([{ label: "Looking down", target: true, status: "learning", trend: "better",
+    expect(c.behaviours).toEqual([{ kind: "looking_down", label: "Looking down", target: true, status: "learning", trend: "better",
       first: { run: 1, count: 1, per_min: 1, pct_of_time: 50 }, last: { run: 2, count: 0, per_min: 0, pct_of_time: 0 } }]);
+  });
+
+  it("fillers in the progress are counted as bursts and named so, also as a target never seen", () => {
+    const t = rig();
+    t.start(); t.clock.advance(60_000); t.finish();                 // a clean baseline
+    expect(t.store.dispatch({ type: "set_targets", targets: ["filler_burst"] })).toEqual({ ok: true });
+    t.start({ mode: "training" }); t.clock.advance(60_000); t.finish();
+    const row = buildProgress(t.runLog.list(), t.store.get()).rows.find((r) => r.kind === "filler_burst");
+    expect(row).toMatchObject({ rule: "kind:filler_burst", label: "Filler-word bursts", isTarget: true, counts: [0, 0], perMin: [0, 0] });
   });
 
   it("a full reset erases the previous session from disk; keepData and a partial reset don't", async () => {
