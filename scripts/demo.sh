@@ -7,13 +7,15 @@
 #
 # Options:
 #   --camera N | --no-camera   camera index (or DEMO_CAMERA=N in the environment / .env)
-#   --fresh                    start a new session (the old one stays in data/sessions)
+#   --fresh                    start a new session (the old one stays in data/sessions); without it BRAIN_FRESH
+#                              from the environment / .env decides
 #   --force                    vignette on every coach suggestion during a run, not only the run's targets
 #   --no-coach                 brain + frontend only (no coach, bridge, camera)
-#   --takeover                 stop whatever already listens on the demo ports (old terminals) instead of refusing
+#   --takeover                 stop whatever already listens on the demo ports (old terminals), and an old
+#                              `coach brain-bridge`, instead of refusing
 #   --no-open                  don't open the browser
 #   --dev                      brain in watch mode (restarts on every code change; not for the stage)
-# Ports: BRAIN_PORT (8787), FRONTEND_PORT (5174), COACH_PORT (8765).
+# Ports: BRAIN_PORT (8787, or from .env), FRONTEND_PORT (5174), COACH_PORT (8765).
 #
 # The brain, frontend, coach and bridge are restarted if they crash (the brain continues the saved
 # session). Ctrl+C stops everything; the brain saves the session first. Logs: data/demo-logs/<time>/.
@@ -22,6 +24,8 @@ set -uo pipefail
 ROOT="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")/.." && pwd)"
 cd "$ROOT"
 
+BRAIN_PORT="${BRAIN_PORT:-}"
+[[ -z "$BRAIN_PORT" && -f .env ]] && BRAIN_PORT="$(sed -n 's/^BRAIN_PORT=\([0-9]*\).*/\1/p' .env | tail -1)"
 BRAIN_PORT="${BRAIN_PORT:-8787}"
 FRONTEND_PORT="${FRONTEND_PORT:-5174}"
 COACH_PORT="${COACH_PORT:-8765}"
@@ -29,7 +33,7 @@ CAMERA="${DEMO_CAMERA:-}"
 [[ -z "$CAMERA" && -f .env ]] && CAMERA="$(sed -n 's/^DEMO_CAMERA=\([0-9]*\).*/\1/p' .env | tail -1)"
 FRESH=0 FORCE=0 COACH=1 TAKEOVER=0 OPEN=1 DEV=0 NO_CAMERA=0
 
-usage() { sed -n '2,22p' "${BASH_SOURCE[0]}" | sed 's/^# \{0,1\}//'; }
+usage() { awk 'NR == 1 { next } /^#/ { sub(/^# ?/, ""); print; next } { exit }' "${BASH_SOURCE[0]}"; }
 while [[ $# -gt 0 ]]; do
   case "$1" in
     --camera) [[ "${2:-}" =~ ^[0-9]+$ ]] || { echo "--camera needs an index, e.g. --camera 1" >&2; exit 2; }; CAMERA="$2"; shift ;;
@@ -88,27 +92,42 @@ for entry in "${PORTS[@]}"; do
     busy=1
   fi
 done
-if [[ $busy == 1 ]]; then
-  # a bridge from an old terminal holds no port but would still talk to the new brain
-  die "stop those (close their terminals), or run again with --takeover"
+# a bridge from an old terminal (scripts/coach-brain-bridge.sh) holds no port, but would take the brain's
+# sensor role from the demo's own bridge
+if [[ $COACH == 1 ]]; then
+  old="$(pgrep -f 'coach brain-bridge' 2>/dev/null | paste -sd' ' -)"
+  if [[ -n "$old" && $TAKEOVER == 1 ]]; then
+    warn "stopping an old coach bridge (pids $old)"
+    kill $old 2>/dev/null
+    for _ in $(seq 1 20); do pgrep -f 'coach brain-bridge' >/dev/null 2>&1 || break; sleep 0.25; done
+  elif [[ -n "$old" ]]; then
+    printf '%s[demo] a coach bridge is already running:%s\n' "$RED" "$R" >&2
+    ps -o pid=,command= -p "${old// /,}" 2>/dev/null | cut -c1-160 | sed 's/^/         /' >&2
+    busy=1
+  fi
 fi
-if [[ $TAKEOVER == 1 && $COACH == 1 ]]; then
-  old="$(pgrep -f 'coach brain-bridge' | tr '\n' ' ')"
-  [[ -n "${old// /}" ]] && { warn "stopping an old coach bridge (pids $old)"; kill $old 2>/dev/null; }
-fi
+[[ $busy == 1 ]] && die "stop those (close their terminals), or run again with --takeover"
 
 # ---------------------------------------------------------------- processes
 LOGS="$ROOT/data/demo-logs/$(date +%Y%m%d-%H%M%S)"
 mkdir -p "$LOGS"
 STOP="$LOGS/.stopping"
 
+# every process below PID (not PID itself)
+descendants() {
+  ps -A -o pid= -o ppid= | awk -v root="$1" '
+    { parent[$1] = $2 }
+    END { for (p in parent) { q = p; while ((q in parent) && q != root && q > 1) q = parent[q]; if (q == root && p != root) print p } }'
+}
+
 cleanup() {
   trap - INT EXIT
-  trap '' TERM               # the kill below reaches this script too
+  trap '' TERM
   touch "$STOP"
   echo
   say "stopping (the brain saves the session)…"
-  kill -TERM 0 2>/dev/null   # every process this script started shares its process group
+  # only what this script started: the process group also holds the parent (`pnpm demo` would exit 143)
+  kill -TERM $(descendants $$) 2>/dev/null
   wait 2>/dev/null
   say "stopped. Logs: ${LOGS#$ROOT/}"
 }
@@ -146,13 +165,15 @@ wait_http() {   # URL NAME SECONDS
   return 1
 }
 
-# The brain: --fresh only on the first start, a crash restart continues the session.
+# The brain: --fresh only on the first start (else BRAIN_FRESH from the environment / .env); a crash
+# restart continues the session.
 run_brain() {
-  local fresh=0
-  [[ $FRESH == 1 && ! -e "$LOGS/.brain-started" ]] && fresh=1
+  local vars=("BRAIN_PORT=$BRAIN_PORT")
+  if [[ -e "$LOGS/.brain-started" ]]; then vars+=(BRAIN_FRESH=0)
+  elif [[ $FRESH == 1 ]]; then vars+=(BRAIN_FRESH=1); fi
   touch "$LOGS/.brain-started"
-  if [[ $DEV == 1 ]]; then BRAIN_FRESH=$fresh BRAIN_PORT=$BRAIN_PORT "${PNPM[@]}" --silent dev:brain
-  else BRAIN_FRESH=$fresh BRAIN_PORT=$BRAIN_PORT "${PNPM[@]}" --silent --filter @coach/brain start; fi
+  if [[ $DEV == 1 ]]; then env "${vars[@]}" "${PNPM[@]}" --silent dev:brain
+  else env "${vars[@]}" "${PNPM[@]}" --silent --filter @coach/brain start; fi
 }
 run_frontend() {
   VITE_SIGNAL_SOURCE=brain VITE_BRAIN_URL="http://localhost:$BRAIN_PORT" \
