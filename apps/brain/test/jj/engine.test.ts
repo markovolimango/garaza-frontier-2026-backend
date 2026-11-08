@@ -44,7 +44,7 @@ describe("JJEngine: connection and greeting", () => {
     await flush();
     expect(t.agent.connects).toHaveLength(1);
     expect(t.agent.connects[0]).toMatchObject({ systemPrompt: "SYS", voice: "Puck" });
-    expect(t.agent.connects[0]!.tools).toHaveLength(20);
+    expect(t.agent.connects[0]!.tools).toHaveLength(21);
     expect(t.agent.connects[0]!.contextText).toMatch(/^\[SESSION CONTEXT]/);
     expect(t.agent.sentText).toEqual([{ text: expect.stringMatching(/^\[SESSION START] first session/), turnComplete: true }]);
     expect(t.hub.ofType("jj.state").at(-1)!.payload).toEqual({ connected: true, listening: true, speaking: false });

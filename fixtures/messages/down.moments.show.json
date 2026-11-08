@@ -1,0 +1,65 @@
+{
+  "type": "moments.show",
+  "direction": "down",
+  "valid": [
+    {
+      "v": 1,
+      "type": "moments.show",
+      "id": "fx_moments_show_0",
+      "ts": 1762540000000,
+      "payload": {
+        "title": "Crossed arms · run 2 · 3 times",
+        "kind": "arms_crossed",
+        "runId": "run_2",
+        "clips": [
+          {
+            "url": "/api/media/run_2/video",
+            "fromS": 58.5,
+            "toS": 68.5,
+            "tRunMs": 60000,
+            "slideIndex": 1,
+            "label": "1:00 · slide 2 · 7 s"
+          }
+        ]
+      }
+    },
+    {
+      "v": 1,
+      "type": "moments.show",
+      "id": "fx_moments_show_1",
+      "ts": 1762540000001,
+      "payload": {
+        "title": "",
+        "kind": null,
+        "runId": null,
+        "clips": []
+      }
+    }
+  ],
+  "invalid": [
+    {
+      "why": "a clip must end after 0 s",
+      "message": {
+        "v": 1,
+        "type": "moments.show",
+        "id": "fx_moments_show_100",
+        "ts": 1762540000100,
+        "payload": {
+          "title": "x",
+          "kind": null,
+          "runId": null,
+          "clips": [
+            {
+              "url": "/v",
+              "fromS": 0,
+              "toS": 0,
+              "tRunMs": 0,
+              "slideIndex": 0,
+              "label": ""
+            }
+          ]
+        }
+      }
+    }
+  ]
+}

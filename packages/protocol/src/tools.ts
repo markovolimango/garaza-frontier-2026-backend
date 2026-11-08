@@ -11,7 +11,7 @@ export const ToolName = z.enum([
   "save_brief", "start_run", "end_run", "run_it_back", "resume_run", "go_to_slide",
   "set_targets", "set_feedback_level", "set_feedback_categories", "highlight_pattern",
   "get_last_run_report", "get_session_state", "set_judge", "set_judges",
-  "regenerate_personas", "set_audience", "set_qa", "set_lighting", "show_final", "calibrate_gaze",
+  "regenerate_personas", "set_audience", "set_qa", "set_lighting", "show_final", "calibrate_gaze", "show_moments",
 ]);
 export type ToolName = z.infer<typeof ToolName>;
 
@@ -60,6 +60,10 @@ export const ToolArgs = {
   set_qa: z.object({ questions: z.number().int().min(0).max(5) }),
   set_lighting: z.object({ preset: LightingPreset }),
   show_final: none,
+  show_moments: z.object({
+    kind: z.enum([...BehaviorKind.options, "none"]).describe('The behaviour to replay from the recording, or "none" to close the player'),
+    run: z.enum(["last", "first"]).optional().describe('"last" (default): the run just finished; "first": the baseline, to compare'),
+  }),
   calibrate_gaze: none,
 } as const satisfies Record<ToolName, z.ZodObject>;
 

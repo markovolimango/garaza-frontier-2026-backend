@@ -167,7 +167,7 @@ describe("brain end to end", () => {
     const h = await (await fetch(`http://127.0.0.1:${t.port}/health`)).json();
     expect(h).toMatchObject({ ok: true, connected: [], jj: "down", phase: "setup" });
     const cat = (await (await fetch(`http://127.0.0.1:${t.port}/api/tools`)).json()) as { tools: unknown[] };
-    expect(cat.tools).toHaveLength(20);
+    expect(cat.tools).toHaveLength(21);
     expect(cat.tools[0]).toHaveProperty("argsSchema");
     expect((await fetch(`http://127.0.0.1:${t.port}/api/runs/run_1/report`)).status).toBe(501);
   });

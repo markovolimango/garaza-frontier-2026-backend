@@ -12,6 +12,7 @@
     "dev:frontend": "VITE_SIGNAL_SOURCE=brain pnpm --filter tanstack_start_ts exec vite dev --port 5174",
     "test:frontend": "pnpm --filter tanstack_start_ts exec vitest run && pnpm --filter tanstack_start_ts exec vitest run -c vitest.brain.config.ts",
     "e2e:browser": "node e2e/frontend-brain.mjs",
+    "e2e:recording": "node e2e/recording.mjs",
     "frontend:pull": "git subtree pull --prefix=apps/frontend frontend main --squash"
   },
   "devDependencies": {

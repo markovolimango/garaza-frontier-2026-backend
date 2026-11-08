@@ -26,6 +26,12 @@ izveštaji, lični ciljevi, slajdovi) i njene coach sesije iz memorije. `{"keepD
 popraviš, uz mogućnost da preskočiš, pa traži slajdove: "Upload slides (PDF)" na JJ-ovom ekranu); run traži deck.
 Kad kažeš da si gotov ("kraj"), JJ pokaže finalni izveštaj sa brojevima prvi → poslednji run.
 
+**Snimanje:** posle pristanka na ekranu ("Record runs") browser snima kameru i mikrofon tokom runa i šalje
+ih brainu (`data/sessions/<id>/media/`, samo na ovom računaru). JJ posle runa kaže npr. "prekrstio si ruke
+5 puta" i alatom `show_moments` pusti te trenutke na ekranu (±1,5 s oko svake epizode, najviše 5);
+na kraju može da pokaže prvi run naspram poslednjeg. "Delete and start over" briše i snimke.
+Test: `pnpm e2e:recording` (lažna kamera u Chrome-u).
+
 **Napredak kroz runove:** ekran izveštaja posle drugog runa prikazuje "run 1 → 2 → 3" (karticu Progress)
 i naslov tipa "Moving around / swaying 3 → 0". JJ-ov `show_final` otvara isti prikaz. API: `GET /api/progress`.
 

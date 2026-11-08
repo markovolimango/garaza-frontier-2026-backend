@@ -61,6 +61,19 @@ export const DOWNLINK = {
     z.object({ kind: z.literal("final"), sessionId: SessionId }),
   ]),
   "report.focus": z.object({ kind: BehaviorKind.nullable() }),
+  /**
+   * Replay moments from a run's recording (JJ's show_moments): the stage plays each clip of the run's
+   * video (`url` on the brain, seconds `fromS`..`toS` into it) one after the other. No clips = hide.
+   */
+  "moments.show": z.object({
+    title: z.string().max(120),
+    kind: BehaviorKind.nullable(),
+    runId: RunId.nullable(),
+    clips: z.array(z.object({
+      url: z.string().min(1), fromS: z.number().min(0), toS: z.number().positive(),
+      tRunMs: z.number().min(0), slideIndex: z.number().int().min(0), label: z.string().max(80),
+    })).max(10),
+  }),
   "calibrate.prompt": z.object({ judgeId: JudgeId.nullable() }),
   "sensor.config": z.object({ enabledCategories: z.array(FeedbackCategory), neutralPitchDeg: z.number().nullable(), debug: z.boolean() }),
   "hud.toast": z.object({ text: z.string().min(1).max(120), level: z.enum(["info", "warn"]) }),

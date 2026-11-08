@@ -4,7 +4,7 @@
  * satisfy them structurally and tests can fake them.
  */
 import type {
-  ClientRole, Downlink, JudgeDef, PresentationBrief, Result, RunId, SceneOp, SessionState,
+  BehaviorKind, ClientRole, Downlink, JudgeDef, PresentationBrief, Result, RunId, SceneOp, SessionState,
 } from "@coach/protocol";
 
 export type { LogLevel, Logger } from "../log.ts";
@@ -23,7 +23,7 @@ export interface SessionPort {
 }
 
 /** Downlink messages the JJ engine and the coach tools emit. */
-export type JJDownlink = Downlink<"jj.state" | "jj.transcript" | "actor.say" | "audio.stop" | "report.focus" | "hud.toast">;
+export type JJDownlink = Downlink<"jj.state" | "jj.transcript" | "actor.say" | "audio.stop" | "report.focus" | "moments.show" | "hud.toast">;
 
 /** Spec `Hub` (brain core). The hub wraps payloads in the envelope. */
 export interface HubPort {
@@ -52,6 +52,15 @@ export interface ReportsPort {
   compactRunReport(runId: RunId): unknown | null;
   /** The whole session, first run → last (for the final narration); optional. */
   sessionProgress?(): unknown | null;
+  /** One behaviour's moments in a run's recording (the run just finished, or the first one); optional. */
+  moments?(kind: BehaviorKind, which: "last" | "first"): MomentsFound | Result;
+}
+
+export interface MomentsFound {
+  ok: true; runId: RunId; runIndex: number; title: string;
+  /** How often it happened in that run; `clips` shows at most five of them. */
+  total: number;
+  clips: { url: string; fromS: number; toS: number; tRunMs: number; slideIndex: number; label: string; seconds: number }[];
 }
 
 /** P1 gaze calibration flow; optional. */

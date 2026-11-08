@@ -68,6 +68,14 @@ export const DOWNLINK_SAMPLES: Down = {
   },
   "report.ready": { valid: [{ kind: "run", runId: "run_1" }, { kind: "final", sessionId: "V1StGXR8_Z5jdHi6B-myT" }], invalid: [{ why: "run kind without runId", payload: { kind: "run" } }] },
   "report.focus": { valid: [{ kind: "filler_burst" }, { kind: null }], invalid: [{ why: "unknown behaviour", payload: { kind: "nervousness" } }] },   // vocab-allow
+  "moments.show": {
+    valid: [
+      { title: "Crossed arms · run 2 · 3 times", kind: "arms_crossed", runId: "run_2",
+        clips: [{ url: "/api/media/run_2/video", fromS: 58.5, toS: 68.5, tRunMs: 60_000, slideIndex: 1, label: "1:00 · slide 2 · 7 s" }] },
+      { title: "", kind: null, runId: null, clips: [] },
+    ],
+    invalid: [{ why: "a clip must end after 0 s", payload: { title: "x", kind: null, runId: null, clips: [{ url: "/v", fromS: 0, toS: 0, tRunMs: 0, slideIndex: 0, label: "" }] } }],
+  },
   "calibrate.prompt": { valid: [{ judgeId: "judge_1" }, { judgeId: null }], invalid: [{ why: "missing judgeId", payload: {} }] },
   "sensor.config": { valid: [{ enabledCategories: ["posture", "gaze"], neutralPitchDeg: null, debug: false }], invalid: [{ why: "unknown category", payload: { enabledCategories: ["mood"], neutralPitchDeg: null, debug: false } }] },   // vocab-allow
   "hud.toast": { valid: [{ text: "Judges set to tough", level: "info" }], invalid: [{ why: "empty text", payload: { text: "", level: "info" } }] },

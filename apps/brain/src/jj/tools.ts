@@ -332,6 +332,22 @@ export function createCoachTools(deps: CoachToolDeps, registry: ToolRegistry): T
       progress: r.ok ? reports.sessionProgress?.() ?? null : null });
   });
 
+  reg("show_moments",
+    "Replay on the main screen the moments of one behaviour from a run's recording (up to five clips, in time order). Use it right after saying how often it happened. 'none' closes the player.",
+    "BLOCKING", async (a) => {
+      const hide = { title: "", kind: null, runId: null, clips: [] };
+      if (a.kind === "none") { hub.send("stage", { type: "moments.show", payload: hide }); return { ok: true }; }
+      if (!reports.moments) return { ok: false, reason: "not_available", hint: "recordings are not enabled" };
+      const r = reports.moments(a.kind, a.run ?? "last");
+      if (!r.ok) return toTool(r);
+      const found = r as Extract<typeof r, { clips: unknown }>;
+      const sent = hub.send("stage", { type: "moments.show", payload: {
+        title: found.title, kind: a.kind, runId: found.runId, clips: found.clips.map(({ seconds: _s, ...c }) => c) } });
+      if (!sent) return { ok: false, reason: "stage_offline", hint: "the main screen is not connected" };
+      return { ok: true, run: found.runIndex, total: found.total, shown: found.clips.length,
+        moments: found.clips.map((c) => ({ at: c.label.split(" · ")[0], slide: c.slideIndex + 1, seconds: c.seconds })) };
+    });
+
   reg("calibrate_gaze", "Calibrate where each judge sits, by asking the user to look at each one in turn.", "BLOCKING", async () => {
     if (!deps.calibration) return { ok: false, reason: "not_available", hint: "gaze calibration is not enabled" };
     const r = dispatch({ type: "start_calibration" });

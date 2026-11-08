@@ -17,6 +17,8 @@ import { activeSource } from "../signals";
 import { publish } from "../signals/bus";
 import { BrainSource, type BrainSnapshot } from "./BrainSource";
 import { JJCaptions } from "./JJCaptions";
+import { MomentsPlayer } from "./MomentsPlayer";
+import { RunRecorder } from "./recorder";
 import { intentFor, viewToRoute, type ScreenPath } from "./mapping";
 
 const SCREENS: ScreenPath[] = ["/", "/presenter", "/judges", "/report"];
@@ -131,7 +133,19 @@ function Overlay({ snap, brain, jjScreen }: { snap: BrainSnapshot; brain: BrainS
           </button>
         )}
         {snap.jj && !snap.jj.connected && !offline && snap.sessionPhase !== "setup" && <Chip tone="warn">JJ voice offline</Chip>}
+        {snap.recording && <Chip tone="warn">● REC</Chip>}
       </div>
+      {snap.moments && <MomentsPlayer m={snap.moments} httpBase={brain.httpBase} onClose={() => brain.closeMoments()} />}
+      {!offline && snap.recordConsent === null && (snap.sessionPhase === "intro" || snap.sessionPhase === "debrief") && RunRecorder.supported() && (
+        <div className="pointer-events-auto absolute bottom-6 left-6 w-[min(90vw,26rem)] rounded-xl border border-border bg-card/95 p-4 font-sans text-sm shadow-xl backdrop-blur">
+          <p className="font-medium text-foreground">Record your runs so JJ can show you moments?</p>
+          <p className="mt-1 text-muted-foreground">Camera and microphone, only during runs. It stays on this computer; "Delete and start over" erases it.</p>
+          <div className="mt-3 flex gap-2">
+            <button type="button" onClick={() => brain.setRecordConsent("yes")} className="rounded-full bg-primary px-3 py-1 text-primary-foreground hover:bg-primary/90">Record runs</button>
+            <button type="button" onClick={() => brain.setRecordConsent("no")} className="rounded-full border border-border px-3 py-1 hover:bg-accent">Not now</button>
+          </div>
+        </div>
+      )}
       {woken && !jjScreen && (
         <div className="absolute left-1/2 top-14 w-[min(90vw,48rem)] -translate-x-1/2">
           <JJCaptions compact />

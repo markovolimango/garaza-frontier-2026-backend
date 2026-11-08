@@ -19,6 +19,8 @@ import { observedCoach } from "./observedCoach.ts";
 import { loadLatest, SessionPersistence, sessionHttp } from "./persist.ts";
 import { buildProgress, compactProgress, progressHttp } from "./progress.ts";
 import { exportHttp } from "./export.ts";
+import { MediaStore, mediaHttp, momentsOf } from "./media.ts";
+import { BEHAVIOR_WORDS } from "./observedCoach.ts";
 import { RunLog } from "./runlog.ts";
 
 const REPO = resolve(dirname(fileURLToPath(import.meta.url)), "../../..");
@@ -37,6 +39,8 @@ let digestRoutes: ReturnType<typeof digestHttp> | null = null;
 let progressRoutes: ReturnType<typeof progressHttp> | null = null;
 let sessionRoutes: ReturnType<typeof sessionHttp> | null = null;
 let exportRoutes: ReturnType<typeof exportHttp> | null = null;
+let mediaRoutes: ReturnType<typeof mediaHttp> | null = null;
+let media: MediaStore | null = null;
 
 // The session saved before the last stop (runs, reports, coach, deck), unless a fresh start was asked for.
 const sessionDir = resolve(REPO, config.brain.SESSION_DIR);
@@ -58,9 +62,24 @@ const brain = createBrain({
     return { ...buildDigest(rec, s.coach.recommendation), progress: buildProgress(runLog.list(), s).headline };
   },
   // JJ's final narration: per behaviour, first run → last (counts, per minute, share of time), targets' status.
-  sessionProgress: () => (runLog ? compactProgress(buildProgress(runLog.list(), brain.session.get())) : null) },
+  sessionProgress: () => (runLog ? compactProgress(buildProgress(runLog.list(), brain.session.get())) : null),
+  // JJ's show_moments: one behaviour's moments in the last (or first) finished run, as clips of its recording.
+  moments: (kind, which) => {
+    const runs = brain.session.get().completedRuns;
+    const runId = which === "first" ? runs[0] : runs.at(-1);
+    const rec = runId ? runLog?.get(runId) : null;
+    if (!runId || !rec) return { ok: false, reason: "not_available", hint: "no run has finished yet" };
+    const recording = media?.get(runId);
+    if (!recording) return { ok: false, reason: "not_available", hint: "that run was not recorded (no consent, or no camera)" };
+    const { total, clips } = momentsOf(rec, recording, kind);
+    const words = BEHAVIOR_WORDS[kind];
+    if (!clips.length) return { ok: false, reason: "not_available", hint: total ? `the ${words} moments fall outside the recording` : `no ${words} in run ${rec.run.index}` };
+    const title = `${words.charAt(0).toUpperCase()}${words.slice(1)} · run ${rec.run.index} · ${total} time${total === 1 ? "" : "s"}`;
+    return { ok: true, runId: rec.runId, runIndex: rec.run.index, title, total, clips };
+  } },
   http: async (req, res) => (digestRoutes ? digestRoutes(req, res) : false) || (progressRoutes ? progressRoutes(req, res) : false)
     || (exportRoutes ? exportRoutes(req, res) : false)
+    || (mediaRoutes ? await mediaRoutes(req, res) : false)
     || (sessionRoutes ? await sessionRoutes(req, res) : false) || (judgesHttp ? judgesHttp(req, res) : false),
 });
 const clock = new RealClock();
@@ -69,6 +88,8 @@ const persistence = new SessionPersistence({ dir: sessionDir, session: brain.ses
 digestRoutes = digestHttp(runLog, () => brain.session.get().coach.recommendation);
 progressRoutes = progressHttp(runLog, () => brain.session.get());
 exportRoutes = exportHttp(runLog, () => brain.session.get());
+media = new MediaStore({ dir: sessionDir, sessionId: () => brain.session.get().sessionId, hasRun: (id) => !!runLog?.get(id), log });
+mediaRoutes = mediaHttp(media);
 sessionRoutes = sessionHttp({ session: brain.session, runLog, persistence });
 runLog.onRunEnded((rec) => { brain.hub.send("stage", { type: "report.ready", payload: { kind: "run", runId: rec.runId } }); });
 brain.session.subscribe((s, cause) => {

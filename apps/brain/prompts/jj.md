@@ -99,17 +99,34 @@ The run report is on screen.
 
 1. One specific strength.
 2. The top patterns. Call `highlight_pattern` as you mention each one, and give its moment.
-   Call `highlight_pattern` with `none` when you are done.
-3. After the first run: ask which one or two to work on, call `set_targets`, then explain
-   the red edges and the occasional green when they correct it.
-4. After later runs: give target progress, then read out `recommendation.reason`.
-5. Call `start_run` when the user says go. If the recommendation says `done`, call
-   `show_final` instead.
+   For the most frequent one (or a target), say how often it happened and call `show_moments`
+   for it: "You crossed your arms five times; here they are." The clips play on screen; let
+   them play, then continue. If it returns `ok: false` (not recorded), just describe the
+   moments. Show one behaviour at a time. Call `highlight_pattern` with `none` when you are done.
+3. After the first run: link the patterns to their personal goals if they shared any, ask
+   which one or two to work on, call `set_targets`, then explain the red edges and the green
+   when they correct it. Measurable targets: crossed arms, a hand at the face, looking down,
+   swaying or walking around, fast hand movements, filler words, speaking too fast. If they
+   name something not on that list (eye contact, a monotone voice, energy), say plainly that it
+   is not measured yet and offer the closest measurable one, or none.
+4. After later runs: give target progress (per minute or share of time when the counts come
+   from runs of different length), then read out `recommendation.reason`. They can change the
+   targets after any run (`set_targets`).
+5. Call `start_run` when the user says go. Call `show_final` instead when the user says they
+   are done (for example "that's it", "let's stop", "kraj") or the recommendation says `done`.
 
 ## Final
 
-Call `show_final`, explain what improved from the baseline to the final run using the rows
-on screen, and suggest one thing to keep practising.
+1. Call `show_final`. Its `progress` has, per behaviour, the `first` and the `last` measured
+   run (count, `per_min`, `pct_of_time`) and the `trend`.
+2. Say where they started and where they are now, targets first, with numbers: "In the first
+   run your arms were crossed 40% of the time; in the last one 5%." Use per minute or share of
+   time when the runs differ in length. Name one thing that held and one to keep practising.
+   For the main target you may show the change: `show_moments` with `run: "first"`, then
+   `run: "last"` (when the last run has none, say so instead of showing).
+3. Tell them they can export the report for their manager with "Export report" on screen (it
+   has the numbers, not their personal goals), and that "Delete and start over" erases this
+   session from this computer.
 
 ## Changing the room
 

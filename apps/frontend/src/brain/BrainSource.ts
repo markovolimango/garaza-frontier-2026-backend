@@ -13,6 +13,7 @@
  *   JJ audio level → bus "orbLevel"
  *   run.state       → bus "runClock" (presenter timer: start / pause / resume / stop)
  */
+import { loadConsent, RunRecorder, saveConsent, type ConsentState } from "./recorder";
 import type { Deck, DownlinkPayload, JJState, RunState, SceneDef, SessionPhase, ToolName, ToolResult, UplinkPayload, UplinkType } from "@coach/protocol";
 import { ControlClient, type ConnectionStatus } from "@coach/web/net";
 import { getLast, publish, subscribe } from "../signals/bus";
@@ -52,6 +53,12 @@ export interface BrainSnapshot {
   lastSay: DownlinkPayload<"actor.say"> | null;
   reportReady: DownlinkPayload<"report.ready"> | null;
   focus: DownlinkPayload<"report.focus">["kind"];
+  /** Clips JJ is replaying (show_moments), null when none. */
+  moments: DownlinkPayload<"moments.show"> | null;
+  /** The presenter's answer to "record runs?" for this session (asked on screen before the first run). */
+  recordConsent: ConsentState;
+  /** A run is being recorded right now. */
+  recording: boolean;
 }
 
 export function brainOptionsFromEnv(): BrainSourceOptions {
@@ -64,7 +71,9 @@ export class BrainSource implements SignalSource {
   private snap: BrainSnapshot = {
     status: "closed", ui: null, run: null, sessionPhase: null, jj: null, countdown: null, deck: null,
     uploading: false, audioOn: false, toasts: [], lastSay: null, reportReady: null, focus: null,
+    moments: null, recordConsent: typeof window === "undefined" ? null : loadConsent(), recording: false,
   };
+  private recorder: RunRecorder | null = null;
   private readonly listeners = new Set<() => void>();
   private readonly unsubs: (() => void)[] = [];
   private audioOut: AudioOut | null = null;
@@ -109,6 +118,7 @@ export class BrainSource implements SignalSource {
       const prev = this.snap.run;
       if (p.run && ((p.run.phase === "countdown" && prev?.phase !== "countdown") || (prev?.paused && !p.run.paused))) this.captions.clear();
       this.set({ run: p.run, sessionPhase: p.sessionPhase });
+      this.syncRecorder();
     });
     c.on("feedback.set", (p) => { if (!this.paused) publish("feedback", feedbackToBus(p)); });
     c.on("slide.show", (p) => { this.lastCommandedSlide = p.index; publish("slideCommand", p.index); });
@@ -134,6 +144,7 @@ export class BrainSource implements SignalSource {
     c.on("error", (p) => this.toast(p.message, "warn"));
     c.on("report.ready", (p) => this.set({ reportReady: p }));
     c.on("report.focus", (p) => this.set({ focus: p.kind }));
+    c.on("moments.show", (p) => this.set({ moments: p.clips.length ? p : null }));
     c.connect();
 
     this.unsubs.push(subscribe("slide", (i) => {
@@ -210,6 +221,30 @@ export class BrainSource implements SignalSource {
   }
 
   ptt(down: boolean): void { this.send("ptt", { down }); }
+
+  /** "Record runs?" answered on screen; asked again in a new session. */
+  setRecordConsent(v: ConsentState): void {
+    saveConsent(v);
+    this.set({ recordConsent: v });
+    this.syncRecorder();
+  }
+
+  closeMoments(): void { this.set({ moments: null }); }
+
+  /** Record while a run is under way (countdown → Q&A) and the presenter agreed; a reset forgets the answer. */
+  private syncRecorder(): void {
+    const { run, sessionPhase, recordConsent } = this.snap;
+    if (sessionPhase === "setup" && !run && recordConsent !== null) { saveConsent(null); this.set({ recordConsent: null }); }
+    const live = !!run && (run.phase === "countdown" || run.phase === "presentation" || run.phase === "qa");
+    if (live && this.snap.recordConsent === "yes" && this.o.audio !== false && RunRecorder.supported()) {
+      this.recorder ??= new RunRecorder({ httpBase: this.o.httpBase, warn: (t) => this.toast(t, "warn") });
+      if (this.recorder.recording !== run!.runId) void this.recorder.start(run!.runId);
+      if (!this.snap.recording) this.set({ recording: true });
+    } else if (this.snap.recording || this.recorder?.recording) {
+      void this.recorder?.stop();
+      this.set({ recording: false });
+    }
+  }
 
   /** "Hey JJ" heard: during a live run, the same wake as holding J (outside runs JJ already listens). */
   private onWakePhrase(): void {
