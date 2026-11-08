@@ -203,7 +203,11 @@ export class JJEngine {
       const speak = this.o.session.get().phase !== "running" && batch.some((n) => n.speak);
       batch.forEach((n, i) => this.o.agent.sendText(n.text, { turnComplete: speak && i === batch.length - 1 }));
       this.log("info", "jj.agent_notes", { count: batch.length, speak });
-    }, () => {}).finally(() => { this.notesFlushing = false; });
+    }, () => {}).finally(() => {
+      this.notesFlushing = false;
+      // notes that came in meanwhile; without a connection they wait for the next state change
+      if (this.notes.length && this.agentConnected) this.flushNotes();
+    });
   }
 
   // ---------------- session events ----------------

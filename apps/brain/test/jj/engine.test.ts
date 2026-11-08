@@ -349,6 +349,20 @@ describe("JJEngine: swarm agents' notes (agentNote)", () => {
     ]);
   });
 
+  it("a note that arrives while notes are being delivered follows right after", async () => {
+    const t = await toIntro();
+    const send = t.agent.sendText.bind(t.agent);
+    t.agent.sendText = (text, o) => {
+      send(text, o);
+      if (text === "[DIRECTOR] the panel is ready") t.engine.agentNote("[BODY] arms open the whole run");   // mid-flush
+    };
+    const n = t.agent.sentText.length;
+    t.engine.agentNote("[DIRECTOR] the panel is ready");
+    await flush();
+    expect(t.agent.sentText.slice(n).map((x) => x.text)).toEqual(["[DIRECTOR] the panel is ready", "[BODY] arms open the whole run"]);
+    expect(t.engine.pendingNotes()).toBe(0);
+  });
+
   it("drops notes before the session starts and on reset", async () => {
     const t = setup();
     t.engine.agentNote("[DIRECTOR] early");
