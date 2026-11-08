@@ -179,3 +179,17 @@ describe("session persistence", () => {
     expect(res.status).toBe(404);
   });
 });
+
+describe("report-only camera behaviours", () => {
+  it("head tilt and hands in pockets are counted and labelled, but never become training targets", async () => {
+    const { observedCoach } = await import("../src/observedCoach.ts");
+    const runs = new Map<string, { observations: []; episodes: { kind: string; startAt: number; endAt: number }[] }>();
+    const coach = observedCoach({ get: (id) => (runs.get(id) ?? null) as never }, { cleanRuns: 1, maxTrainingRuns: 5 });
+    runs.set("run_1", { observations: [], episodes: [
+      { kind: "head_tilt", startAt: 1, endAt: 2 }, { kind: "head_tilt", startAt: 3, endAt: 4 }, { kind: "hands_in_pockets", startAt: 5, endAt: 6 },
+      { kind: "sway", startAt: 7, endAt: 8 },
+    ] });
+    const next = coach.afterRun(coach.initial(), { runId: "run_1", mode: "baseline" } as never);
+    expect(next.targets.map((t) => t.kind)).toEqual(["sway"]);
+  });
+});

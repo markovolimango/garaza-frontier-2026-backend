@@ -53,6 +53,7 @@ export interface RunLogHub {
 export const RULE_OF_KIND: Partial<Record<BehaviorKind, string>> = {
   arms_crossed: "body.arms_crossed", face_touch: "body.face_touch", looking_down: "body.looking_down",
   sway: "body.torso_movement_high", fast_hands: "body.hand_movement_high",
+  head_tilt: "body.head_tilt", hands_in_pockets: "body.hands_in_pockets",   // episodes only (no coach rule)
 };
 
 /** How often each behaviour showed in a run: episodes (every occurrence) or, for behaviours without

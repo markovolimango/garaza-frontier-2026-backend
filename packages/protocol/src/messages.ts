@@ -95,7 +95,7 @@ export const DOWNLINK = {
 
 // ---------------- uplink payloads (clients → brain) ----------------
 /** Behaviours the camera (sensor role) reports as `behavior` start/end; speech kinds come from the brain. */
-export const SENSOR_BEHAVIORS = ["arms_crossed", "sway", "fast_hands", "face_touch", "looking_down"] as const;
+export const SENSOR_BEHAVIORS = ["arms_crossed", "sway", "fast_hands", "face_touch", "looking_down", "head_tilt", "hands_in_pockets"] as const;
 
 export const UPLINK = {
   hello: z.object({ role: ClientRole, clientId: z.string().min(1), protocol: z.literal(PROTOCOL_VERSION) }),

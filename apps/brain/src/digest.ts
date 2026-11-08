@@ -14,6 +14,8 @@ export const RULE_LABELS: Record<string, { label: string; strength: string }> = 
   "body.arms_crossed": { label: "Crossed arms", strength: "Arms open, not crossed" },
   "body.face_touch": { label: "Hand at your face", strength: "Hands away from your face" },
   "body.looking_down": { label: "Looking down", strength: "Kept your head up" },
+  "body.head_tilt": { label: "Head tilted to the side", strength: "Kept your head level" },
+  "body.hands_in_pockets": { label: "Hands in your pockets (likely)", strength: "Hands out of your pockets" },
   "speech.rate_high": { label: "Speaking too fast", strength: "Comfortable speaking pace" },
   "speech.long_pauses": { label: "Long pauses", strength: "No long pauses" },
   "speech.fillers": { label: "Filler words", strength: "No filler words" },

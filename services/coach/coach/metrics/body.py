@@ -135,6 +135,7 @@ class BodyTracker:
         self.history: deque[dict] = deque(maxlen=600)
         self._ref: deque[tuple[float, float]] = deque(maxlen=600)
         self._pitch: deque[tuple[float, float | None, float]] = deque(maxlen=4000)  # (t, ears, shoulders)
+        self._roll: deque[tuple[float, float]] = deque(maxlen=4000)  # (t, head roll in degrees)
         self.last_frame_t: float | None = None
         self.last_valid_t: float | None = None
         self.last_joint_ratio = 0.0
@@ -165,6 +166,7 @@ class BodyTracker:
             self.reset()
             self._ref.clear()
             self._pitch.clear()
+            self._roll.clear()
             self.mode = mode
         if self.last_frame_t is not None and t - self.last_frame_t > self.cfg.reset_after_gap_s:
             self.reset()
@@ -237,6 +239,37 @@ class BodyTracker:
             self._pitch.append((t, out.get("pitch_ears"), out["pitch_shoulders"]))
             while self._pitch and self._pitch[0][0] < t - self.cfg.head_pitch_reference_window_s:
                 self._pitch.popleft()
+        if "left_shoulder" in j and "right_shoulder" in j:
+            shoulders = _sub(j["left_shoulder"], j["right_shoulder"])
+            # Head tilt: signed angle (degrees) of the eye line (the ear line without both eyes) against the
+            # shoulder line. Measured against the shoulders, a lean of the whole body does not count.
+            pair = next((p for p in (("left_eye", "right_eye"), ("left_ear", "right_ear")) if p[0] in j and p[1] in j), None)
+            if pair:
+                head = _sub(j[pair[0]], j[pair[1]])
+                out["roll"] = math.degrees(math.atan2(shoulders[0] * head[1] - shoulders[1] * head[0], _dot(shoulders, head)))
+                self._roll.append((t, out["roll"]))
+                while self._roll and self._roll[0][0] < t - self.cfg.head_roll_reference_window_s:
+                    self._roll.popleft()
+            # Hand at a pocket (candidate): the wrist close to its own hip (in shoulder widths), at hip height,
+            # with the elbow bent (a relaxed hanging arm is nearly straight and its wrist sits further out).
+            width = _dist(j["left_shoulder"], j["right_shoulder"])
+            cfg = self.cfg
+            for s in SIDES if width > 1e-6 else ():
+                hip, elbow, shoulder, wrist = (j.get(f"{s}_{n}") for n in ("hip", "elbow", "shoulder", "wrist"))
+                if hip is None or elbow is None or shoulder is None:
+                    continue
+                if wrist is None:
+                    if cfg.hands_pocket_count_hidden and _dot(_sub(elbow, top), down) / length >= 0.45:
+                        out[f"pocket_{s}"] = True       # wrist not visible, arm down along the body
+                    continue
+                d = _dist(wrist, hip) / width
+                below = _dot(_sub(wrist, hip), down) / length
+                bend = _angle(shoulder, elbow, wrist)
+                out[f"pocket_dist_{s}"], out[f"pocket_rel_{s}"] = d, tuple(c / length for c in _sub(wrist, hip))
+                if bend is not None:
+                    out[f"elbow_{s}"] = bend
+                out[f"pocket_{s}"] = (d <= cfg.hands_pocket_max_distance and bend is not None and bend <= cfg.hands_pocket_max_elbow_deg
+                                      and cfg.hands_pocket_min_below <= below <= cfg.hands_pocket_max_below)
         return out
 
     def _valid_joints(self, payload: dict) -> dict[str, Vec]:
@@ -353,7 +386,7 @@ class BodyTracker:
                      "looking_down": None, "head_pitch": None, "head_pitch_source": None,
                      "head_pitch_reference": None, "head_pitch_delta": None}
         if self.mode == "3d":
-            out["note"] = "face_touch and looking_down need 2D face keypoints"
+            out["note"] = "face_touch, looking_down, head_tilt and hands_in_pockets need 2D keypoints"
         frames = [h["posture"] for h in self.history if now - h["t"] <= cfg.posture_window_s] if present else []
         need = max(2.0, len(frames) / 2)
 
@@ -374,6 +407,37 @@ class BodyTracker:
         face = med("face")
         if face is not None:
             out["face_touch_distance"], out["face_touch"] = round(face, 3), face <= cfg.face_touch_max_distance
+
+        # Head tilted sideways: roll vs this person's usual roll (median over a longer window).
+        out.update({"head_tilt": None, "head_roll": None, "head_roll_reference": None, "head_roll_delta": None})
+        roll = med("roll")
+        if roll is not None:
+            out["head_roll"] = round(roll, 1)
+            rolls = [(tt, v) for tt, v in self._roll if now - tt <= cfg.head_roll_reference_window_s]
+            if len(rolls) >= 2 and rolls[-1][0] - rolls[0][0] >= cfg.head_roll_reference_min_s:
+                reference = median(v for _, v in rolls)
+                delta = abs(roll - reference)
+                out["head_roll_reference"], out["head_roll_delta"] = round(reference, 1), round(delta, 1)
+                out["head_tilt"] = delta >= cfg.head_tilt_min_deg
+        # Hands in pockets (likely): the candidate held in most of the window, and the wrist still.
+        pockets: dict = {"left": None, "right": None}
+        out.update({"hand_in_pocket": pockets, "hand_pocket_distance": {"left": None, "right": None},
+                    "elbow_angle": {"left": None, "right": None}, "hands_in_pockets": None, "hands_in_pockets_count": None})
+        for s in SIDES:
+            flags = [p[f"pocket_{s}"] for p in frames if f"pocket_{s}" in p]
+            if len(flags) < need:
+                continue
+            rel = [p[f"pocket_rel_{s}"] for p in frames if f"pocket_rel_{s}" in p]
+            centre = tuple(median(c) for c in zip(*rel)) if rel else None
+            still = centre is None or max(_dist(r, centre) for r in rel) <= cfg.hands_pocket_max_motion
+            pockets[s] = sum(flags) >= 0.6 * len(flags) and still
+            out["hand_pocket_distance"][s] = r3(med(f"pocket_dist_{s}"))
+            bend = med(f"elbow_{s}")
+            out["elbow_angle"][s] = None if bend is None else round(bend, 1)
+        known = [v for v in pockets.values() if v is not None]
+        if known:
+            out["hands_in_pockets_count"] = sum(1 for v in known if v)
+            out["hands_in_pockets"] = out["hands_in_pockets_count"] > 0
 
         source = "ears" if med("pitch_ears") is not None else "shoulders"
         pitch = med(f"pitch_{source}")

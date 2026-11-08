@@ -30,6 +30,8 @@ export const DRILLS: Record<BehaviorKind, string> = {
   sway: "Plant your feet hip-width apart and deliver the first minute without moving them; move only on a slide change, then plant again.",
   fast_hands: "Present one slide with one slow gesture per idea: make it, hold it for a beat, let the hands rest.",
   face_touch: "Hold the clicker or a pen in one hand for the whole next run; a hand with a job stays away from your face.",
+  head_tilt: "Record one slide on your phone and watch it muted: each time your head tips to one side, pause and bring it level before the next point.",
+  hands_in_pockets: "Take your hands out of your pockets before you start and give them a job: the clicker in one hand, the other free to gesture.",
   looking_down: "Learn the first sentence of every slide by heart and look up at a judge before you say it.",
   not_facing_judge: "Pick one judge per idea and finish each sentence looking at them.",
   filler_burst: "Re-record the slide where the fillers clustered and replace every “um” with a silent breath; silence sounds confident, fillers don't.",

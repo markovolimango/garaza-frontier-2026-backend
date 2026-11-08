@@ -25,7 +25,7 @@ from dataclasses import dataclass, field
 from coach.config import EpisodesConfig, EpisodeTiming, PoseConfig
 from coach.timeutil import to_iso
 
-KINDS = ("arms_crossed", "face_touch", "looking_down", "sway", "fast_hands")
+KINDS = ("arms_crossed", "face_touch", "looking_down", "sway", "fast_hands", "head_tilt", "hands_in_pockets")
 MAX_EVIDENCE = 50
 
 
@@ -59,6 +59,9 @@ def measures(cfg: PoseConfig) -> dict[str, Measure]:
                         cfg.torso_movement_clear_per_s),
         "fast_hands": Measure("wrist_movement", "torso_lengths_per_s", "above", cfg.hand_movement_high_per_s,
                               cfg.hand_movement_clear_per_s),
+        "head_tilt": Measure("head_roll_delta", "degrees", "above", cfg.head_tilt_min_deg, cfg.head_tilt_clear_deg),
+        # the per-hand test (distance, elbow, height, stillness) is in metrics/body.py; this counts the hands
+        "hands_in_pockets": Measure("hands_in_pockets", "hands", "above", 1, 1),
     }
 
 
@@ -75,6 +78,8 @@ def readings(body: dict, cfg: PoseConfig) -> dict[str, Reading | None]:
         "looking_down": posture.get("head_pitch_delta"),
         "sway": (body.get("torso_movement") or {}).get("value"),
         "fast_hands": max(wrists) if wrists else None,
+        "head_tilt": posture.get("head_roll_delta"),
+        "hands_in_pockets": posture.get("hands_in_pockets_count"),
     }
     out: dict[str, Reading | None] = {}
     for kind, value in values.items():

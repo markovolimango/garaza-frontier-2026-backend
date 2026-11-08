@@ -177,3 +177,61 @@ def test_posture_templates_exist_in_both_languages_and_state_observations():
             text = engine._fire(T0, RuleEval(rule, True, "good", False, values=values))["display_text"]
             assert "3 s" in text and "{" not in text
             assert not any(word in text.lower() for word in ("nervous", "anxious", "confident", "stress", "nerv"))
+
+
+# ------------------------------------------------------------------------- head tilt, hands in pockets
+import math
+
+
+def tilted_eyes(deg: float) -> dict:
+    """Eye line turned `deg` degrees against the (level) shoulder line, in pixels of a 1920x1080 frame."""
+    half = 38.4                                   # px: half the eye distance
+    dx, dy = half * math.cos(math.radians(deg)) / 1920, half * math.sin(math.radians(deg)) / 1080
+    return {"left_eye": (0.50 + dx, 0.18 + dy), "right_eye": (0.50 - dx, 0.18 - dy)}
+
+
+POCKETS = {"left_wrist": (0.55, 0.60), "right_wrist": (0.45, 0.60),       # wrists at the hips, elbows out and bent
+           "left_elbow": (0.62, 0.47), "right_elbow": (0.38, 0.47)}
+
+
+def test_head_tilt_is_measured_against_the_shoulders_and_the_persons_usual_angle():
+    upright = measure(pose(), seconds=8)["posture"]
+    assert upright["head_roll"] == pytest.approx(0, abs=0.5) and upright["head_tilt"] is False
+    tilt = measure(lambda t: pose() if t < 6 else pose(**tilted_eyes(20)), seconds=10)["posture"]
+    assert tilt["head_roll_delta"] == pytest.approx(20, abs=1) and tilt["head_tilt"] is True
+    habit = measure(pose(**tilted_eyes(20)), seconds=8)["posture"]          # always tilted: that is this person's neutral
+    assert habit["head_roll_delta"] == pytest.approx(0, abs=0.5) and habit["head_tilt"] is False
+    young = measure(pose(**tilted_eyes(20)), seconds=3)["posture"]          # under 5 s of history: no reference yet
+    assert young["head_roll"] is not None and young["head_tilt"] is None
+
+
+def test_hands_in_pockets_needs_wrists_at_the_hips_bent_elbows_and_stillness():
+    pockets = measure(pose(**POCKETS))["posture"]
+    assert pockets["hands_in_pockets"] is True and pockets["hands_in_pockets_count"] == 2
+    assert pockets["hand_pocket_distance"]["left"] < 0.3 and pockets["elbow_angle"]["left"] < 160
+    hanging = measure(pose())["posture"]                                     # relaxed arms at the sides
+    assert hanging["hands_in_pockets"] is False and hanging["hand_pocket_distance"]["left"] > 0.4
+    one = measure(pose(left_wrist=(0.55, 0.60), left_elbow=(0.62, 0.47)))["posture"]
+    assert one["hands_in_pockets_count"] == 1
+    moving = measure(lambda t: pose(**{**POCKETS, "left_wrist": (0.55, 0.60 + 0.06 * math.sin(t * 8)),
+                                       "right_wrist": (0.45, 0.60 + 0.06 * math.sin(t * 8))}))["posture"]
+    assert moving["hands_in_pockets"] is False                               # hands moving at the hips: gesturing
+    hidden = measure(pose(drop=("left_wrist", "right_wrist")))["posture"]   # wrists not visible: unknown by default
+    assert hidden["hands_in_pockets"] is None
+
+
+def test_new_behaviours_become_episodes():
+    from coach.config import EpisodesConfig
+    from coach.metrics.episodes import EpisodeTracker, readings
+    cfg = PoseConfig()
+    body, tracker, events = BodyTracker(cfg), EpisodeTracker(EpisodesConfig(), cfg), []
+    hz = 15
+    for i in range(int(14 * hz)):                       # neutral 0-6 s, tilted head + hands in pockets 6-11 s
+        t = T0 + i / hz
+        body.update(t, pose(**POCKETS, **tilted_eyes(20)) if 6 <= t - T0 < 11 else pose(), f"e{i}")
+        events += tracker.update(t, readings(body.metrics(t), cfg), [f"e{i}"], "2d")
+    starts = {e["behavior"]: e for e in events if e["phase"] == "start"}
+    ends = {e["behavior"]: e for e in events if e["phase"] == "end"}
+    assert {"head_tilt", "hands_in_pockets"} <= set(starts) and {"head_tilt", "hands_in_pockets"} <= set(ends)
+    assert ends["head_tilt"]["duration_s"] == pytest.approx(5, abs=1.2)
+    assert ends["hands_in_pockets"]["measure"]["unit"] == "hands"

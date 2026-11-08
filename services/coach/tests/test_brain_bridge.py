@@ -175,9 +175,12 @@ def test_every_coach_rule_is_mapped_or_deliberately_not():
     assert set(RULE_CATEGORY) == set(RULE_IDS) - not_behaviours
     assert set(RULE_KIND) == set(RULE_IDS) - not_behaviours
     # the protocol's SENSOR_BEHAVIORS (packages/protocol/src/messages.ts): camera behaviours only, one episode
-    # detector each, and each one is also a coach rule's kind
-    assert sorted(SENSOR_BEHAVIORS) == sorted(KINDS) == ["arms_crossed", "face_touch", "fast_hands", "looking_down", "sway"]
-    assert SENSOR_BEHAVIORS <= set(RULE_KIND.values())
+    # detector each; each one is also a coach rule's kind, except the episode-only ones (report, no vignette)
+    episode_only = {"head_tilt", "hands_in_pockets"}
+    assert sorted(SENSOR_BEHAVIORS) == sorted(KINDS) == ["arms_crossed", "face_touch", "fast_hands", "hands_in_pockets",
+                                                          "head_tilt", "looking_down", "sway"]
+    assert SENSOR_BEHAVIORS - episode_only <= set(RULE_KIND.values())
+    assert not episode_only & set(RULE_KIND.values())
 
 
 def test_vignette_only_for_targets_when_the_run_has_some():

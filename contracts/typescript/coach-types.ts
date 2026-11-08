@@ -47,7 +47,7 @@ export interface BackpressureMessage {
 export interface BehaviorEpisodePayload {
   /** Same id on the start and the end event. */
   episode_id: string;
-  behavior: "arms_crossed" | "face_touch" | "looking_down" | "sway" | "fast_hands";
+  behavior: "arms_crossed" | "face_touch" | "looking_down" | "sway" | "fast_hands" | "head_tilt" | "hands_in_pockets";
   phase: "start" | "end";
   /** When the condition began to hold (before min_on_s confirmed it). */
   started_at: string;
@@ -189,6 +189,8 @@ export interface EpisodesConfig {
   looking_down?: EpisodeTiming;
   sway?: EpisodeTiming;
   fast_hands?: EpisodeTiming;
+  head_tilt?: EpisodeTiming;
+  hands_in_pockets?: EpisodeTiming;
 }
 
 export interface ErrorBody {
@@ -436,6 +438,26 @@ export interface PoseConfig {
   head_pitch_reference_percentile?: number;
   /** The reference needs this much history (s) before the rule can evaluate. */
   head_pitch_reference_min_s?: number;
+  /** Episode head_tilt: the eye line (or ear line) turned at least this many degrees against the shoulder line, compared with the person's usual angle. */
+  head_tilt_min_deg?: number;
+  /** Hysteresis: the tilt ends below this many degrees. */
+  head_tilt_clear_deg?: number;
+  /** Window for the usual head angle (median), so a habitual slight tilt is not flagged. */
+  head_roll_reference_window_s?: number;
+  /** The usual head angle needs this much history (s). */
+  head_roll_reference_min_s?: number;
+  /** Episode hands_in_pockets: wrist within this distance of its own hip, in shoulder widths (a relaxed hanging arm's wrist is ~0.5 away). */
+  hands_pocket_max_distance?: number;
+  /** ... with the elbow bent at most this much (a straight hanging arm is ~170). */
+  hands_pocket_max_elbow_deg?: number;
+  /** ... and the wrist at hip height: at least this far below the hip joint (torso lengths; negative = above) ... */
+  hands_pocket_min_below?: number;
+  /** ... and at most this far below it. */
+  hands_pocket_max_below?: number;
+  /** ... and still: the wrist moves less than this (torso lengths) within the posture window. */
+  hands_pocket_max_motion?: number;
+  /** Count a wrist that is not visible while its elbow hangs down as 'in a pocket'. Off by default: a camera that cuts off at the waist would flag it all the time. */
+  hands_pocket_count_hidden?: boolean;
 }
 
 export interface PoseFramePayload {

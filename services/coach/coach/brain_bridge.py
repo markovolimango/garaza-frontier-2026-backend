@@ -81,7 +81,7 @@ RULE_KIND: dict[str, str] = {
 }
 # coach episode behaviours the brain's `behavior` uplink accepts (protocol SENSOR_BEHAVIORS; speech kinds come
 # from the brain itself)
-SENSOR_BEHAVIORS = {"arms_crossed", "face_touch", "looking_down", "sway", "fast_hands"}
+SENSOR_BEHAVIORS = {"arms_crossed", "face_touch", "looking_down", "sway", "fast_hands", "head_tilt", "hands_in_pockets"}
 EPISODE_CONF = 1.0   # the detector's thresholds were crossed; not a calibrated probability
 REWARD_HOLD_MS = 1500
 

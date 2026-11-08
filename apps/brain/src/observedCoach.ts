@@ -13,14 +13,14 @@
  *
  * JJ's tools (set_targets, set_level) still override through setTargets / setLevel.
  */
-import type { BehaviorKind, CoachState, Recommendation, RunState, TargetProgress } from "@coach/protocol";
+import { FEEDBACK_ELIGIBLE, type BehaviorKind, type CoachState, type Recommendation, type RunState, type TargetProgress } from "@coach/protocol";
 import { placeholderCoach } from "./placeholders.ts";
 import { behaviorCounts, type RunRecord } from "./runlog.ts";
 import type { CoachPolicy } from "./session.ts";
 
 export const BEHAVIOR_WORDS: Record<BehaviorKind, string> = {
   arms_crossed: "crossed arms", sway: "swaying", fast_hands: "fast hand movements", face_touch: "touching your face",
-  looking_down: "looking down",
+  looking_down: "looking down", head_tilt: "tilting your head", hands_in_pockets: "hands in your pockets",
   not_facing_judge: "not facing the judges", filler_burst: "filler words", pace_fast: "speaking too fast", long_pause: "long pauses",
 };
 
@@ -59,7 +59,9 @@ export function observedCoach(log: RunSource, opts: { cleanRuns: number; maxTrai
       const total = log.get(run.runId)?.observations.filter((o) => o.category).length ?? 0;
       next = { ...next, score: Math.max(0.2, Math.min(0.95, 0.9 - 0.06 * total)) };
       if (prev.stage === "baseline" && run.mode === "baseline") {
-        const top = [...counts.entries()].sort((a, b) => b[1] - a[1]).slice(0, 2);
+        // only behaviours with live feedback can be trained (head tilt, hands in pockets are report-only)
+        const top = [...counts.entries()].filter(([kind]) => (FEEDBACK_ELIGIBLE as readonly string[]).includes(kind))
+          .sort((a, b) => b[1] - a[1]).slice(0, 2);
         const targets: TargetProgress[] = top.map(([kind, n]) => ({ kind, status: "learning", cleanStreak: 0, lastSeverity: severity(n) }));
         return { ...next, targets, stage: "training", level: "strong" };
       }

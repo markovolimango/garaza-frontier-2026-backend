@@ -171,6 +171,26 @@ class PoseConfig(_Cfg):
                                         "(low = most 'up'; works while the head is up at least this % of the time).")
     head_pitch_reference_min_s: float = Field(
         5.0, ge=0, description="The reference needs this much history (s) before the rule can evaluate.")
+    head_tilt_min_deg: float = Field(
+        15.0, gt=0, description="Episode head_tilt: the eye line (or ear line) turned at least this many degrees against "
+                                "the shoulder line, compared with the person's usual angle.")
+    head_tilt_clear_deg: float = Field(10.0, ge=0, description="Hysteresis: the tilt ends below this many degrees.")
+    head_roll_reference_window_s: float = Field(
+        60.0, gt=0, description="Window for the usual head angle (median), so a habitual slight tilt is not flagged.")
+    head_roll_reference_min_s: float = Field(5.0, ge=0, description="The usual head angle needs this much history (s).")
+    hands_pocket_max_distance: float = Field(
+        0.3, gt=0, description="Episode hands_in_pockets: wrist within this distance of its own hip, in shoulder widths "
+                               "(a relaxed hanging arm's wrist is ~0.5 away).")
+    hands_pocket_max_elbow_deg: float = Field(
+        160.0, gt=0, le=180, description="... with the elbow bent at most this much (a straight hanging arm is ~170).")
+    hands_pocket_min_below: float = Field(-0.15, description="... and the wrist at hip height: at least this far below "
+                                                             "the hip joint (torso lengths; negative = above) ...")
+    hands_pocket_max_below: float = Field(0.35, description="... and at most this far below it.")
+    hands_pocket_max_motion: float = Field(
+        0.12, gt=0, description="... and still: the wrist moves less than this (torso lengths) within the posture window.")
+    hands_pocket_count_hidden: bool = Field(
+        False, description="Count a wrist that is not visible while its elbow hangs down as 'in a pocket'. Off by default: "
+                           "a camera that cuts off at the waist would flag it all the time.")
 
     @model_validator(mode="after")
     def _hysteresis_order(self) -> "PoseConfig":
@@ -179,7 +199,9 @@ class PoseConfig(_Cfg):
                  ("arms_crossed_clear_cross", "arms_crossed_min_cross"),
                  ("looking_down_clear_delta", "looking_down_min_delta"),
                  ("face_touch_max_distance", "face_touch_clear_distance"),
-                 ("arms_crossed_min_height", "arms_crossed_max_height"))
+                 ("arms_crossed_min_height", "arms_crossed_max_height"),
+                 ("head_tilt_clear_deg", "head_tilt_min_deg"),
+                 ("hands_pocket_min_below", "hands_pocket_max_below"))
         for low, high in pairs:
             if getattr(self, low) >= getattr(self, high):
                 raise ValueError(f"pose.{low} must be below pose.{high}")
@@ -256,6 +278,8 @@ class EpisodesConfig(_Cfg):
     looking_down: EpisodeTiming = Field(default_factory=lambda: EpisodeTiming(min_on_s=1.5, min_off_s=1.0))
     sway: EpisodeTiming = Field(default_factory=lambda: EpisodeTiming(min_on_s=2.0, min_off_s=1.5))
     fast_hands: EpisodeTiming = Field(default_factory=lambda: EpisodeTiming(min_on_s=2.0, min_off_s=1.5))
+    head_tilt: EpisodeTiming = Field(default_factory=lambda: EpisodeTiming(min_on_s=2.0, min_off_s=1.0))
+    hands_in_pockets: EpisodeTiming = Field(default_factory=lambda: EpisodeTiming(min_on_s=2.0, min_off_s=1.0))
 
 
 class CoachingConfig(_Cfg):

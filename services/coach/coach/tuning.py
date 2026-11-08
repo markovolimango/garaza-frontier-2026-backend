@@ -193,6 +193,23 @@ def render(snapshot: dict, *, header: list[str] = (), suggestions=(), color: boo
                                 f"{pose.get('head_pitch_reference_percentile', 0):.0f} over "
                                 f"{pose.get('head_pitch_reference_window_s', 0):.0f}s, needs "
                                 f"{pose.get('head_pitch_reference_min_s', 0):.0f}s)"))
+    # episode-only behaviours (report, progress, moments; no vignette)
+    tilt, tilt_on, tilt_off = posture.get("head_roll_delta"), pose.get("head_tilt_min_deg"), pose.get("head_tilt_clear_deg")
+    shade = DIM
+    if isinstance(tilt, (int, float)) and tilt_on is not None and tilt_off is not None:
+        shade = RED if tilt >= tilt_on else GREEN if tilt < tilt_off else YELLOW
+    lines.append(f"  {'head tilt':<14}{c(shade, _num(tilt, 7))}  {'>= ' + _num(tilt_on, 0):<10}{'< ' + _num(tilt_off, 0):<10}"
+                 f"{'episode only':<26}{c(DIM, 'degrees vs usual')}")
+    lines.append(c(DIM, f"      head roll{_num(posture.get('head_roll'))} · usual{_num(posture.get('head_roll_reference'))}"
+                        f" (median over {pose.get('head_roll_reference_window_s', 0):.0f}s, needs "
+                        f"{pose.get('head_roll_reference_min_s', 0):.0f}s)"))
+    hands = posture.get("hands_in_pockets_count")
+    lines.append(f"  {'hands pockets':<14}{c(RED if hands else GREEN if hands == 0 else DIM, _num(hands, 7))}  {'>= 1':<10}"
+                 f"{'0':<10}{'episode only':<26}{c(DIM, 'hands')}")
+    dist, bend = posture.get("hand_pocket_distance") or {}, posture.get("elbow_angle") or {}
+    lines.append(c(DIM, f"      wrist-hip L{_num(dist.get('left'))} R{_num(dist.get('right'))} (<= "
+                        f"{pose.get('hands_pocket_max_distance', 0):.2f} shoulder widths) · elbow L{_num(bend.get('left'))}"
+                        f" R{_num(bend.get('right'))} (<= {pose.get('hands_pocket_max_elbow_deg', 0):.0f} deg)"))
     if posture.get("note"):
         lines.append(c(DIM, f"  {posture['note']}"))
     lines.append(c(DIM, f"  values in torso lengths (speeds per second), medians over {posture.get('window_s', '-')}s"

@@ -100,6 +100,12 @@
         },
         "fast_hands": {
           "$ref": "#/$defs/EpisodeTiming"
+        },
+        "head_tilt": {
+          "$ref": "#/$defs/EpisodeTiming"
+        },
+        "hands_in_pockets": {
+          "$ref": "#/$defs/EpisodeTiming"
         }
       },
       "title": "EpisodesConfig",
@@ -356,6 +362,74 @@
           "minimum": 0,
           "title": "Head Pitch Reference Min S",
           "type": "number"
+        },
+        "head_tilt_min_deg": {
+          "default": 15.0,
+          "description": "Episode head_tilt: the eye line (or ear line) turned at least this many degrees against the shoulder line, compared with the person's usual angle.",
+          "exclusiveMinimum": 0,
+          "title": "Head Tilt Min Deg",
+          "type": "number"
+        },
+        "head_tilt_clear_deg": {
+          "default": 10.0,
+          "description": "Hysteresis: the tilt ends below this many degrees.",
+          "minimum": 0,
+          "title": "Head Tilt Clear Deg",
+          "type": "number"
+        },
+        "head_roll_reference_window_s": {
+          "default": 60.0,
+          "description": "Window for the usual head angle (median), so a habitual slight tilt is not flagged.",
+          "exclusiveMinimum": 0,
+          "title": "Head Roll Reference Window S",
+          "type": "number"
+        },
+        "head_roll_reference_min_s": {
+          "default": 5.0,
+          "description": "The usual head angle needs this much history (s).",
+          "minimum": 0,
+          "title": "Head Roll Reference Min S",
+          "type": "number"
+        },
+        "hands_pocket_max_distance": {
+          "default": 0.3,
+          "description": "Episode hands_in_pockets: wrist within this distance of its own hip, in shoulder widths (a relaxed hanging arm's wrist is ~0.5 away).",
+          "exclusiveMinimum": 0,
+          "title": "Hands Pocket Max Distance",
+          "type": "number"
+        },
+        "hands_pocket_max_elbow_deg": {
+          "default": 160.0,
+          "description": "... with the elbow bent at most this much (a straight hanging arm is ~170).",
+          "exclusiveMinimum": 0,
+          "maximum": 180,
+          "title": "Hands Pocket Max Elbow Deg",
+          "type": "number"
+        },
+        "hands_pocket_min_below": {
+          "default": -0.15,
+          "description": "... and the wrist at hip height: at least this far below the hip joint (torso lengths; negative = above) ...",
+          "title": "Hands Pocket Min Below",
+          "type": "number"
+        },
+        "hands_pocket_max_below": {
+          "default": 0.35,
+          "description": "... and at most this far below it.",
+          "title": "Hands Pocket Max Below",
+          "type": "number"
+        },
+        "hands_pocket_max_motion": {
+          "default": 0.12,
+          "description": "... and still: the wrist moves less than this (torso lengths) within the posture window.",
+          "exclusiveMinimum": 0,
+          "title": "Hands Pocket Max Motion",
+          "type": "number"
+        },
+        "hands_pocket_count_hidden": {
+          "default": false,
+          "description": "Count a wrist that is not visible while its elbow hangs down as 'in a pocket'. Off by default: a camera that cuts off at the waist would flag it all the time.",
+          "title": "Hands Pocket Count Hidden",
+          "type": "boolean"
         }
       },
       "title": "PoseConfig",

@@ -333,7 +333,7 @@ class BehaviorEpisodePayload(Strict):
     """One behaviour occurrence (coach/metrics/episodes.py): published once when it starts and once when
     it ends. Every occurrence, several at once; not throttled like coaching.feedback."""
     episode_id: str = Field(description="Same id on the start and the end event.")
-    behavior: Literal["arms_crossed", "face_touch", "looking_down", "sway", "fast_hands"]
+    behavior: Literal["arms_crossed", "face_touch", "looking_down", "sway", "fast_hands", "head_tilt", "hands_in_pockets"]
     phase: Literal["start", "end"]
     started_at: AwareDatetime = Field(description="When the condition began to hold (before min_on_s confirmed it).")
     ended_at: AwareDatetime | None = Field(None, description="End events: when the condition was last seen.")

@@ -23,16 +23,46 @@
     "head_pitch_reference_min_s": 5.0,
     "_other": "posture values are medians over posture_window_s; keypoints below min_confidence_2d are ignored (lower it if wrists vanish when the arms are crossed)",
     "posture_window_s": 1.0,
-    "min_confidence_2d": 0.3
+    "min_confidence_2d": 0.3,
+    "head_tilt_min_deg": 15.0,
+    "head_tilt_clear_deg": 10.0,
+    "head_roll_reference_window_s": 60.0,
+    "head_roll_reference_min_s": 5.0,
+    "hands_pocket_max_distance": 0.3,
+    "hands_pocket_max_elbow_deg": 160.0,
+    "hands_pocket_min_below": -0.15,
+    "hands_pocket_max_below": 0.35,
+    "hands_pocket_max_motion": 0.12,
+    "hands_pocket_count_hidden": false
   },
   "coaching": {
     "rules": {
       "_rules": "sustain_s = how long the condition must hold before a suggestion; cooldown_s = minimum time before the same rule again",
-      "body.hand_movement_high": {"enabled": true, "sustain_s": 10.0, "cooldown_s": 60.0},
-      "body.torso_movement_high": {"enabled": true, "sustain_s": 10.0, "cooldown_s": 60.0},
-      "body.arms_crossed": {"enabled": true, "sustain_s": 3.0, "cooldown_s": 45.0},
-      "body.face_touch": {"enabled": true, "sustain_s": 1.0, "cooldown_s": 30.0},
-      "body.looking_down": {"enabled": true, "sustain_s": 3.0, "cooldown_s": 30.0}
+      "body.hand_movement_high": {
+        "enabled": true,
+        "sustain_s": 10.0,
+        "cooldown_s": 60.0
+      },
+      "body.torso_movement_high": {
+        "enabled": true,
+        "sustain_s": 10.0,
+        "cooldown_s": 60.0
+      },
+      "body.arms_crossed": {
+        "enabled": true,
+        "sustain_s": 3.0,
+        "cooldown_s": 45.0
+      },
+      "body.face_touch": {
+        "enabled": true,
+        "sustain_s": 1.0,
+        "cooldown_s": 30.0
+      },
+      "body.looking_down": {
+        "enabled": true,
+        "sustain_s": 3.0,
+        "cooldown_s": 30.0
+      }
     }
   }
 }

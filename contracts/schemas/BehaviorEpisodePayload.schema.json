@@ -13,7 +13,9 @@
         "face_touch",
         "looking_down",
         "sway",
-        "fast_hands"
+        "fast_hands",
+        "head_tilt",
+        "hands_in_pockets"
       ],
       "title": "Behavior",
       "type": "string"
