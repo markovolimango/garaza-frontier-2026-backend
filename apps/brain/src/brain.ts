@@ -57,13 +57,13 @@ export interface Brain {
 }
 
 export function defaultScene(voices: string[]): SceneDef {
-  const seat = (n: 1 | 2 | 3, title: string, toughness: number, style: "warm" | "neutral" | "skeptical") => ({
+  const seat = (n: 1 | 2 | 3 | 4, title: string, toughness: number, style: "warm" | "neutral" | "skeptical") => ({
     id: `judge_${n}` as const, title, background: "Default panel until the brief is given.", seat: `judge_seat_${n}`,
     voiceId: voices[n - 1] ?? voices[0] ?? "default", toughness, style, priorities: [] as string[],
   });
   return {
     version: 1, venueId: "greybox", qa: { questions: 2, answerCapMs: 45_000 },
-    judges: [seat(1, "Audience member", 0.3, "warm"), seat(2, "Practical listener", 0.5, "neutral"), seat(3, "Critical listener", 0.8, "skeptical")],
+    judges: [seat(1, "Audience member", 0.3, "warm"), seat(2, "Practical listener", 0.5, "neutral"), seat(3, "Critical listener", 0.8, "skeptical"), seat(4, "Newcomer", 0.4, "warm")],
     audience: { count: 12 }, lighting: "default",
   };
 }

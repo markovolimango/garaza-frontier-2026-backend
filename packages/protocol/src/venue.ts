@@ -40,6 +40,7 @@ export const GREYBOX_VENUE: VenueDef = {
     judge_seat_1: { kind: "point", position: [-1.4, 0, -4], facing: [0, 0, 1] },
     judge_seat_2: { kind: "point", position: [0, 0, -4.2], facing: [0, 0, 1] },
     judge_seat_3: { kind: "point", position: [1.4, 0, -4], facing: [0, 0, 1] },
+    judge_seat_4: { kind: "point", position: [2.8, 0, -3.8], facing: [0, 0, 1] },
     audience_area: { kind: "area", polygon: [[-4, 1.5], [4, 1.5], [4, 5], [-4, 5]], y: 0 },
   },
   occluders: [{ kind: "box", center: [0, 0.37, -3.5], size: [3.6, 0.75, 0.8], yawDeg: 0 }],

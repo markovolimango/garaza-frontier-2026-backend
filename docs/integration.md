@@ -294,6 +294,7 @@ all in **`src/brain/` (new files only, never touched by Lovable)**:
 | `audio.ts` | JJ playback (24 kHz, flush on `audio.stop`, `audio.playback` reports) and mic capture (16 kHz worklet) |
 | `deck.ts` | PDF → 1920 px PNGs + text (pdf.js) → `POST /api/uploads/deck` |
 | `judges.ts` | `JudgeRelay`: `actor.say` / `actor.gesture` / judge audio → bus `judgeCommand` for the judges screen |
+| `preload.ts` | once the deck is in, loads the judges screen and its 61 MB of FBX into r3f's loader cache, so the room renders at once |
 | `brain-integration.itest.ts` | BrainSource against a real brain (`vitest.brain.config.ts`) |
 
 | Brain | Bus / screen |

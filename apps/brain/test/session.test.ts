@@ -355,7 +355,7 @@ describe("scene commands", () => {
   it("semantic checks: seats must exist, ids and seats unique, 1-5 judges", async () => {
     const t = setup();
     const bad = [
-      [{ op: "judges.set", judges: [judge(1, { seat: "judge_seat_4" })] }],
+      [{ op: "judges.set", judges: [judge(1, { seat: "judge_seat_5" })] }],   // no such seat
       [{ op: "judges.set", judges: [judge(1), judge(1, { seat: "judge_seat_2" })] }],
       [{ op: "judges.set", judges: [judge(1), judge(2, { seat: "judge_seat_1" })] }],
       [{ op: "judges.set", judges: [] }],

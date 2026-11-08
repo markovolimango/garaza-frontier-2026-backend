@@ -19,6 +19,7 @@ import type { SignalSource } from "../signals/sources/types";
 import { AudioOut, MicIn } from "./audio";
 import { pdfToSlides, uploadDeck } from "./deck";
 import { JudgeRelay } from "./judges";
+import { preloadJudges } from "./preload";
 import { feedbackToBus, orbTarget, reportsSlides, runClockChanges } from "./mapping";
 
 export interface BrainSourceOptions {
@@ -85,7 +86,11 @@ export class BrainSource implements SignalSource {
     this.started = true;
     const c = this.client;
     c.onStatus((status) => this.set({ status }));
-    c.on("ui.state", (p) => { this.set({ ui: p }); publish("jjMood", p.orb.score); });
+    c.on("ui.state", (p) => {
+      this.set({ ui: p });
+      publish("jjMood", p.orb.score);
+      if (p.view !== "setup" && this.o.audio !== false) preloadJudges();   // models ready before the Q&A
+    });
     c.on("run.state", (p) => {
       for (const cmd of runClockChanges(this.snap.run, p.run)) publish("runClock", cmd);   // presenter timer
       this.set({ run: p.run, sessionPhase: p.sessionPhase });

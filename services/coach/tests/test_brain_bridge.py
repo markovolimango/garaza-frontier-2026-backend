@@ -3,7 +3,7 @@
 import asyncio
 from datetime import datetime, timedelta, timezone
 
-from coach.brain_bridge import Bridge, hold_ms, sensor_status, vignette_for
+from coach.brain_bridge import Bridge, coach_session_plan, hold_ms, sensor_status, vignette_for
 
 NOW = datetime(2026, 11, 8, 12, 0, tzinfo=timezone.utc)
 LIVE = {"phase": "presentation", "paused": False, "feedbackLevel": "strong", "enabledCategories": ["movement", "pace"]}
@@ -105,3 +105,52 @@ def test_bridge_no_vignette_outside_runs_and_status_throttled():
 def test_no_vignette_flag_never_uses_operator():
     b = Bridge("http://coach", "http://brain", lambda: "t", vignette=False)
     assert b.operator is None
+
+
+def test_coach_session_follows_the_brain_run():
+    run = lambda phase="presentation", paused=False, run_id="run_1": {"runId": run_id, "phase": phase, "paused": paused}
+    mine = lambda state="running", run_id="run_1": {"id": "ses_1", "run_id": run_id, "state": state}
+    assert coach_session_plan(None, run("countdown"), "running") == []
+    assert coach_session_plan(None, run(), "running") == ["create", "start"]
+    assert coach_session_plan(None, run(paused=True), "running") == ["create", "start", "pause"]
+    assert coach_session_plan(mine(), run(), "running") == []
+    assert coach_session_plan(mine(), run("qa"), "running") == []                      # Q&A is coached too
+    assert coach_session_plan(mine(), run(paused=True), "running") == ["pause"]       # JJ is listening
+    assert coach_session_plan(mine("paused"), run(), "running") == ["resume"]
+    assert coach_session_plan(mine(), run("ended"), "running") == ["stop"]
+    assert coach_session_plan(mine(), None, "debrief") == ["stop"]
+    assert coach_session_plan(mine("ended"), None, "debrief") == []
+    assert coach_session_plan(mine(), run(run_id="run_2"), "running") == ["stop", "create", "start"]
+
+
+def test_bridge_runs_session_actions_in_order_and_once():
+    calls = []
+
+    async def scenario():
+        b = Bridge("http://coach", "http://brain", lambda: "t")
+        async def act(action):
+            calls.append(action)
+            if action == "create":
+                b.coach_session = {"id": "ses_x", "run_id": b.run_state["runId"], "state": "created"}
+            else:
+                b.coach_session["state"] = {"start": "running", "pause": "paused", "resume": "running", "stop": "ended"}[action]
+            return True
+        b._session_action = act
+        live = {"runId": "run_1", "phase": "presentation", "paused": False}
+        b._on_brain({"type": "run.state", "payload": {"run": live, "sessionPhase": "running"}})
+        b._on_brain({"type": "run.state", "payload": {"run": live, "sessionPhase": "running"}})   # same state again
+        await b._session_task
+        b._on_brain({"type": "run.state", "payload": {"run": {**live, "phase": "ended"}, "sessionPhase": "running"}})
+        await b._session_task
+
+    asyncio.run(scenario())
+    assert calls == ["create", "start", "stop"]
+
+
+def test_no_sessions_flag_leaves_coach_sessions_alone():
+    async def scenario():
+        b = Bridge("http://coach", "http://brain", lambda: "t", sessions=False)
+        b._on_brain({"type": "run.state", "payload": {"run": {"runId": "r", "phase": "presentation", "paused": False},
+                                                       "sessionPhase": "running"}})
+        return b._session_task
+    assert asyncio.run(scenario()) is None

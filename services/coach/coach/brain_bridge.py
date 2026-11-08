@@ -5,6 +5,9 @@ It follows the coach's latest active session and forwards, to the brain
 (github.com/markovolimango/garaza-frontier-2026-backend, default http://127.0.0.1:8787):
 
   body.metrics       -> sensor.status   (role "sensor": camera ok / no_person / error, fps), on change or 1 Hz
+  brain run          -> coach session: created and started when the presentation starts, paused
+                        while JJ is listening, stopped when the run ends, so `vision/run.sh --coach`
+                        (or the iPhone app) has a running session to send pose frames to
   coaching.feedback  -> behavior sway start/end   (role "sensor"; only body.torso_movement_high maps
                         to a sensor behaviour the brain protocol accepts)
                      -> operator.override vignette (role "operator") while a run is live, so the stage
@@ -16,7 +19,7 @@ Why the operator override: the brain accepts `behavior` but has no feedback cont
 nothing would show. The override is a message the brain already handles. The brain allows one
 connection per role, so use --no-vignette when a real operator panel is open.
 
-  python -m coach brain-bridge [--url http://127.0.0.1:8765] [--brain http://127.0.0.1:8787] [--force]
+  python -m coach brain-bridge [--url http://127.0.0.1:8765] [--brain http://127.0.0.1:8787] [--force] [--no-sessions]
 """
 
 from __future__ import annotations
@@ -33,7 +36,7 @@ from typing import Any, Callable
 import websockets
 from websockets.exceptions import ConnectionClosed, InvalidHandshake, InvalidStatus
 
-from coach.client import ws_url
+from coach.client import CoachClient, ws_url
 
 log = logging.getLogger("coach.brain_bridge")
 
@@ -105,6 +108,22 @@ def vignette_for(feedback: dict, run: dict | None, session_phase: str | None, *,
             "holdMs": hold_ms(feedback, now)}
 
 
+def coach_session_plan(current: dict | None, run: dict | None, session_phase: str | None) -> list[str]:
+    """Brain run -> actions on the coach session the bridge owns ({"id", "run_id", "state"} or None).
+    The session spans the presentation and the Q&A, and pauses while JJ is listening."""
+    alive = bool(current) and current["state"] != "ended"
+    if not (run and session_phase == "running" and run.get("phase") in LIVE_RUN_PHASES):
+        return ["stop"] if alive else []
+    want = "paused" if run.get("paused") else "running"
+    if not alive or current["run_id"] != run.get("runId"):
+        return (["stop"] if alive else []) + ["create", "start"] + (["pause"] if want == "paused" else [])
+    if current["state"] == "running" and want == "paused":
+        return ["pause"]
+    if current["state"] == "paused" and want == "running":
+        return ["resume"]
+    return []
+
+
 # ---------------------------------------------------------------- brain connection
 
 class BrainLink:
@@ -169,7 +188,7 @@ class BrainLink:
 
 class Bridge:
     def __init__(self, coach_url: str, brain_url: str, token: Callable[[], str], *, vignette: bool = True,
-                 force: bool = False):
+                 force: bool = False, sessions: bool = True):
         self.coach_url, self.token = coach_url, token   # re-read per connect: the coach writes a new token per run
         self.force = force
         self.run_state: dict | None = None
@@ -180,12 +199,60 @@ class Bridge:
         self._last_status: tuple[dict, float] | None = None
         self._behavior_end: dict[str, asyncio.TimerHandle] = {}
         self.stats = {"feedback": 0, "vignettes": 0, "behaviors": 0, "status": 0}
+        self.sessions = sessions
+        self.coach_session: dict | None = None   # the session this bridge created for the current run
+        self._session_task: asyncio.Task | None = None
+        self._session_dirty = False
 
     # brain -> bridge
     def _on_brain(self, msg: dict) -> None:
         if msg.get("type") == "run.state":
             p = msg.get("payload") or {}
             self.run_state, self.session_phase = p.get("run"), p.get("sessionPhase")
+            if self.sessions:
+                self._kick_sessions()
+
+    # brain run -> coach session (serialised: one sync task at a time, re-run if the run changed meanwhile)
+    def _kick_sessions(self) -> None:
+        if self._session_task and not self._session_task.done():
+            self._session_dirty = True
+            return
+        self._session_task = asyncio.get_running_loop().create_task(self._sync_sessions())
+
+    async def _sync_sessions(self) -> None:
+        while True:
+            self._session_dirty = False
+            for action in coach_session_plan(self.coach_session, self.run_state, self.session_phase):
+                if not await self._session_action(action):
+                    break
+            if not self._session_dirty:
+                return
+
+    async def _session_action(self, action: str) -> bool:
+        def call() -> dict:
+            client = CoachClient(self.coach_url, self.token())
+            try:
+                if action == "create":
+                    return client.create_session(label=f"brain {(self.run_state or {}).get('runId', '')}", timeline="live")
+                return client.action(self.coach_session["id"], action)
+            finally:
+                client.http.close()
+        try:
+            session = await asyncio.to_thread(call)
+        except (Exception, SystemExit) as exc:   # coach down, token missing, 409 …: retried on the next run change
+            log.warning("coach: could not %s the session for the brain run (%s)", action, exc)
+            if action == "stop" and self.coach_session:
+                self.coach_session["state"] = "ended"   # gone or already ended: don't keep retrying
+            return False
+        if action == "create":
+            self.coach_session = {"id": session["session_id"], "run_id": (self.run_state or {}).get("runId"),
+                                  "state": session.get("state", "created")}
+        else:
+            self.coach_session["state"] = session.get("state", self.coach_session["state"])
+        log.info("coach: session %s %s for brain %s", self.coach_session["id"][:12],
+                 {"create": "created", "start": "started", "pause": "paused", "resume": "resumed",
+                  "stop": "stopped"}[action], self.coach_session["run_id"])
+        return True
 
     # coach -> brain
     async def handle_event(self, event: dict) -> None:
@@ -287,8 +354,9 @@ class Bridge:
 
 
 def run_bridge(coach_url: str, brain_url: str, token: Callable[[], str], *, vignette: bool = True,
-               force: bool = False) -> None:
+               force: bool = False, sessions: bool = True) -> None:
     logging.basicConfig(level=logging.INFO, format="%(asctime)s %(message)s", datefmt="%H:%M:%S")
+    logging.getLogger("httpx").setLevel(logging.WARNING)   # one line per REST call is noise here
     log.info("bridge: coach %s -> brain %s (vignette: %s)", coach_url, brain_url,
              "off" if not vignette else "always during runs" if force else "follows the brain's run settings")
-    asyncio.run(Bridge(coach_url, brain_url, token, vignette=vignette, force=force).run())
+    asyncio.run(Bridge(coach_url, brain_url, token, vignette=vignette, force=force, sessions=sessions).run())

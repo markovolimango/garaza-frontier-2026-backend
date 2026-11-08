@@ -83,6 +83,21 @@ bash scripts/coach-brain-bridge.sh --force     # demo: vinjeta na svaki predlog 
 bash scripts/coach-brain-bridge.sh --no-vignette   # kad je otvoren pravi operator panel (brain dozvoljava jednog)
 ```
 
+Most i pravi coach sesiju: kad u aplikaciji krene prezentacija, napravi je i pokrene, pauzira je dok JJ
+sluša i zaustavi je na kraju runa (`--no-sessions` isključuje to, npr. kad sesije vodi iPhone aplikacija).
+
+**Kamera (Mac + iPhone preko Continuity Camera, YOLO26):**
+
+```bash
+bash vision/setup.sh                          # jednom
+bash vision/run.sh --list-cameras             # nađi indeks kamere (iPhone ili ugrađena)
+bash vision/run.sh --camera 1 --coach         # slika + tačke, šalje pokrete coachu (1 je primer)
+```
+
+Redosled: brain, `coach-serve.sh`, `coach-brain-bridge.sh`, pa kamera. Kamera se sama upari sa coachom na
+istom Macu i šalje pokrete samo dok traje run. Vinjeta se pali u runu "With live feedback" (ruke, kretanje);
+predlozi o govoru (tempo, pauze, poštapalice) traže iPhone aplikaciju (`apple/`), jer Mac kamera nema zvuk.
+
 Dokumentacija:
 
 - [docs/api.md](docs/api.md): ugovor (REST, WebSocket, koordinate, vreme, greške, autentifikacija);

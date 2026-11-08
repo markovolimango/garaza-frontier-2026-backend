@@ -123,6 +123,19 @@
                 1
               ]
             },
+            "judge_seat_4": {
+              "kind": "point",
+              "position": [
+                2.8,
+                0,
+                -3.8
+              ],
+              "facing": [
+                0,
+                0,
+                1
+              ]
+            },
             "audience_area": {
               "kind": "area",
               "polygon": [
@@ -330,6 +343,19 @@
                 1.4,
                 0,
                 -4
+              ],
+              "facing": [
+                0,
+                0,
+                1
+              ]
+            },
+            "judge_seat_4": {
+              "kind": "point",
+              "position": [
+                2.8,
+                0,
+                -3.8
               ],
               "facing": [
                 0,

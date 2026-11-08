@@ -19,6 +19,24 @@ Lanes: `lead` (protocol), `brain`, `sensing`, `agents`, `stage`, `report`.
 
 ---
 
+### 2026-11-08T02:30+01:00 · brain · Four judges in the default panel (`judge_seat_4`)
+- **Where:** `packages/protocol/src/venue.ts` (`GREYBOX_VENUE.anchors.judge_seat_4`), `apps/brain/src/brain.ts` (`defaultScene`: + "Newcomer", warm, 0.4), `fixtures/messages/down.scene.sync.json` (regenerated), `apps/brain/test/session.test.ts` (non-existent seat is now `judge_seat_5`)
+- **What:** the default panel has 4 judges, matching the 4 seats of the stage's 3D room and the 4 judge voices.
+- **Why:** judge_4 had no seat, so it never spoke and the 4th 3D judge stayed silent.
+- **Impact:** context service: personas for 4 judges. `REQUIRED_ANCHORS` unchanged (3 seats still the minimum).
+
+### 2026-11-08T02:30+01:00 · stage · Judges preload (`src/brain/preload.ts`)
+- **Where:** `apps/frontend/src/brain/preload.ts`, `BrainSource.ts` (`ui.state` ≠ setup)
+- **What:** 1 s after the deck is in, imports the judges screen and calls `useLoader.preload(FBXLoader, …)` with the URLs `Judge.tsx` uses, so the Q&A room renders without fetching or parsing 61 MB of FBX. Measured: all 10 files fetched during the JJ intro, 0 after opening the judges screen; main-thread blocks on the JJ screen ≤ 217 ms each, 650 ms in total.
+- **Why:** the room stood empty for seconds after the slides.
+- **Impact:** judges lane: keep `CHARACTER_URL` / `CLIP_URLS` exported and loaded with `useLoader(FBXLoader, …)` (or update `preload.ts`). A compressed GLB would cut the 54 MB character further.
+
+### 2026-11-08T02:30+01:00 · sensing · Bridge creates the coach session for each brain run
+- **Where:** `services/coach/coach/brain_bridge.py` (`coach_session_plan`, `Bridge._sync_sessions`), `--no-sessions`
+- **What:** presentation starts → create a live coach session (label `brain run_N`) and start it; JJ listening → pause/resume; run ends → stop. `vision/run.sh --coach` and the iPhone app join the newest session, so camera frames flow only during runs. Verified with the real `CoachLink` and generated keypoints: session created, 341 frames accepted, `body.hand_movement_high` → `feedback.set warn` on the stage, session stopped at run end.
+- **Why:** nothing created coach sessions, so the camera had nowhere to send frames.
+- **Impact:** iPhone app / operator flows that create their own sessions: run the bridge with `--no-sessions`.
+
 ### 2026-11-08T02:10+01:00 · stage · UX fixes from a full walkthrough (resume, next run, timer, two tabs)
 - **Where:** `apps/frontend/src/brain/{BrainBridge.tsx, BrainSource.ts, mapping.ts, audio.ts, judges.ts}`; tagged edits in `src/signals/bus.ts` (+`runClock`), `src/components/presenter/Timer.tsx`, `src/components/JudgesStage.tsx`; `e2e/frontend-brain.mjs` (33 checks)
 - **What:** Esc or a click on "JJ is listening" invokes `resume_run`. After a run, JJ's screen is allowed (no snap-back) and a "Next run" bar offers `start_run` and `start_run {mode: training, level: strong}`. Snap-back hints say what to do. The presenter timer follows the run (`runClock`). `/ws/audio` and `/ws/mic` stop reconnecting after close 4001, so two tabs no longer steal the sockets from each other every second. The judges' audio turns on by itself after an earlier click on the page. Judge lines without audio fall back to text after 1.5 s (was 2.5 s).
