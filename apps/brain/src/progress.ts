@@ -48,8 +48,9 @@ export function buildProgress(records: RunRecord[], s: Readonly<SessionState>): 
   const round1 = (n: number) => Math.round(n * 10) / 10;
   const progressRows: ProgressRow[] = [...rows.entries()].map(([rule, { kind, label }]) => {
     const counts = runs.map((r) => {
-      if (!r.coachConnected) return null;
       const obs = r.observations.filter((o) => (rule.startsWith("kind:") ? o.kind === kind : o.rule === rule)).length;
+      // Measured when the camera coach was connected, or when the swarm's listener reported this rule (fillers).
+      if (!r.coachConnected && obs === 0) return null;
       return Math.max(obs, kind ? episodeTime(r, kind, r.endedAt ?? 0).count : 0);
     });
     const perMin = counts.map((c, i) => (c === null || !minutes[i] ? null : round1(c / minutes[i]!)));
