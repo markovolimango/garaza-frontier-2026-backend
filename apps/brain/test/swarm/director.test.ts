@@ -238,6 +238,32 @@ describe("director agent: JJ's brief", () => {
     expect(t.calls[1]!.prompt).toContain("judge_4 · Technical expert · style neutral · tone (neutral)");
   });
 
+  it("a reset forgets the brief and drops a plan still being written for the old session", async () => {
+    const prompts: string[] = [];
+    const pending: ((v: unknown) => void)[] = [];
+    const t = rig({
+      brief: { type: "director.brief", strictness: "tough", focus: ["pricing"], interrupts: true },
+      plan: (c) => { prompts.push(c.prompt); return new Promise((r) => { pending.push(r); }); },
+    });
+    await t.toPresentation();
+    await t.run(100);                                    // planning for run_1 is under way
+    expect(prompts[0]).toContain("judge_1 · Customer advocate · style warm · tone (tough)");
+    expect(prompts[0]).toContain("focus topics: pricing");
+    t.store.dispatch({ type: "reset" });
+    await t.toPresentation();                            // the next presenter: run_1 again
+    expect(t.store.get().run!.runId).toBe("run_1");
+    await t.run(100);
+    expect(prompts).toHaveLength(2);                     // a new plan for the new presenter, without the old brief
+    expect(prompts[1]).toContain("judge_1 · Customer advocate · style warm · tone (kind)");
+    expect(prompts[1]).not.toContain("pricing");
+    pending[0]!({ questions: [{ judgeId: "judge_1", topic: "old", text: "A question for the old presenter?", slideIndex: -1 }] });
+    await t.run(100);                                    // the old session's plan arrives late: dropped
+    t.store.dispatch({ type: "presentation_done" });
+    await t.run(2000);
+    expect(t.said.map((s) => s.judge)).toEqual(["judge_3"]);   // the template plan, not the stale one
+    expect(t.said[0]!.text).not.toContain("old presenter");
+  });
+
   it("interrupts (brief): a tough judge cuts in on a rambling answer past half the cap", async () => {
     const t = rig({ questions: 1, noLlm: true, brief: { type: "director.brief", interrupts: true } });
     await t.toPresentation();

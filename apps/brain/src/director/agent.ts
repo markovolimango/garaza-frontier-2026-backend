@@ -16,6 +16,8 @@
  *    Optional cut-ins (`interrupts: true`): a tough judge stops a rambling answer past half the cap.
  *  - Board: `judge.line` for questions, follow-ups (and cut-ins), the closing line (with `verdicts`)
  *    and reactions; a one-line `agent.note` to JJ at the end; `status` all the time.
+ *  - Reset (a new session): the brief, plans, verdicts and cut-ins are forgotten, and an LLM answer
+ *    still on its way for the old session is dropped (run ids restart at run_1).
  */
 import type { Downlink, Gesture, JudgeDef, JudgeId, RunId, SessionState } from "@coach/protocol";
 import type { Clock } from "../clock.ts";
@@ -69,6 +71,8 @@ export class DirectorAgent implements DirectorStrategy {
   private inFlight = false;
   private dirty = false;
   private lastReactionAt = -Infinity;
+  /** Bumped on a session reset: LLM answers for the old session are dropped (run ids restart at run_1). */
+  private gen = 0;
   private readonly verdicts = new Map<RunId, QaVerdict[]>();
   private readonly cutIns = new Set<string>();
   private readonly phraseWaiters = new Set<() => void>();
@@ -134,6 +138,7 @@ export class DirectorAgent implements DirectorStrategy {
 
   // ---------------- planning during the presentation ----------------
   private onSession(s: Readonly<SessionState>, cause: SessionCause): void {
+    if (!Array.isArray(cause) && cause.type === "reset") { this.reset(); return; }
     const run = s.run;
     const presenting = s.phase === "running" && run?.phase === "presentation" ? run.runId : null;
     if (presenting && presenting !== this.presenting) {
@@ -150,7 +155,20 @@ export class DirectorAgent implements DirectorStrategy {
       if (run?.phase !== "qa") this.setStatus("idle", "waiting for a run");   // ended without a Q&A
     }
     if (presenting && !Array.isArray(cause) && cause.type === "slide") this.schedulePlan(this.o.slideDebounceMs ?? 3000);
-    if (!Array.isArray(cause) && cause.type === "reset") { this.plan_ = null; this.verdicts.clear(); this.setStatus("idle", "waiting for a run"); }
+  }
+
+  /** A new session: nothing of the old one carries over (the board's brief is cleared with it). */
+  private reset(): void {
+    this.gen++;
+    this.clearTimers();
+    this.presenting = null;
+    this.brief = null;
+    this.plan_ = null;
+    this.inFlight = this.dirty = false;
+    this.lastReactionAt = -Infinity;
+    this.verdicts.clear();
+    this.cutIns.clear();
+    this.setStatus("idle", "waiting for a run");
   }
 
   private everyTick(): void {
@@ -181,6 +199,7 @@ export class DirectorAgent implements DirectorStrategy {
     if (!runId || !this.o.llm) return;
     if (this.inFlight) { this.dirty = true; return; }
     this.inFlight = true;
+    const gen = this.gen;
     const s = this.o.session.get();
     const count = this.count(s);
     const t0 = this.o.clock.now();
@@ -191,6 +210,7 @@ export class DirectorAgent implements DirectorStrategy {
         prompt: planPrompt({ count, panel: this.panel(s), deck: s.context.deck ?? null, brief: s.context.brief ?? null,
           transcript: this.o.board.transcript(runId, "presentation"), wishes: this.wishes() }),
       });
+      if (gen !== this.gen) { this.log("info", "director.plan_dropped", { runId, why: "session reset" }); return; }
       const qs = readPlan(out, s.scene.judges, count, s.context.deck?.slides.length ?? 0);
       if (!qs.length && count > 0) throw new Error("empty plan");
       if (this.plan_?.runId === runId && this.plan_.consumed) { this.log("info", "director.plan_late", { runId }); return; }
@@ -199,10 +219,12 @@ export class DirectorAgent implements DirectorStrategy {
     } catch (err) {
       this.log("warn", "director.plan_failed", { runId, ms: this.o.clock.now() - t0, err: String(err) });
     } finally {
-      this.inFlight = false;
-      if (this.presenting === runId) this.setStatus("listening", this.readyLabel());
-      if (this.dirty && this.presenting === runId) { this.dirty = false; this.schedulePlan(this.o.slideDebounceMs ?? 3000); }
-      else this.dirty = false;
+      if (gen === this.gen) {   // after a reset the flags belong to the new session
+        this.inFlight = false;
+        if (this.presenting === runId) this.setStatus("listening", this.readyLabel());
+        if (this.dirty && this.presenting === runId) { this.dirty = false; this.schedulePlan(this.o.slideDebounceMs ?? 3000); }
+        else this.dirty = false;
+      }
     }
   }
 
@@ -265,8 +287,9 @@ export class DirectorAgent implements DirectorStrategy {
     const s = this.o.session.get();
     const judge = s.scene.judges.find((j) => j.id === turn.q.judgeId);
     const followUpAllowed = a.followUpAllowed && this.brief?.followUps !== false;
+    const gen = this.gen;
     const fallback = (): NextStep => {
-      this.addVerdict(runId, turn, heuristicVerdict(String(turn.q.topic), turn.answer, turn.answerMs));
+      if (gen === this.gen) this.addVerdict(runId, turn, heuristicVerdict(String(turn.q.topic), turn.answer, turn.answerMs));
       // after a cut-in, ask for the short version instead of leaving the presenter hanging
       if (turn.interrupted && followUpAllowed) return { type: "followup", text: `In one sentence, please. ${turn.q.text}` };
       return { type: "next" };
@@ -280,6 +303,7 @@ export class DirectorAgent implements DirectorStrategy {
           answerMs: turn.answerMs, interrupted: turn.interrupted, followUpAllowed, remaining: a.remaining, wishes: this.wishes() }),
       });
       const d = readDecision(out);
+      if (gen !== this.gen) return { type: "next" };   // the Q&A was cancelled by a reset meanwhile
       this.addVerdict(runId, turn, { verdict: d.verdict, note: d.note });
       this.log("info", "director.decided", { runId, ms: this.o.clock.now() - t0, action: d.action, verdict: d.verdict, note: d.note });
       if (d.action === "followup" && followUpAllowed && d.text) return { type: "followup", text: d.text };
