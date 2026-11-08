@@ -15,6 +15,39 @@ corepack pnpm dev:brain            # brain on :8787 (watch: restarts on every co
 corepack pnpm dev:frontend         # Lovable app on :5174, wired to the brain
 ```
 
+### Agent swarm: JJ vodi tim agenata
+
+JJ (Gemini Live) razgovara sa tobom i vodi pet agenata koji rade preko zajedničke table (`apps/brain/src/swarm/`):
+
+| Agent | Šta radi |
+| --- | --- |
+| Slušalac | tokom prezentacije i Q&A sluša mikrofon (Gemini Live), piše transkript i hvata poštapalice ~1–2 s posle fraze |
+| Feedback | crvena vinjeta na nalet poštapalica (2+ u 10 s) u trening runu |
+| Režiser | dok pričaš planira pitanja sudija iz tvog transkripta; u Q&A postavlja dopunska pitanja na tvoj odgovor; sluša JJ-ove naloge ("neka budu strožiji", "pitaj o ceni") |
+| Telo | kamera (YOLO) uživo; posle runa Gemini gleda snimak i opisuje pokrete; JJ nudi isečke |
+| Izveštač | izveštaj po runu i za celu sesiju (JSON za ekran), PDF za preuzimanje |
+
+Panel "JJ's team" na ekranu pokazuje šta koji agent radi (taster A ga skuplja). JJ-u možeš reći: "make the judges
+tougher and ask me about pricing", "how many times did I say um?", "show me where I crossed my arms",
+"make the final report". Bez Gemini ključa svaki agent ima rezervni put (šabloni, izveštaj iz brojki).
+
+**Ceo test (sa ključem):**
+1. `.env`: `GEMINI_API_KEY` (obavezno), `ELEVENLABS_API_KEY` (glasovi sudija; bez njega sudije pišu titl). Slušalice
+   preporučene (Slušalac se gasi dok sudije pričaju, ali eho sa zvučnika može da prođe).
+2. `bash scripts/demo.sh --takeover --fresh --camera N` (stari servisi iz drugih terminala se gase).
+3. U browseru (`localhost:5174`): klik bilo gde (zvuk + mikrofon), ubaci PDF deck, dozvoli snimanje.
+4. JJ: odgovori na pitanja; reci "make the judges tough and ask about pricing". U panelu se vidi naredba Režiseru.
+5. Run 1 (Start run): pričaj sa "um/uh" i prekrsti ruke. Panel: Slušalac broji poštapalice, Telo vidi ruke,
+   Režiser planira pitanja. U baseline runu nema vinjete (to je namerno).
+6. Q&A: prvo pitanje treba da bude o ceni; odgovori izbegavajući broj, pa očekuj dopunsko pitanje istog sudije.
+7. Izveštaj: "Coach's analysis" stiže 10–25 s posle runa; JJ u debriefu pominje šta su agenti videli.
+8. Pitaj JJ "how many times did I say um?" i "show me where I crossed my arms".
+9. Run 2 "With live feedback": "um um" → crvena ivica posle ~1–2 s.
+10. Progress kartica → "Download PDF".
+
+Bez browsera i mikrofona, isti tok sa sintetičkim glasom (pravi Gemini, brain na posebnom portu):
+`BRAIN_URL=http://127.0.0.1:18871 node e2e/swarm-live.mjs pitch.wav answer.wav` (vidi zaglavlje skripte).
+
 ### Demo: jedna komanda
 
 ```bash
