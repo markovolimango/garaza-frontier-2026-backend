@@ -17,13 +17,7 @@ import { activeSource } from "../signals";
 import { ProgressView } from "./BrainProgress";
 import { RunAnalysis, SessionAnalysis } from "./CoachAnalysis";
 import { BrainSource } from "./BrainSource";
-
-export const fmtMs = (ms: number) => {
-  const s = Math.round(ms / 1000);
-  return `${Math.floor(s / 60)}:${String(s % 60).padStart(2, "0")}`;
-};
-const MODE: Record<RunDigest["mode"], string> = { baseline: "Baseline run", training: "Training run", test: "Test run" };
-const LEVEL: Record<RunDigest["level"], string> = { strong: "strong feedback", gentle: "gentle feedback", off: "no feedback" };
+import { fmtMs, LEVEL_LABEL, MODE_LABEL } from "./format";
 
 export const isBrainMode = () => activeSource instanceof BrainSource;
 
@@ -136,7 +130,7 @@ export function ReportView({ d, progress = null, tab = "run", onTab, focus = nul
       <header className="flex flex-wrap items-end justify-between gap-4">
         <div>
           <p className="font-mono text-xs uppercase tracking-widest text-muted-foreground">Report · run {d.index}</p>
-          <h1 className="mt-1 text-4xl font-semibold tracking-tight">{MODE[d.mode]} · {LEVEL[d.level]}</h1>
+          <h1 className="mt-1 text-4xl font-semibold tracking-tight">{MODE_LABEL[d.mode]} run · {LEVEL_LABEL[d.level]}</h1>
         </div>
         <div className="flex items-center gap-6 font-mono text-sm text-muted-foreground">
           {tabs}

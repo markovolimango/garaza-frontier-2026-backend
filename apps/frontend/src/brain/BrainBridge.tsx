@@ -20,7 +20,7 @@ import { AgentsPanel } from "./AgentsPanel";
 import { PreRunCheck } from "./PreRunCheck";
 import { BrainSource, type BrainSnapshot } from "./BrainSource";
 import { JJCaptions } from "./JJCaptions";
-import { DECK_ACCEPT, isPptx, pptxToPdf } from "./pptx";
+import { DECK_ACCEPT, openDeck } from "./pptx";
 import { MomentsPlayer } from "./MomentsPlayer";
 import { RunRecorder } from "./recorder";
 import { intentFor, viewToRoute, type ScreenPath } from "./mapping";
@@ -129,7 +129,7 @@ function Overlay({ snap, brain, jjScreen }: { snap: BrainSnapshot; brain: BrainS
           <label className="pointer-events-auto cursor-pointer">
             <Chip tone="jj">Upload slides (PDF or PowerPoint)</Chip>
             <input type="file" accept={DECK_ACCEPT} className="hidden"
-              onChange={(e) => { const f = e.target.files?.[0]; if (f) uploadDeck(brain, f); e.target.value = ""; }} />
+              onChange={(e) => { const f = e.target.files?.[0]; if (f) void openDeck(f, (pdf) => publish("deckFile", pdf), (t, l) => brain.toast(t, l)); e.target.value = ""; }} />
           </label>
         )}
         {snap.uploading && <Chip>Uploading deck…</Chip>}
@@ -184,13 +184,4 @@ function Overlay({ snap, brain, jjScreen }: { snap: BrainSnapshot; brain: BrainS
 function Chip({ children, tone }: { children: React.ReactNode; tone?: "warn" | "jj" | undefined }) {
   const cls = tone === "warn" ? "border-amber-500/60 text-amber-300" : tone === "jj" ? "border-violet-400/60 text-violet-200" : "border-border text-muted-foreground";
   return <span className={`rounded-full border bg-card/90 px-3 py-1 backdrop-blur ${cls}`}>{children}</span>;
-}
-
-/** PDF straight to the deck path; .pptx converted by PowerPoint on the brain's Mac first. */
-function uploadDeck(brain: BrainSource, file: File): void {
-  if (!isPptx(file)) { publish("deckFile", file); return; }
-  brain.toast("Converting the PowerPoint deck… (PowerPoint opens in the background)");
-  pptxToPdf(file)
-    .then(({ pdf }) => publish("deckFile", pdf))
-    .catch((err: unknown) => brain.toast(`Couldn't convert the .pptx: ${err instanceof Error ? err.message : String(err)}`, "warn"));
 }

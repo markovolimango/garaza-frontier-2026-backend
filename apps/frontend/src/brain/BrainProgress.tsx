@@ -5,11 +5,9 @@
  * per minute and the share of the run it took, the trend from the first measured run to the last
  * (per minute), and the targets' status.
  */
-import type { BehaviorKind, ProgressRow, ProgressRun, SessionProgress } from "@coach/protocol";
-import { fmtMs } from "./BrainReport";
+import type { BehaviorKind, ProgressRow, SessionProgress } from "@coach/protocol";
+import { fmtMs, LEVEL_LABEL, MODE_LABEL } from "./format";
 
-const MODE: Record<ProgressRun["mode"], string> = { baseline: "Baseline", training: "Training", test: "Test" };
-const LEVEL: Record<ProgressRun["level"], string> = { strong: "strong feedback", gentle: "gentle feedback", off: "no feedback" };
 const STAGE: Record<SessionProgress["coach"]["stage"], string> = {
   baseline: "Getting a baseline", training: "Training with live feedback", fading: "Fading the feedback out", test: "Test without feedback", done: "Done",
 };
@@ -38,7 +36,7 @@ export function ProgressView({ p, focus = null }: { p: SessionProgress; focus?: 
           {p.runs.map((r) => (
             <div key={r.runId} className="pb-2">
               <div className="text-lg font-semibold">Run {r.index}</div>
-              <div className="text-xs text-muted-foreground">{MODE[r.mode]} · {LEVEL[r.level]}</div>
+              <div className="text-xs text-muted-foreground">{MODE_LABEL[r.mode]} · {LEVEL_LABEL[r.level]}</div>
               <div className="font-mono text-xs text-muted-foreground">{fmtMs(r.presentationMs + r.qaMs)}{r.warnings > 0 ? ` · vignette ${r.warnings}×` : ""}</div>
             </div>
           ))}

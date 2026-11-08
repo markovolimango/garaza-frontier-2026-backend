@@ -6,7 +6,7 @@
  *   ui.state       → snapshot.ui (BrainBridge navigates) + bus "jjMood" (orb score, 0 red … 1 green)
  *   slide.show     → bus "slideCommand" (presenter jumps)
  *   bus "slide"    → slide.changed (only during the presentation)
- *   bus "deckFile" → POST /api/uploads/deck, then session.start
+ *   bus "deckFile" → POST /api/uploads/deck, then session.start (a .pptx is converted first: pptx.ts)
  *   scene.sync / scene.apply → local scene copy (ops applied, then ack) → bus "judgePanel" (seats + titles)
  *   actor.say / actor.gesture / actor.lookAt / judge audio → bus "judgeCommand" (JudgeRelay, judges screen)
  *   jj.transcript  → captions (CaptionStore, JJ's screen; cleared when a run starts or resumes)
@@ -80,6 +80,7 @@ export class BrainSource implements SignalSource {
     agents: [],
   };
   private recorder: RunRecorder | null = null;
+  private uploadsInFlight = 0;
   private readonly listeners = new Set<() => void>();
   private readonly unsubs: (() => void)[] = [];
   private audioOut: AudioOut | null = null;
@@ -292,18 +293,27 @@ export class BrainSource implements SignalSource {
     if (!this.snap.audioOn) this.set({ audioOn: true });
   }
 
+  /** Runs `work` as part of a deck upload (a .pptx conversion, the PDF upload): `uploading` stays on until all are done. */
+  async whileUploading<T>(work: () => Promise<T>): Promise<T> {
+    if (this.uploadsInFlight++ === 0) this.set({ uploading: true });
+    try {
+      return await work();
+    } finally {
+      if (--this.uploadsInFlight === 0) this.set({ uploading: false });
+    }
+  }
+
   /** PDF → slides → brain, then session.start when still in setup. */
   async uploadPdf(file: File): Promise<void> {
     if (this.snap.sessionPhase === "running") { this.toast("The deck can't change during a run", "warn"); return; }
-    this.set({ uploading: true });
-    try {
-      const { manifest, images } = await pdfToSlides(file);
-      await this.uploadSlides(manifest, images);
-    } catch (err) {
-      this.toast(`Deck upload failed: ${err instanceof Error ? err.message : String(err)}`, "warn");
-    } finally {
-      this.set({ uploading: false });
-    }
+    await this.whileUploading(async () => {
+      try {
+        const { manifest, images } = await pdfToSlides(file);
+        await this.uploadSlides(manifest, images);
+      } catch (err) {
+        this.toast(`Deck upload failed: ${err instanceof Error ? err.message : String(err)}`, "warn");
+      }
+    });
   }
 
   async uploadSlides(manifest: Parameters<typeof uploadDeck>[1], images: Blob[]): Promise<Deck> {

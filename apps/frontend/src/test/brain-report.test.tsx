@@ -3,7 +3,8 @@ import { describe, expect, it, vi } from "vitest";
 import type { RunDigest, SessionProgress } from "@coach/protocol";
 
 vi.mock("../components/NextButton", () => ({ NextButton: ({ label }: { label: string }) => <a>{label} →</a> }));
-const { ReportView, fmtMs } = await import("../brain/BrainReport");
+const { ReportView } = await import("../brain/BrainReport");
+const { fmtMs } = await import("../brain/format");
 const { ProgressView } = await import("../brain/BrainProgress");
 const { isWakePhrase } = await import("../brain/wake");
 

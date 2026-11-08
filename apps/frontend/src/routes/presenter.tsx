@@ -7,7 +7,7 @@ import { readPptxTimings } from "@/lib/pptxTimings";
 import { PdfPage } from "@/components/presenter/PdfPage";
 import { Btn, Timer, fmt } from "@/components/presenter/Timer";
 import { NextButton } from "@/components/NextButton";
-import { DECK_ACCEPT, isPptx, pptxTimingsFor, pptxToPdf } from "@/brain/pptx"; // brain integration: .pptx decks
+import { DECK_ACCEPT, PPTX_OK, openDeck, pptxTimingsFor } from "@/brain/pptx"; // brain integration: .pptx decks
 
 export const Route = createFileRoute("/presenter")({
   head: () => ({
@@ -115,15 +115,8 @@ function Presenter() {
   }
 
   // brain integration: a .pptx deck is converted to PDF by PowerPoint on the brain's Mac
-  async function onDeck(file: File) {
-    if (!isPptx(file)) return onPdf(file);
-    setStatus("Converting the PowerPoint deck… (PowerPoint opens in the background)");
-    try {
-      const { pdf } = await pptxToPdf(file);
-      await onPdf(pdf);
-    } catch (err) {
-      setStatus(`Couldn't convert the .pptx: ${err instanceof Error ? err.message : String(err)}`);
-    }
+  function onDeck(file: File) {
+    return openDeck(file, (pdf) => onPdf(pdf), (text) => setStatus(text));
   }
 
   async function onPptx(file: File) {
@@ -148,8 +141,8 @@ function Presenter() {
             <PdfPage doc={doc} index={slide} className="absolute inset-4" />
           ) : (
             <label className="absolute inset-0 flex cursor-pointer flex-col items-center justify-center gap-2 text-muted-foreground hover:text-foreground">
-              <span className="text-2xl">Upload your deck (PDF or PowerPoint)</span>
-              <span className="text-sm">click to choose a file · .pptx keeps your slide durations</span>
+              <span className="text-2xl">{PPTX_OK ? "Upload your deck (PDF or PowerPoint)" : "Upload your deck (PDF)"}</span>
+              <span className="text-sm">click to choose a file{PPTX_OK && " · .pptx keeps your slide durations"}</span>
               {status && <span className="text-sm text-foreground">{status}</span>}
               <input type="file" accept={DECK_ACCEPT} className="hidden" onChange={(e) => e.target.files?.[0] && onDeck(e.target.files[0])} />
             </label>
