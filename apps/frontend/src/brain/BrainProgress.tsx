@@ -17,14 +17,17 @@ const TREND: Record<ProgressRow["trend"], { icon: string; text: string; cls: str
   worse: { icon: "↑", text: "worse", cls: "text-amber-400" },
 };
 
-/** `focus`: the behaviour JJ is talking about (report.focus): its row lights up. */
-export function ProgressView({ p, focus = null }: { p: SessionProgress; focus?: BehaviorKind | null }) {
+/**
+ * `focus`: the behaviour JJ is talking about (report.focus): its row lights up. `headline` off when the
+ * reporter's session analysis above already leads with one.
+ */
+export function ProgressView({ p, focus = null, headline = true }: { p: SessionProgress; focus?: BehaviorKind | null; headline?: boolean }) {
   if (p.runs.length === 0) return <p className="text-muted-foreground">No finished run yet. Progress appears after the first run.</p>;
   const max = Math.max(1, ...p.rows.flatMap((r) => r.counts.map((c) => c ?? 0)));
   const cols = { gridTemplateColumns: `minmax(14rem, 1.4fr) repeat(${p.runs.length}, minmax(6rem, 1fr)) 7rem` };
   return (
     <div className="flex flex-col gap-6">
-      {p.headline && (
+      {headline && p.headline && (
         <p className="rounded-xl border border-primary/40 bg-primary/10 px-5 py-4 text-2xl font-medium tracking-tight">
           {p.headline}
         </p>

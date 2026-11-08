@@ -5,17 +5,19 @@
  *   judges' questions, strengths and the next run;
  * - Progress: run 1 → 2 → 3 (`GET /api/progress`, SessionProgress, BrainProgress.tsx). The brain's
  *   final view opens on it; after two runs the run tab shows its headline.
+ * Over each tab, the reporter's written analysis (CoachAnalysis.tsx); once it is there, the sections
+ * it covers better (questions, strengths, next run; the headline, first → last) are not repeated.
  * The behaviour JJ is talking about (report.focus) lights up on both tabs.
- * The progress tab also has "Export report" (the brain's printable page, GET /api/session/export.html)
- * and "Delete and start over" (POST /api/session/reset: erases the session from the brain's disk).
- * The "Next run" bar comes from BrainBridge.
+ * The progress tab also has "Export report" (the reporter's PDF, GET /api/swarm/report/session.pdf, with
+ * the brain's printable page GET /api/session/export.html next to it) and "Delete and start over"
+ * (POST /api/session/reset: erases the session from the brain's disk). The "Next run" bar comes from BrainBridge.
  */
-import type { BehaviorKind, RunDigest, SessionProgress } from "@coach/protocol";
+import type { BehaviorKind, RunDigest, RunNarrative, SessionNarrative, SessionProgress } from "@coach/protocol";
 import { useEffect, useRef, useState, useSyncExternalStore, type ReactNode } from "react";
 import { NextButton } from "../components/NextButton";
 import { activeSource } from "../signals";
 import { ProgressView } from "./BrainProgress";
-import { RunAnalysis, SessionAnalysis } from "./CoachAnalysis";
+import { RunReply, SessionReply, useNarrative, type Reply } from "./CoachAnalysis";
 import { BrainSource } from "./BrainSource";
 import { fmtMs, LEVEL_LABEL, MODE_LABEL } from "./format";
 
@@ -51,15 +53,23 @@ function Report({ brain }: { brain: BrainSource }) {
     get<SessionProgress>("/api/progress").then((p) => { if (live) setProgress(p); }).catch(() => {});   // optional: the run tab works without it
     return () => { live = false; };
   }, [brain, runId, snap.reportReady]);
+  // the reporter's analysis of what is on screen (polled only for the tab shown)
+  const shown: ReportTab = tab === "progress" && progress ? "progress" : "run";
+  const runReply = useNarrative<RunNarrative>(digest && shown === "run" ? `${brain.httpBase}/api/swarm/report/run/${encodeURIComponent(digest.runId)}` : null);
+  const sessionReply = useNarrative<SessionNarrative>(shown === "progress" ? `${brain.httpBase}/api/swarm/report/session` : null);
   if (!runId) return <Empty text="No run yet. Start one from JJ's screen." />;
   if (error) return <Empty text={`Couldn't load the report (${error}).`} />;
   if (!digest) return <Empty text="Loading the report…" />;
-  return <ReportView d={digest} progress={progress} tab={tab} onTab={setTab} focus={snap.focus} actions={<SessionActions brain={brain} />}
-    analysis={<RunAnalysis httpBase={brain.httpBase} runId={digest.runId} />} sessionAnalysis={<SessionAnalysis httpBase={brain.httpBase} />} />;
+  return <ReportView d={digest} progress={progress} tab={tab} onTab={setTab} focus={snap.focus} runReply={runReply} sessionReply={sessionReply}
+    actions={<SessionActions brain={brain} pdf={sessionReply.status !== "error"} />} />;
 }
 
-/** Export the session report; erase the session and start over (asks first). */
-function SessionActions({ brain }: { brain: BrainSource }) {
+/**
+ * Export the session report: the reporter's PDF, with the brain's printable page next to it (the page
+ * alone when there is no reporter). Opened in a new tab, so a failing download can't take the app (its
+ * connection, mic and recording) away. Erase the session and start over (asks first).
+ */
+export function SessionActions({ brain, pdf = true }: { brain: Pick<BrainSource, "httpBase" | "toast">; pdf?: boolean }) {
   const [busy, setBusy] = useState(false);
   const erase = () => {
     if (!window.confirm("Delete this practice session (runs, reports and anything you told JJ) from this computer and start over?")) return;
@@ -71,11 +81,19 @@ function SessionActions({ brain }: { brain: BrainSource }) {
       .finally(() => setBusy(false));
   };
   const btn = "pointer-events-auto rounded-full border px-4 py-1.5 font-sans text-sm";
+  const page = `${brain.httpBase}/api/session/export.html`;
   return (
     <>
-      <a href={`${brain.httpBase}/api/session/export.html`} target="_blank" rel="noreferrer" className={`${btn} border-primary/60 text-primary hover:bg-primary/10`}>
-        Export report
-      </a>
+      <span className="pointer-events-auto inline-flex overflow-hidden rounded-full border border-primary/60 font-sans text-sm">
+        {pdf && (
+          <a href={`${brain.httpBase}/api/swarm/report/session.pdf?download=1`} download target="_blank" rel="noopener" className="bg-primary px-4 py-1.5 text-primary-foreground hover:opacity-90">
+            Export report
+          </a>
+        )}
+        <a href={page} target="_blank" rel="noopener" className={`px-4 py-1.5 text-primary hover:bg-primary/10 ${pdf ? "border-l border-primary/60" : ""}`}>
+          {pdf ? "Printable page" : "Export report"}
+        </a>
+      </span>
       <button type="button" disabled={busy} onClick={erase} className={`${btn} border-destructive/60 text-destructive hover:bg-destructive/10 disabled:opacity-50`}>
         Delete and start over
       </button>
@@ -87,13 +105,15 @@ function Empty({ text }: { text: string }) {
   return <main className="flex h-screen items-center justify-center text-lg text-muted-foreground">{text}</main>;
 }
 
-export function ReportView({ d, progress = null, tab = "run", onTab, focus = null, actions = null, analysis = null, sessionAnalysis = null }: {
+export function ReportView({ d, progress = null, tab = "run", onTab, focus = null, actions = null, runReply = null, sessionReply = null }: {
   d: RunDigest; progress?: SessionProgress | null; tab?: ReportTab; onTab?: (t: ReportTab) => void; actions?: ReactNode;
   /** The behaviour JJ is talking about (report.focus, JJ's highlight_pattern): its card lights up. */
   focus?: BehaviorKind | null;
-  /** The swarm reporter's run / session analysis (CoachAnalysis.tsx). */
-  analysis?: ReactNode; sessionAnalysis?: ReactNode;
+  /** The swarm reporter's run / session analysis (CoachAnalysis.tsx); null without a reporter. */
+  runReply?: Reply<RunNarrative> | null; sessionReply?: Reply<SessionNarrative> | null;
 }) {
+  const rn = runReply?.report ?? null;          // once written, the narrative's questions, strengths and next run replace the digest's
+  const sn = sessionReply?.report ?? null;
   const main = useRef<HTMLElement>(null);
   useEffect(() => {
     if (focus) main.current?.querySelector("[data-focus]")?.scrollIntoView?.({ block: "nearest", behavior: "smooth" });
@@ -120,8 +140,8 @@ export function ReportView({ d, progress = null, tab = "run", onTab, focus = nul
           </div>
           <div className="flex items-center gap-4">{tabs}{actions}<NextButton to="/" label="Back to JJ" /></div>
         </header>
-        {sessionAnalysis}
-        <ProgressView p={progress} focus={focus} />
+        {sessionReply && <SessionReply r={sessionReply} progressTable />}
+        <ProgressView p={progress} focus={focus} headline={!sn} />
       </main>
     );
   }
@@ -151,9 +171,9 @@ export function ReportView({ d, progress = null, tab = "run", onTab, focus = nul
         <p className="text-sm text-muted-foreground">Working on: {d.targets.map((t) => <span key={t} className="ml-2 rounded-full border border-primary/50 px-2 py-0.5 text-foreground">{t.replace("_", " ")}</span>)}</p>
       )}
 
-      {analysis}
+      {runReply && <RunReply r={runReply} />}
 
-      <div className={`grid flex-1 grid-cols-3 gap-6 ${analysis ? "min-h-[28rem]" : "min-h-0"}`}>
+      <div className={`grid flex-1 gap-6 ${rn ? "grid-cols-2" : "grid-cols-3"} ${runReply ? "min-h-[28rem]" : "min-h-0"}`}>
         <Section title="What the coach noticed">
           {!d.sources.coach && <p className="text-sm text-muted-foreground">The camera coach wasn't connected during this run, so there are no body or speech observations.</p>}
           {d.sources.coach && d.observations.length === 0 && <p className="text-sm text-muted-foreground">Nothing flagged. A clean run.</p>}
@@ -182,7 +202,7 @@ export function ReportView({ d, progress = null, tab = "run", onTab, focus = nul
               </li>
             ))}
           </ul>
-          {d.strengths.length > 0 && (
+          {d.strengths.length > 0 && !rn && (
             <div className="mt-5">
               <h3 className="mb-2 text-sm font-medium text-muted-foreground">Went well</h3>
               <ul className="space-y-1 text-sm">{d.strengths.map((s) => <li key={s}>✓ {s}</li>)}</ul>
@@ -205,21 +225,23 @@ export function ReportView({ d, progress = null, tab = "run", onTab, focus = nul
           </ul>
         </Section>
 
-        <Section title="The judges asked">
-          {d.qa.length === 0 && <p className="text-sm text-muted-foreground">No questions this run.</p>}
-          <ol className="space-y-3">
-            {d.qa.map((q, i) => (
-              <li key={i} className="rounded-lg border border-border bg-background/40 p-3">
-                <p className="text-xs uppercase tracking-wide text-muted-foreground">{q.judgeTitle}</p>
-                <p className="mt-1">{q.question}</p>
-                <p className="mt-1 font-mono text-xs text-muted-foreground">{q.answerMs > 0 ? `answered for ${fmtMs(q.answerMs)}` : "no answer heard"}</p>
-              </li>
-            ))}
-          </ol>
-        </Section>
+        {!rn && (
+          <Section title="The judges asked">
+            {d.qa.length === 0 && <p className="text-sm text-muted-foreground">No questions this run.</p>}
+            <ol className="space-y-3">
+              {d.qa.map((q, i) => (
+                <li key={i} className="rounded-lg border border-border bg-background/40 p-3">
+                  <p className="text-xs uppercase tracking-wide text-muted-foreground">{q.judgeTitle}</p>
+                  <p className="mt-1">{q.question}</p>
+                  <p className="mt-1 font-mono text-xs text-muted-foreground">{q.answerMs > 0 ? `answered for ${fmtMs(q.answerMs)}` : "no answer heard"}</p>
+                </li>
+              ))}
+            </ol>
+          </Section>
+        )}
       </div>
 
-      {d.next && (
+      {d.next && !rn?.nextRun && (
         <p className="rounded-lg border border-border bg-card/60 px-4 py-3 text-sm">
           <span className="text-muted-foreground">Next: </span>{d.next.reason}
         </p>

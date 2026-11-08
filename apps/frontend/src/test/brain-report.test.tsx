@@ -1,9 +1,9 @@
 import { render, screen } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
-import type { RunDigest, SessionProgress } from "@coach/protocol";
+import type { RunDigest, RunNarrative, SessionNarrative, SessionProgress } from "@coach/protocol";
 
 vi.mock("../components/NextButton", () => ({ NextButton: ({ label }: { label: string }) => <a>{label} →</a> }));
-const { ReportView } = await import("../brain/BrainReport");
+const { ReportView, SessionActions } = await import("../brain/BrainReport");
 const { fmtMs } = await import("../brain/format");
 const { ProgressView } = await import("../brain/BrainProgress");
 const { isWakePhrase } = await import("../brain/wake");
@@ -106,5 +106,63 @@ describe("Hey JJ by voice", () => {
   it("recognises the wake phrase the way speech recognition writes it", () => {
     for (const t of ["hey JJ", "Hey, J.J.", "okay jay jay what do you think", "hi jj", "hey jayjay", "hej džej džej"]) expect(isWakePhrase(t), t).toBe(true);
     for (const t of ["the jj screen", "hey jessica", "hey jay", "they jj"]) expect(isWakePhrase(t), t).toBe(false);
+  });
+});
+
+const narrative: RunNarrative = {
+  runId: "run_2", index: 2, headline: "Steadier, but the price answer wandered.", summary: "Less swaying than run 1.",
+  strengths: [{ text: "Calm opening", evidence: "" }], improvements: [],
+  fillers: { count: 3, perMin: 1, top: [], examples: [], measured: true },
+  qa: [{ judge: "VC investor", question: "How did you arrive at that price?", answerSummary: "Cost plus.", verdict: "ok", tip: "" }],
+  body: [], nextRun: "Same deck, stand still on slide 2.", source: "llm",
+};
+const sessionNarrative: SessionNarrative = {
+  headline: "Swaying is gone", summary: "Three runs.", progress: ["Moving around / swaying: 3 → 0"], strengths: [], focus: [],
+  runs: [{ runId: "run_1", index: 1, headline: "First try" }], source: "llm",
+};
+
+describe("one report, no section twice", () => {
+  it("run tab: once the analysis is written, its questions, strengths and next run replace the digest's", () => {
+    render(<ReportView d={digest} runReply={{ status: "ready", report: narrative }} />);
+    expect(screen.getByText("Steadier, but the price answer wandered.")).toBeTruthy();
+    expect(screen.getAllByText("How did you arrive at that price?")).toHaveLength(1);
+    expect(screen.queryByText("The judges asked")).toBeNull();
+    expect(screen.queryByText("✓ No long pauses")).toBeNull();
+    expect(screen.queryByText("Next run with gentle live feedback on swaying.")).toBeNull();
+    expect(screen.getByText("Same deck, stand still on slide 2.")).toBeTruthy();
+    expect(screen.getByText("Moving around / swaying")).toBeTruthy();         // what the coach noticed stays
+  });
+
+  it("run tab: while the analysis is written, the digest shows everything", () => {
+    render(<ReportView d={digest} runReply={{ status: "pending", report: null }} />);
+    expect(screen.getByText(/The reporter is writing/)).toBeTruthy();
+    expect(screen.getByText("The judges asked")).toBeTruthy();
+    expect(screen.getByText("Next run with gentle live feedback on swaying.")).toBeTruthy();
+  });
+
+  it("progress tab: one headline, first → last left to the table", () => {
+    render(<ReportView d={digest} progress={progress} tab="progress" onTab={() => {}} sessionReply={{ status: "ready", report: sessionNarrative }} />);
+    expect(screen.getByText("Swaying is gone")).toBeTruthy();
+    expect(screen.queryByText(progress.headline!)).toBeNull();
+    expect(screen.queryByText("First run → last")).toBeNull();
+    expect(screen.getByText("↓ better")).toBeTruthy();
+  });
+
+  it("progress tab without the analysis keeps the progress headline", () => {
+    render(<ReportView d={digest} progress={progress} tab="progress" onTab={() => {}} sessionReply={{ status: "none", report: null }} />);
+    expect(screen.getByText(progress.headline!)).toBeTruthy();
+  });
+
+  it("one Export report: the PDF in a new tab, the printable page next to it", () => {
+    const brain = { httpBase: "http://b", toast: vi.fn() };
+    const { rerender } = render(<SessionActions brain={brain} />);
+    const pdf = screen.getByText("Export report");
+    expect(pdf.getAttribute("href")).toBe("http://b/api/swarm/report/session.pdf?download=1");
+    expect(pdf.getAttribute("target")).toBe("_blank");
+    expect(pdf.getAttribute("rel")).toBe("noopener");
+    expect(screen.getByText("Printable page").getAttribute("href")).toBe("http://b/api/session/export.html");
+    rerender(<SessionActions brain={brain} pdf={false} />);              // no reporter: the page is the export
+    expect(screen.getAllByText("Export report")).toHaveLength(1);
+    expect(screen.getByText("Export report").getAttribute("href")).toBe("http://b/api/session/export.html");
   });
 });

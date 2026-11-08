@@ -38,13 +38,16 @@ describe("coach's analysis", () => {
     expect(screen.getByText("written by the reporter")).toBeTruthy();
   });
 
-  it("shows the session narrative with the PDF download", () => {
-    render(<SessionNarrativeView n={session} pdfHref="http://b/api/swarm/report/session.pdf?download=1" />);
+  it("shows the session narrative; next to the progress table it leaves first → last to the table", () => {
+    const { rerender } = render(<SessionNarrativeView n={session} />);
     expect(screen.getByText("Fewer fillers, open arms")).toBeTruthy();
     expect(screen.getByText("Pauses instead of fillers")).toBeTruthy();
     expect(screen.getByText("Filler words: 14 → 5 (3.2 → 1.1/min)")).toBeTruthy();
     expect(screen.getByText("from the measurements")).toBeTruthy();
-    expect(screen.getByText("Download PDF").getAttribute("href")).toBe("http://b/api/swarm/report/session.pdf?download=1");
+    expect(screen.queryByText("Download PDF")).toBeNull();          // the report's one "Export report" has it
+    rerender(<SessionNarrativeView n={session} progressTable />);
+    expect(screen.queryByText("First run → last")).toBeNull();
+    expect(screen.getByText("Run by run")).toBeTruthy();
   });
 
   it("polls while the reporter writes, then shows the report", async () => {
