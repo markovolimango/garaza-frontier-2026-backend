@@ -12,6 +12,7 @@
  *   jj.transcript  → captions (CaptionStore, JJ's screen; cleared when a run starts or resumes)
  *   JJ audio level → bus "orbLevel"
  *   run.state       → bus "runClock" (presenter timer: start / pause / resume / stop)
+ *   swarm.activity  → snapshot.agents (AgentsPanel: JJ's team)
  */
 import { loadConsent, RunRecorder, saveConsent, type ConsentState } from "./recorder";
 import type { Deck, DownlinkPayload, JJState, RunState, SceneDef, SessionPhase, ToolName, ToolResult, UplinkPayload, UplinkType } from "@coach/protocol";
@@ -59,6 +60,8 @@ export interface BrainSnapshot {
   recordConsent: ConsentState;
   /** A run is being recorded right now. */
   recording: boolean;
+  /** JJ's team: the swarm agents' live states (swarm.activity), for the agents panel. */
+  agents: DownlinkPayload<"swarm.activity">["agents"];
 }
 
 export function brainOptionsFromEnv(): BrainSourceOptions {
@@ -72,6 +75,7 @@ export class BrainSource implements SignalSource {
     status: "closed", ui: null, run: null, sessionPhase: null, jj: null, countdown: null, deck: null,
     uploading: false, audioOn: false, toasts: [], lastSay: null, reportReady: null, focus: null,
     moments: null, recordConsent: typeof window === "undefined" ? null : loadConsent(), recording: false,
+    agents: [],
   };
   private recorder: RunRecorder | null = null;
   private readonly listeners = new Set<() => void>();
@@ -145,6 +149,7 @@ export class BrainSource implements SignalSource {
     c.on("report.ready", (p) => this.set({ reportReady: p }));
     c.on("report.focus", (p) => this.set({ focus: p.kind }));
     c.on("moments.show", (p) => this.set({ moments: p.clips.length ? p : null }));
+    c.on("swarm.activity", (p) => this.set({ agents: p.agents }));   // agents panel (JJ's team)
     c.connect();
 
     this.unsubs.push(subscribe("slide", (i) => {

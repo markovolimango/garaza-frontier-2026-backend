@@ -12,6 +12,7 @@ import type { ToolDeclaration } from "./voice-agent.ts";
 import type {
   CalibrationPort, ContextPort, HubPort, Logger, ReportsPort, SessionActionLike, SessionPort,
 } from "./ports.ts";
+import type { SwarmCommand } from "../swarm/board.ts";
 
 export type ToolCaller = "jj" | "stage" | "operator" | "replay";
 
@@ -354,6 +355,121 @@ export function createCoachTools(deps: CoachToolDeps, registry: ToolRegistry): T
     if (!r.ok) return toTool(r);
     return toTool(await deps.calibration.run());
   });
+
+  return registry;
+}
+
+// ======================================================================================
+// Swarm tools: JJ leads the agents. swarm/orchestrator.ts registers them on the brain's
+// registry (after createCoachTools) with a port onto the shared board.
+// ======================================================================================
+
+export type AskableAgent = ToolArgsOf<"ask_agent">["agent"];
+type Brief = Extract<SwarmCommand, { type: "director.brief" }>;
+type Policy = Extract<SwarmCommand, { type: "feedback.policy" }>;
+
+export interface SwarmToolPort {
+  /** Issues a command on the board (the agent that owns it obeys). */
+  command(c: SwarmCommand): void;
+  /** The latest command of a kind, e.g. the brief to merge into. */
+  latest<T extends SwarmCommand["type"]>(type: T): Extract<SwarmCommand, { type: T }> | null;
+  /** What one agent knows right now, read from the board (no LLM, instant). */
+  facts(agent: AskableAgent, question?: string): Record<string, unknown>;
+}
+
+export interface SwarmToolDeps {
+  session: SessionPort;
+  swarm: SwarmToolPort;
+  /** Told after each command JJ (or a button) gives an agent, e.g. for the agents panel. */
+  onCommand?: (agent: "director" | "feedback" | "reporter", summary: string) => void;
+}
+
+export const DEFAULT_FEEDBACK_POLICY: Policy = { type: "feedback.policy", fillers: "burst", body: "targets" };
+
+/** The brief in JJ's words (snake_case), for tool results. */
+function briefOut(b: Brief): Record<string, unknown> {
+  return {
+    ...(b.strictness ? { strictness: b.strictness } : {}),
+    ...(b.perJudge && Object.keys(b.perJudge).length ? { per_judge: b.perJudge } : {}),
+    ...(b.focus?.length ? { focus: b.focus } : {}),
+    ...(b.questions !== undefined ? { questions: b.questions } : {}),
+    ...(b.followUps !== undefined ? { follow_ups: b.followUps } : {}),
+    ...(b.interrupts !== undefined ? { interrupts: b.interrupts } : {}),
+    ...(b.note ? { note: b.note } : {}),
+  };
+}
+
+/** One line for the agents panel: "tough judges · focus pricing · 2 questions". */
+export function briefSummary(b: Brief | null): string {
+  if (!b) return "default panel";
+  const parts: string[] = [];
+  if (b.strictness) parts.push(`${b.strictness} judges`);
+  for (const [id, s] of Object.entries(b.perJudge ?? {})) parts.push(`${id.replace("judge_", "judge ")} ${s}`);
+  if (b.focus?.length) parts.push(`focus ${b.focus.join(", ")}`);
+  if (b.questions !== undefined) parts.push(`${b.questions} question${b.questions === 1 ? "" : "s"}`);
+  if (b.followUps !== undefined) parts.push(b.followUps ? "follow-ups" : "no follow-ups");
+  if (b.interrupts !== undefined) parts.push(b.interrupts ? "may interrupt" : "no interrupts");
+  if (b.note) parts.push(b.note);
+  return parts.join(" · ") || "default panel";
+}
+
+export function createSwarmTools(deps: SwarmToolDeps, registry: ToolRegistry): ToolRegistry {
+  const { session, swarm } = deps;
+  const reg = <N extends ToolName>(name: N, description: string, handler: (a: ToolArgsOf<N>, caller: ToolCaller) => Promise<ToolResult>) =>
+    registry.register<ToolArgsOf<N>>({ name, description, behavior: "BLOCKING", args: ToolArgs[name] as unknown as z.ZodType<ToolArgsOf<N>>, handler });
+
+  reg("direct_judges",
+    "Brief your director agent on how the judges behave in the Q&A: strictness (kind, neutral, tough) for the whole panel or one judge, topics to press on, how many questions, follow-ups, interrupts. Merged with the earlier brief: give only what changes. Use it for 'make the judges tougher', 'ask me about pricing', 'go easy on me'.",
+    async (a) => {
+      if (!Object.values(a).some((v) => v !== undefined)) {
+        return { ok: false, reason: "invalid_args", hint: "give strictness, focus, questions, follow_ups, interrupts or note" };
+      }
+      const prev = swarm.latest("director.brief");
+      const next: Brief = { ...(prev ?? {}), type: "director.brief" };
+      if (a.judge) {
+        if (!a.strictness) return { ok: false, reason: "invalid_args", hint: "with judge, give the strictness for that judge" };
+        const j = resolveJudge(session.get().scene.judges, a.judge);
+        if ("error" in j) return { ok: false, reason: "invalid_args", hint: j.error };
+        next.perJudge = { ...(prev?.perJudge ?? {}), [j.id]: a.strictness };
+      } else if (a.strictness) {
+        next.strictness = a.strictness;
+        delete next.perJudge;   // a panel-wide strictness replaces earlier per-judge ones
+      }
+      if (a.focus) { if (a.focus.length) next.focus = [...new Set(a.focus)]; else delete next.focus; }
+      if (a.questions !== undefined) next.questions = a.questions;
+      if (a.follow_ups !== undefined) next.followUps = a.follow_ups;
+      if (a.interrupts !== undefined) next.interrupts = a.interrupts;
+      if (a.note) next.note = a.note;
+      swarm.command(next);
+      deps.onCommand?.("director", briefSummary(next));
+      return { ok: true, brief: briefOut(next), applies_to: session.get().run?.phase === "qa" ? "the rest of this Q&A" : "the next Q&A" };
+    });
+
+  reg("set_feedback_policy",
+    "Tell your feedback agent what may tint the screen edges during runs: filler words (off; burst = only bursts; every = each filler) and body language (off; targets = only the training targets; all). Unset fields keep their value.",
+    async (a) => {
+      if (!a.fillers && !a.body) return { ok: false, reason: "invalid_args", hint: "give fillers and/or body" };
+      const prev = swarm.latest("feedback.policy") ?? DEFAULT_FEEDBACK_POLICY;
+      const next: Policy = { type: "feedback.policy", fillers: a.fillers ?? prev.fillers, body: a.body ?? prev.body };
+      swarm.command(next);
+      deps.onCommand?.("feedback", `fillers ${next.fillers} · body ${next.body}`);
+      return { ok: true, fillers: next.fillers, body: next.body };
+    });
+
+  reg("make_report",
+    "Ask your reporter agent to write a report now: of the last run, or of the whole session. It shows on screen when ready and the reporter tells you; keep talking meanwhile.",
+    async (a) => {
+      const s = session.get();
+      const runId = (s.completedRuns.at(-1) ?? s.run?.runId) as RunId | undefined;
+      if (!runId) return { ok: false, reason: "not_available", hint: "no run yet: a report needs at least one run" };
+      swarm.command({ type: "report.make", scope: a.scope, ...(a.scope === "run" ? { runId } : {}), ...(a.focus ? { focus: a.focus } : {}) });
+      deps.onCommand?.("reporter", `${a.scope} report${a.focus ? ` · ${a.focus}` : ""}`);
+      return { ok: true, scope: a.scope, ...(a.scope === "run" ? { run_id: runId } : {}), status: "the reporter is writing it" };
+    });
+
+  reg("ask_agent",
+    "Ask one of your agents what it knows right now (instant, read from the shared board): listener = filler count, top fillers and last phrases; director = the judges' brief and what they said; body = what the camera saw and how often; reporter = report status and headline. Use it to answer questions like 'how many times did I say um?'.",
+    async (a) => ({ ok: true, agent: a.agent, ...swarm.facts(a.agent, a.question) }));
 
   return registry;
 }

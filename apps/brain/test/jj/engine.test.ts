@@ -291,6 +291,78 @@ describe("JJEngine: debrief and UI notes", () => {
   });
 });
 
+describe("JJEngine: swarm agents' notes (agentNote)", () => {
+  it("outside runs: a note joins the context; speak ends the turn so JJ says it", async () => {
+    const t = await toIntro();
+    const n = t.agent.sentText.length;
+    t.engine.agentNote("[DIRECTOR] the panel is ready");
+    t.engine.agentNote("[REPORTER] the session report is on screen", true);
+    await flush();
+    expect(t.agent.sentText.slice(n)).toEqual([
+      { text: "[DIRECTOR] the panel is ready", turnComplete: false },
+      { text: "[REPORTER] the session report is on screen", turnComplete: true },
+    ]);
+    expect(t.engine.pendingNotes()).toBe(0);
+  });
+
+  it("waits while JJ talks, then delivers", async () => {
+    const t = await toIntro();
+    t.agent.speak();
+    const n = t.agent.sentText.length;
+    t.engine.agentNote("[LISTENER] 12 fillers so far", true);
+    await flush();
+    expect(t.agent.sentText.slice(n)).toEqual([]);
+    expect(t.engine.pendingNotes()).toBe(1);
+    t.agent.finishTurn();
+    await flush();
+    expect(t.agent.sentText.slice(n)).toEqual([{ text: "[LISTENER] 12 fillers so far", turnComplete: true }]);
+  });
+
+  it("during a run JJ stays silent: notes wait and reach JJ as context right before [RUN ENDED]", async () => {
+    const t = await toPresentation();
+    const n = t.agent.sentText.length;
+    t.engine.agentNote("[BODY] arms crossed on slide 2", true);
+    t.engine.agentNote("[DIRECTOR] the VC judge pressed on pricing");
+    await flush();
+    expect(t.agent.sentText.slice(n)).toEqual([]);
+    expect(t.engine.pendingNotes()).toBe(2);
+    t.session.dispatch({ type: "end_run" });
+    await flush();
+    expect(t.agent.sentText.slice(n)).toEqual([
+      { text: "[BODY] arms crossed on slide 2", turnComplete: false },
+      { text: "[DIRECTOR] the VC judge pressed on pricing", turnComplete: false },
+      { text: expect.stringMatching(/^\[RUN ENDED]/), turnComplete: true },
+    ]);
+    expect(t.engine.pendingNotes()).toBe(0);
+  });
+
+  it("while woken, waiting notes arrive as context before the wake note", async () => {
+    const t = await toPresentation();
+    t.engine.agentNote("[LISTENER] 4 fillers on slide 1", true);
+    await flush();
+    const n = t.agent.sentText.length;
+    t.session.dispatch({ type: "wake", via: "ptt" });
+    await flush();
+    expect(t.agent.sentText.slice(n)).toEqual([
+      { text: "[LISTENER] 4 fillers on slide 1", turnComplete: false },
+      { text: "[WOKEN DURING RUN: presentation, slide 1]", turnComplete: false },
+    ]);
+  });
+
+  it("drops notes before the session starts and on reset", async () => {
+    const t = setup();
+    t.engine.agentNote("[DIRECTOR] early");
+    expect(t.engine.pendingNotes()).toBe(0);
+    t.session.dispatch({ type: "session_start" });
+    await flush();
+    t.session.dispatch({ type: "start_run" });
+    t.engine.agentNote("[BODY] something");
+    expect(t.engine.pendingNotes()).toBe(1);
+    t.session.dispatch({ type: "reset" });
+    expect(t.engine.pendingNotes()).toBe(0);
+  });
+});
+
 describe("JJEngine: captions (jj.transcript)", () => {
   const lines = (t: Awaited<ReturnType<typeof toIntro>>, role = "stage") =>
     t.hub.sent.filter((x) => x.role === role && x.msg.type === "jj.transcript").map((x) => x.msg.payload as { lineId: string; who: string; text: string; final: boolean; utteranceId?: string });

@@ -56,7 +56,11 @@ const FRAME_SAMPLES_16K = 320;     // 20 ms at 16 kHz
 const OUT_RATE = 24_000;
 const JJ_PHASES = new Set<SessionState["phase"]>(["intro", "calibrating", "running", "debrief", "final"]);
 /** Tools whose invocation from the UI is worth telling JJ about. */
-const SILENT_TOOLS = new Set(["highlight_pattern", "get_last_run_report", "get_session_state"]);
+const SILENT_TOOLS = new Set(["highlight_pattern", "get_last_run_report", "get_session_state", "ask_agent"]);
+/** Agent notes kept for later (a run, JJ talking); the oldest go first when more arrive. */
+const MAX_PENDING_NOTES = 20;
+
+interface PendingNote { text: string; speak: boolean }
 
 interface Utterance { id: string; seq: number }
 interface WakeTracking { since: number; jjSpoke: boolean; lastUserVoice: number; timer: unknown }
@@ -85,6 +89,9 @@ export class JJEngine {
   private reportedRuns = new Set<RunId>();
   private prevRunPhase: string | null = null;
   private readonly captions: TranscriptRelay;
+  /** Swarm agents' notes waiting for JJ (agentNote): held during runs and while JJ talks. */
+  private notes: PendingNote[] = [];
+  private notesFlushing = false;
 
   constructor(opts: JJEngineOptions) {
     this.o = opts;
@@ -125,7 +132,9 @@ export class JJEngine {
     this.prevRunPhase = s0.run?.phase ?? null;
     for (const id of s0.completedRuns) this.reportedRuns.add(id);
     this.unsubscribe = session.subscribe((s, cause) => this.onSession(s, cause));
-    if (JJ_PHASES.has(s0.phase)) this.withAgent(() => {});   // brain restarted mid-session
+    // Brain restarted mid-session: connect, after the current tick, so tools registered right after
+    // createBrain() (the swarm's) are in the declarations.
+    queueMicrotask(() => { if (this.started && JJ_PHASES.has(this.o.session.get().phase)) this.withAgent(() => {}); });
     this.publishState();
   }
 
@@ -162,10 +171,47 @@ export class JJEngine {
   /** WakeDetector: phrase start time, called just before it dispatches `wake`. */
   noteWakePhrase(phraseStart: number): void { this.pendingPhraseStart = phraseStart; }
 
+  // ---------------- swarm agents → JJ ----------------
+
+  /**
+   * A note from a swarm agent ("[DIRECTOR] …"), added to JJ's context as a system note.
+   * During a run (not woken) it waits and reaches JJ with the debrief (or a wake), as context only;
+   * while JJ talks it waits for the end of JJ's turn. `speak` outside runs ends the turn, so JJ says it.
+   * Dropped before the session starts (JJ is not there yet).
+   */
+  agentNote(text: string, speak = false): void {
+    const s = this.o.session.get();
+    if (s.phase === "setup") { this.log("debug", "jj.agent_note_dropped", { text: text.slice(0, 80) }); return; }
+    const inRun = s.phase === "running";
+    this.notes.push({ text, speak: speak && !inRun });
+    if (this.notes.length > MAX_PENDING_NOTES) this.notes.splice(0, this.notes.length - MAX_PENDING_NOTES);
+    this.flushNotes();
+  }
+
+  /** Agent notes not yet given to JJ (the agents panel shows them as "for the debrief"). */
+  pendingNotes(): number { return this.notes.length; }
+
+  /** Gives the waiting notes to JJ when it may hear them: outside runs or woken, and not mid-turn. */
+  private flushNotes(): void {
+    if (!this.notes.length || this.notesFlushing || !this.speechAllowed() || this.agentSpeaking) return;
+    this.notesFlushing = true;
+    this.ensureConnected().then(() => {
+      if (!this.agentConnected || !this.speechAllowed() || this.agentSpeaking) return;
+      const batch = this.notes;
+      this.notes = [];
+      // While woken, a turn follows anyway (the wake): notes are context then.
+      const speak = this.o.session.get().phase !== "running" && batch.some((n) => n.speak);
+      batch.forEach((n, i) => this.o.agent.sendText(n.text, { turnComplete: speak && i === batch.length - 1 }));
+      this.log("info", "jj.agent_notes", { count: batch.length, speak });
+    }, () => {}).finally(() => { this.notesFlushing = false; });
+  }
+
   // ---------------- session events ----------------
 
   private onSession(s: SessionState, cause: SessionActionLike | SceneOp[]): void {
     const action = Array.isArray(cause) ? null : cause;
+    if (action?.type === "reset") this.notes = [];
+    else this.flushNotes();   // before [RUN ENDED] / the wake note, so JJ has them for that turn
     switch (action?.type) {
       case "session_start":
         if (s.phase !== "setup") this.withAgent(() => this.say(sessionStartNote(this.o.session.get()), true));
@@ -323,6 +369,7 @@ export class JJEngine {
       if (this.started) this.o.hub.send("stage", { type: "hud.toast", payload: { text: "JJ is reconnecting", level: "warn" } });
     }
     this.publishState();
+    if (connected && !speaking) this.flushNotes();   // notes held while JJ talked
   }
 
   // ---------------- connection ----------------

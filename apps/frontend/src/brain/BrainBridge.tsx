@@ -9,12 +9,14 @@
  * - Hold J = push-to-talk ("Hey JJ" fallback); Esc or the chip resumes the run. First click or
  *   key unlocks audio + mic.
  * - Overlay: countdown, toasts, connection and wake state (with JJ's captions over the slides or the
- *   room); after a run, next-run buttons.
+ *   room); after a run, next-run buttons; JJ's team (AgentsPanel: large on JJ's screen, a corner
+ *   card elsewhere, key A toggles).
  */
 import { useLocation, useNavigate } from "@tanstack/react-router";
 import { useEffect, useRef, useState, useSyncExternalStore } from "react";
 import { activeSource } from "../signals";
 import { publish } from "../signals/bus";
+import { AgentsPanel } from "./AgentsPanel";
 import { BrainSource, type BrainSnapshot } from "./BrainSource";
 import { JJCaptions } from "./JJCaptions";
 import { MomentsPlayer } from "./MomentsPlayer";
@@ -136,6 +138,7 @@ function Overlay({ snap, brain, jjScreen }: { snap: BrainSnapshot; brain: BrainS
         {snap.recording && <Chip tone="warn">● REC</Chip>}
       </div>
       {snap.moments && <MomentsPlayer m={snap.moments} httpBase={brain.httpBase} onClose={() => brain.closeMoments()} />}
+      {!offline && snap.countdown === null && <AgentsPanel agents={snap.agents} jjScreen={jjScreen} />}
       {!offline && snap.recordConsent === null && (snap.sessionPhase === "intro" || snap.sessionPhase === "debrief") && RunRecorder.supported() && (
         <div className="pointer-events-auto absolute bottom-6 left-6 w-[min(90vw,26rem)] rounded-xl border border-border bg-card/95 p-4 font-sans text-sm shadow-xl backdrop-blur">
           <p className="font-medium text-foreground">Record your runs so JJ can show you moments?</p>

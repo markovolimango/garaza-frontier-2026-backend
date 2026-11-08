@@ -35,6 +35,11 @@ export function uiActionNote(caller: string, tool: string, args: unknown, result
   return `[UI ACTION] the ${caller} ran ${tool} ${JSON.stringify(args ?? {})} -> ${JSON.stringify(result)}`;
 }
 
+/** A swarm agent's note to JJ: `[DIRECTOR] the VC judge pressed on pricing twice`. */
+export function agentNoteText(from: string, text: string): string {
+  return `[${from.toUpperCase()}] ${text.replace(/\s+/g, " ").trim().slice(0, 600)}`;
+}
+
 /**
  * Context sent first on a fresh (non-resumed) provider session: digest, brief, panel,
  * coach state and the last two run reports. JJ receives only the digest, never raw docs.

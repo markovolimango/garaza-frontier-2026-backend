@@ -12,8 +12,13 @@ export const ToolName = z.enum([
   "set_targets", "set_feedback_level", "set_feedback_categories", "highlight_pattern",
   "get_last_run_report", "get_session_state", "set_judge", "set_judges",
   "regenerate_personas", "set_audience", "set_qa", "set_lighting", "show_final", "calibrate_gaze", "show_moments",
+  // JJ leads the agent swarm (registered by the brain's swarm orchestrator, not by createCoachTools)
+  "direct_judges", "set_feedback_policy", "make_report", "ask_agent",
 ]);
 export type ToolName = z.infer<typeof ToolName>;
+
+/** The tools through which JJ leads the agent swarm (apps/brain/src/swarm/orchestrator.ts registers them). */
+export const SWARM_TOOLS = ["direct_judges", "set_feedback_policy", "make_report", "ask_agent"] as const satisfies readonly ToolName[];
 
 const none = z.object({});
 
@@ -65,6 +70,28 @@ export const ToolArgs = {
     run: z.enum(["last", "first"]).optional().describe('"last" (default): the run just finished; "first": the baseline, to compare'),
   }),
   calibrate_gaze: none,
+  direct_judges: z.object({
+    strictness: z.enum(["kind", "neutral", "tough"]).optional().describe("How hard the judges push in the Q&A"),
+    judge: z.enum(["left", "center", "right", "judge_1", "judge_2", "judge_3", "judge_4", "judge_5"]).optional()
+      .describe("Give the strictness to this judge only; omit for the whole panel"),
+    focus: z.array(z.string().min(1).max(80)).max(4).optional().describe('Topics to press on, e.g. ["pricing", "competition"]; [] clears'),
+    questions: z.number().int().min(1).max(5).optional().describe("How many questions the panel asks"),
+    follow_ups: z.boolean().optional().describe("May a judge follow up on a weak answer"),
+    interrupts: z.boolean().optional().describe("May a judge cut in on a long answer"),
+    note: z.string().min(1).max(200).optional().describe("Anything else for the director, in one sentence"),
+  }),
+  set_feedback_policy: z.object({
+    fillers: z.enum(["off", "burst", "every"]).optional().describe("Filler words: off, only bursts (default), or every filler"),
+    body: z.enum(["off", "targets", "all"]).optional().describe("Body language: off, only the training targets (default), or all"),
+  }),
+  make_report: z.object({
+    scope: z.enum(["run", "session"]).describe('"run": the last run; "session": the whole practice'),
+    focus: z.string().min(1).max(200).optional().describe("What the report should look at most"),
+  }),
+  ask_agent: z.object({
+    agent: z.enum(["listener", "director", "body", "reporter"]).describe("listener: words and fillers; director: judges; body: camera; reporter: report"),
+    question: z.string().max(200).optional().describe("The presenter's question, for the log"),
+  }),
 } as const satisfies Record<ToolName, z.ZodObject>;
 
 export type ToolArgsOf<N extends ToolName> = z.infer<(typeof ToolArgs)[N]>;

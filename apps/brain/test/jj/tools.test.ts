@@ -1,7 +1,28 @@
 import { describe, expect, it } from "vitest";
-import { ToolName } from "@coach/protocol";
-import { ToolRegistry, createCoachTools, resolveJudge, toughnessSpread } from "../../src/jj/tools.ts";
+import { SWARM_TOOLS, ToolName } from "@coach/protocol";
+import { ToolRegistry, briefSummary, createCoachTools, createSwarmTools, resolveJudge, toughnessSpread, type SwarmToolPort } from "../../src/jj/tools.ts";
+import type { SwarmCommand } from "../../src/swarm/board.ts";
 import { FakeContext, FakeHub, FakeReports, FakeSession, VirtualClock, judge } from "../helpers.ts";
+
+/** The board side of the swarm tools: records commands, keeps the latest per kind. */
+class FakeSwarm implements SwarmToolPort {
+  commands: SwarmCommand[] = [];
+  asked: { agent: string; question?: string | undefined }[] = [];
+  command(c: SwarmCommand) { this.commands.push(c); }
+  latest<T extends SwarmCommand["type"]>(type: T) {
+    return (this.commands.filter((c) => c.type === type).at(-1) as Extract<SwarmCommand, { type: T }> | undefined) ?? null;
+  }
+  facts(agent: string, question?: string) { this.asked.push({ agent, question }); return { filler_count: 7, top_fillers: [{ word: "um", count: 5 }] }; }
+}
+
+function swarmSetup() {
+  const clock = new VirtualClock();
+  const session = new FakeSession(clock);
+  const swarm = new FakeSwarm();
+  const told: string[] = [];
+  const tools = createSwarmTools({ session, swarm, onCommand: (a, s) => told.push(`${a}: ${s}`) }, new ToolRegistry(() => clock.now()));
+  return { session, swarm, tools, told };
+}
 
 function setup() {
   const clock = new VirtualClock();
@@ -14,8 +35,11 @@ function setup() {
 }
 
 describe("ToolRegistry", () => {
-  it("registers every tool in the spec table exactly once", () => {
+  it("registers every tool in the spec table exactly once (the swarm's tools with createSwarmTools)", () => {
     const { tools } = setup();
+    const swarm: readonly string[] = SWARM_TOOLS;
+    expect(tools.declarations().map((d) => d.name).sort()).toEqual(ToolName.options.filter((n) => !swarm.includes(n)).sort());
+    createSwarmTools({ session: new FakeSession(new VirtualClock()), swarm: new FakeSwarm() }, tools);
     expect(tools.declarations().map((d) => d.name).sort()).toEqual([...ToolName.options].sort());
   });
 
@@ -174,5 +198,77 @@ describe("coach tools", () => {
     expect(toughnessSpread(3)).toEqual([0.3, 0.5, 0.8]);
     expect(toughnessSpread(1)).toEqual([0.5]);
     expect(toughnessSpread(5)).toEqual([0.3, 0.43, 0.55, 0.68, 0.8]);
+  });
+});
+
+describe("swarm tools (JJ leads the agents)", () => {
+  it("direct_judges briefs the director and merges with the latest brief", async () => {
+    const { tools, swarm, told } = swarmSetup();
+    expect(await tools.invoke("direct_judges", { strictness: "tough", focus: ["pricing"] }, "jj"))
+      .toEqual({ ok: true, brief: { strictness: "tough", focus: ["pricing"] }, applies_to: "the next Q&A" });
+    const r = await tools.invoke("direct_judges", { questions: 2, follow_ups: true, note: "press on the market size" }, "jj");
+    expect(r).toMatchObject({ ok: true, brief: { strictness: "tough", focus: ["pricing"], questions: 2, follow_ups: true, note: "press on the market size" } });
+    expect(swarm.commands.at(-1)).toEqual({ type: "director.brief", strictness: "tough", focus: ["pricing"], questions: 2, followUps: true, note: "press on the market size" });
+    expect(told.at(-1)).toBe("director: tough judges · focus pricing · 2 questions · follow-ups · press on the market size");
+    // [] clears the focus; interrupts can be switched off
+    await tools.invoke("direct_judges", { focus: [], interrupts: false }, "jj");
+    expect(swarm.commands.at(-1)).toEqual({ type: "director.brief", strictness: "tough", questions: 2, followUps: true, interrupts: false, note: "press on the market size" });
+  });
+
+  it("direct_judges per judge: left/center/right resolve by seat; a panel-wide strictness replaces them", async () => {
+    const { tools, swarm, session } = swarmSetup();
+    session.s.scene.judges = [judge(1), judge(2), judge(3)];
+    expect(await tools.invoke("direct_judges", { judge: "right", strictness: "kind" }, "jj")).toMatchObject({ ok: true, brief: { per_judge: { judge_3: "kind" } } });
+    await tools.invoke("direct_judges", { judge: "judge_1", strictness: "tough" }, "jj");
+    expect(swarm.latest("director.brief")!.perJudge).toEqual({ judge_3: "kind", judge_1: "tough" });
+    await tools.invoke("direct_judges", { strictness: "neutral" }, "jj");
+    expect(swarm.latest("director.brief")).toEqual({ type: "director.brief", strictness: "neutral" });
+    expect(await tools.invoke("direct_judges", { judge: "left" }, "jj")).toMatchObject({ ok: false, reason: "invalid_args" });
+    expect(await tools.invoke("direct_judges", { judge: "judge_5", strictness: "kind" }, "jj")).toMatchObject({ ok: false, reason: "invalid_args" });
+    expect(await tools.invoke("direct_judges", {}, "jj")).toMatchObject({ ok: false, reason: "invalid_args" });
+    expect(await tools.invoke("direct_judges", { strictness: "brutal" }, "jj")).toMatchObject({ ok: false, reason: "invalid_args" });
+  });
+
+  it("direct_judges during the Q&A applies to the rest of it", async () => {
+    const { tools, session } = swarmSetup();
+    session.dispatch({ type: "session_start" });
+    session.dispatch({ type: "start_run" });
+    session.s.run!.phase = "qa";
+    expect(await tools.invoke("direct_judges", { strictness: "kind" }, "jj")).toMatchObject({ ok: true, applies_to: "the rest of this Q&A" });
+  });
+
+  it("set_feedback_policy merges with the latest policy (default: filler bursts, body targets)", async () => {
+    const { tools, swarm } = swarmSetup();
+    expect(await tools.invoke("set_feedback_policy", { fillers: "every" }, "jj")).toEqual({ ok: true, fillers: "every", body: "targets" });
+    expect(await tools.invoke("set_feedback_policy", { body: "off" }, "jj")).toEqual({ ok: true, fillers: "every", body: "off" });
+    expect(swarm.commands.at(-1)).toEqual({ type: "feedback.policy", fillers: "every", body: "off" });
+    expect(await tools.invoke("set_feedback_policy", {}, "jj")).toMatchObject({ ok: false, reason: "invalid_args" });
+  });
+
+  it("make_report orders a run or session report; needs a run first", async () => {
+    const { tools, swarm, session } = swarmSetup();
+    expect(await tools.invoke("make_report", { scope: "run" }, "jj")).toMatchObject({ ok: false, reason: "not_available" });
+    session.dispatch({ type: "session_start" });
+    session.dispatch({ type: "start_run" });
+    session.dispatch({ type: "end_run" });
+    expect(await tools.invoke("make_report", { scope: "run", focus: "the Q&A" }, "jj")).toMatchObject({ ok: true, scope: "run", run_id: "run_1" });
+    expect(swarm.commands.at(-1)).toEqual({ type: "report.make", scope: "run", runId: "run_1", focus: "the Q&A" });
+    await tools.invoke("make_report", { scope: "session" }, "jj");
+    expect(swarm.commands.at(-1)).toEqual({ type: "report.make", scope: "session" });
+  });
+
+  it("ask_agent answers from the board at once", async () => {
+    const { tools, swarm } = swarmSetup();
+    expect(await tools.invoke("ask_agent", { agent: "listener", question: "how many times did I say um?" }, "jj"))
+      .toEqual({ ok: true, agent: "listener", filler_count: 7, top_fillers: [{ word: "um", count: 5 }] });
+    expect(swarm.asked).toEqual([{ agent: "listener", question: "how many times did I say um?" }]);
+    expect(await tools.invoke("ask_agent", { agent: "jj" }, "jj")).toMatchObject({ ok: false, reason: "invalid_args" });
+  });
+
+  it("all swarm tools are blocking with flat schemas; briefSummary of no brief", () => {
+    const { tools } = swarmSetup();
+    expect(tools.declarations().every((d) => d.behavior === "BLOCKING")).toBe(true);
+    expect(JSON.stringify(tools.declarations())).not.toMatch(/anyOf|oneOf|\$ref/);
+    expect(briefSummary(null)).toBe("default panel");
   });
 });
