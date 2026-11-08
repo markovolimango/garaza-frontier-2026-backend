@@ -14,6 +14,7 @@
 import { useLocation, useNavigate } from "@tanstack/react-router";
 import { useEffect, useRef, useState, useSyncExternalStore } from "react";
 import { activeSource } from "../signals";
+import { publish } from "../signals/bus";
 import { BrainSource, type BrainSnapshot } from "./BrainSource";
 import { JJCaptions } from "./JJCaptions";
 import { intentFor, viewToRoute, type ScreenPath } from "./mapping";
@@ -109,7 +110,20 @@ function Overlay({ snap, brain, jjScreen }: { snap: BrainSnapshot; brain: BrainS
     <div className="pointer-events-none fixed inset-0 z-[105] font-mono text-xs">
       <div className="absolute left-1/2 top-4 flex -translate-x-1/2 gap-2">
         {offline && <Chip tone="warn">{snap.status === "replaced" ? "Opened in another tab: reload this one to use it here" : "Brain offline — reconnecting"}</Chip>}
-        {!offline && !snap.audioOn && <Chip>Click anywhere to enable JJ's voice</Chip>}
+        {!offline && !snap.audioOn && snap.sessionPhase !== "setup" && <Chip>Click anywhere to enable JJ's voice</Chip>}
+        {/* JJ can talk before the deck: start the session without one (the brain needs the deck only for a run) */}
+        {!offline && snap.sessionPhase === "setup" && !snap.uploading && (
+          <button type="button" onClick={() => { brain.unlockAudio(); brain.send("session.start", {}); }} className="pointer-events-auto">
+            <Chip tone="jj">Talk to JJ first →</Chip>
+          </button>
+        )}
+        {!offline && jjScreen && !snap.deck && !snap.uploading && (snap.sessionPhase === "intro" || snap.sessionPhase === "debrief") && (
+          <label className="pointer-events-auto cursor-pointer">
+            <Chip tone="jj">Upload slides (PDF)</Chip>
+            <input type="file" accept="application/pdf" className="hidden"
+              onChange={(e) => { const f = e.target.files?.[0]; if (f) publish("deckFile", f); e.target.value = ""; }} />
+          </label>
+        )}
         {snap.uploading && <Chip>Uploading deck…</Chip>}
         {woken && (
           <button type="button" onClick={() => brain.resume()} className="pointer-events-auto">

@@ -197,6 +197,7 @@ export function createCoachTools(deps: CoachToolDeps, registry: ToolRegistry): T
       const brief = {
         title: a.title, audience: a.audience, goal: a.goal, keyPoints: a.key_points, setting: a.setting,
         ...(a.duration_min !== undefined ? { durationMin: a.duration_min } : {}),
+        ...(a.presenter_goals?.length ? { presenterGoals: a.presenter_goals } : {}),
       };
       const r = dispatch({ type: "save_brief", brief });
       if (!r.ok) return toTool(r);

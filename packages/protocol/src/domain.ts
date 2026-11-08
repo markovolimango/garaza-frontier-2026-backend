@@ -57,6 +57,9 @@ export const PresentationBrief = z.object({
   keyPoints: z.array(z.string()).max(6),
   setting: z.string(),
   durationMin: z.number().positive().optional(),
+  /** In the presenter's own words, only what they chose to share: what they want to get better at or
+   *  find hard about presenting. Stays in this session: never exported, erased by a reset. */
+  presenterGoals: z.array(z.string().max(200)).max(3).optional(),
 });
 export const SessionContext = z.object({
   deck: Deck.nullable(),

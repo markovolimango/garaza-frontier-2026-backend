@@ -5,9 +5,15 @@
 import type { RunId, SessionState } from "@coach/protocol";
 
 export function sessionStartNote(s: Readonly<SessionState>): string {
+  const deck = s.context.deck ? `deck: ${s.context.deck.slides.length} slides` : "deck: none yet";
   return s.introDone
-    ? `[SESSION START] returning presenter, phase ${s.phase}. Greet in one sentence and offer the next run.`
-    : `[SESSION START] first session, phase ${s.phase}. Run the intro.`;
+    ? `[SESSION START] returning presenter, phase ${s.phase}, ${deck}. Greet in one sentence and offer the next run.`
+    : `[SESSION START] first session, phase ${s.phase}, ${deck}. Run the intro.`;
+}
+
+/** The presenter uploaded slides (context only: JJ takes it into account in its next turn). */
+export function deckNote(s: Readonly<SessionState>): string {
+  return `[DECK UPLOADED] ${s.context.deck?.slides.length ?? 0} slides ("${s.context.deck?.name ?? ""}"). A run can start now.`;
 }
 
 /** Spec: `[WOKEN DURING RUN: presentation, slide 4]` (slide numbers are 1-based for speech). */

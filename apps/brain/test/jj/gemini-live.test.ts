@@ -50,6 +50,23 @@ async function connected() {
 }
 
 describe("GeminiLiveAgent", () => {
+  it("works when the SDK resolves connect() only after setupComplete (@google/genai 3.x)", async () => {
+    const clock = new VirtualClock();
+    const sessions: FakeLive[] = [];
+    const agent = new GeminiLiveAgent({
+      apiKey: "k", model: "m", clock,
+      connectFn: async (p) => { const s = new FakeLive(p); sessions.push(s); s.setup(); return s; },   // setup first, then resolve
+    });
+    await agent.connect(CTX);
+    const s = sessions[0]!;
+    expect(s.closed).toBe(false);                                        // used to be closed as a stray session
+    expect(s.client).toHaveLength(1);                                    // the context text went out on it
+    agent.sendText("[SESSION START] x", { turnComplete: true });
+    expect(s.client).toHaveLength(2);
+    expect(sessions).toHaveLength(1);                                    // and no reconnect loop
+  });
+
+
   it("connects with an audio-only, resumable, compressed config and blocking tools", async () => {
     const t = await connected();
     const { model, config } = t.sessions[0]!.params;

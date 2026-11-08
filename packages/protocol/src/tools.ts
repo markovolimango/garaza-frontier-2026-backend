@@ -25,6 +25,8 @@ export const ToolArgs = {
     key_points: z.array(z.string().max(160)).max(6).describe("Up to 6 key points"),
     setting: z.string().min(1).max(60).describe('e.g. "investor pitch", "thesis defence", "client meeting"'),
     duration_min: z.number().positive().max(120).optional().describe("Planned length in minutes"),
+    presenter_goals: z.array(z.string().min(1).max(200)).max(3).optional()
+      .describe("Only if the presenter shared it: what they want to get better at or find hard about presenting, in their own words"),
   }),
   start_run: z.object({
     mode: RunMode.optional().describe("Omit to follow the coach recommendation"),

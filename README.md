@@ -22,6 +22,10 @@ sesiju koristi `--fresh` (stara ostaje na disku) ili dugme **Delete and start ov
 izveštaji, lični ciljevi, slajdovi) i njene coach sesije iz memorije. `{"keepData": true}` je zadržava,
 `{"full": false}` zadržava deck i preskače JJ-ov uvod (ništa ne briše).
 
+**Tok:** "Talk to JJ first →" na početnom ekranu počinje sesiju i pre deck-a (JJ pita šta želiš da
+popraviš, uz mogućnost da preskočiš, pa traži slajdove: "Upload slides (PDF)" na JJ-ovom ekranu); run traži deck.
+Kad kažeš da si gotov ("kraj"), JJ pokaže finalni izveštaj sa brojevima prvi → poslednji run.
+
 **Napredak kroz runove:** ekran izveštaja posle drugog runa prikazuje "run 1 → 2 → 3" (karticu Progress)
 i naslov tipa "Moving around / swaying 3 → 0". JJ-ov `show_final` otvara isti prikaz. API: `GET /api/progress`.
 

@@ -49,12 +49,12 @@ function to(point: "intro" | "countdown" | "presentation" | "qa" | "debrief") {
 }
 
 describe("session transitions", () => {
-  it("setup + session_start → intro on the first session; needs a deck", () => {
+  it("setup + session_start → intro on the first session, deck or not; a run needs the deck", () => {
     const t = setup({ withDeck: false });
-    expect(t.d({ type: "session_start" })).toMatchObject({ ok: false, reason: "no_deck" });
-    t.store.setContext({ deck });
     expect(t.d({ type: "session_start" })).toEqual({ ok: true });
     expect(t.s().phase).toBe("intro");
+    expect(t.d({ type: "start_run" })).toMatchObject({ ok: false, reason: "no_deck" });
+    t.store.setContext({ deck });
     expect(t.d({ type: "session_start" })).toMatchObject({ ok: false, reason: "wrong_phase" });
   });
 

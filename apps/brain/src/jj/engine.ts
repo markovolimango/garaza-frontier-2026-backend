@@ -18,7 +18,7 @@ import { AUDIO_FLAG, AUDIO_SOURCE, type JJState, type RunId, type SceneOp, type 
 import type { ToolRegistry } from "./tools.ts";
 import type { VoiceAgent } from "./voice-agent.ts";
 import type { HubPort, JJClock, Logger, MicPort, ReportsPort, SessionActionLike, SessionPort } from "./ports.ts";
-import { buildContextText, runAbortedNote, runEndedMessage, sessionStartNote, uiActionNote, wakeNote } from "./messages.ts";
+import { buildContextText, deckNote, runAbortedNote, runEndedMessage, sessionStartNote, uiActionNote, wakeNote } from "./messages.ts";
 import { rms } from "./pcm.ts";
 import { TranscriptRelay } from "./transcript.ts";
 
@@ -169,6 +169,11 @@ export class JJEngine {
     switch (action?.type) {
       case "session_start":
         if (s.phase !== "setup") this.withAgent(() => this.say(sessionStartNote(this.o.session.get()), true));
+        break;
+      case "context":   // slides uploaded while JJ talks (the session may start before the deck)
+        if ((action as { patch?: { deck?: unknown } }).patch?.deck && (s.phase === "intro" || s.phase === "debrief")) {
+          this.withAgent(() => this.o.agent.sendText(deckNote(s), { turnComplete: false }));
+        }
         break;
       case "reset":
         this.clearWake();

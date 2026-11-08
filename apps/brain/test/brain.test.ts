@@ -57,19 +57,17 @@ describe("brain end to end", () => {
     expect(s.of("scene.sync")[0]!.payload).toMatchObject({ scene: { version: 1 }, venue: { id: "greybox" }, deck: null });
   });
 
-  it("session.start without a deck is refused; with a deck JJ connects and the view switches", async () => {
+  it("session.start before the deck: JJ connects and talks; the deck arrives as a note; runs need it", async () => {
     const t = await setup();
     const s = t.stage();
     await until(() => s.c.status === "open");
-    const id = s.c.send("session.start", {});
-    await until(() => s.of("error").length === 1);
-    expect(s.of("error")[0]!.payload).toMatchObject({ code: "no_deck", refId: id });
-    t.brain.session.setContext({ deck });
-    await until(() => s.of("scene.sync").length === 2);              // deck change → re-sync
     s.c.send("session.start", {});
     await until(() => s.of("ui.state").some((e) => e.payload.view === "jj"));
     await until(() => t.agent.connected);
-    expect(t.agent.textsMatching(/^\[SESSION START]/)).toHaveLength(1);
+    expect(t.agent.textsMatching(/^\[SESSION START] first session, phase intro, deck: none yet/)).toHaveLength(1);
+    expect(t.brain.session.dispatch({ type: "start_run" })).toMatchObject({ ok: false, reason: "no_deck" });
+    t.brain.session.setContext({ deck });
+    await until(() => t.agent.textsMatching(/^\[DECK UPLOADED] 4 slides/).length === 1);
     await until(() => s.of("jj.state").some((e) => e.payload.connected && e.payload.listening));
   });
 

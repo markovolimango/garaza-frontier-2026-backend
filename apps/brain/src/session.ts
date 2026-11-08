@@ -146,8 +146,7 @@ export class SessionStore {
     switch (a.type) {
       case "session_start":
         if (s.phase !== "setup") return wrong();
-        if (!s.context.deck) return { ok: false, reason: "no_deck", hint: "upload slides first" };
-        s.phase = s.introDone ? "debrief" : "intro";
+        s.phase = s.introDone ? "debrief" : "intro";   // JJ can talk before the deck is uploaded; runs need it
         return ok;
 
       case "save_brief":
@@ -157,6 +156,7 @@ export class SessionStore {
 
       case "start_run": {
         if (!["intro", "debrief", "final"].includes(s.phase)) return wrong();
+        if (!s.context.deck) return { ok: false, reason: "no_deck", hint: "upload the slides (PDF) on the presenter screen first" };
         const rec = this.o.coach.recommend(s.coach);
         const mode = a.mode ?? rec.mode;
         const level = mode === "training" ? a.level ?? (a.mode ? (rec.mode === "training" ? rec.level : "strong") : rec.level) : "off";

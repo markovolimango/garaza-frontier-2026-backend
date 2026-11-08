@@ -73,7 +73,8 @@ export class GeminiLiveAgent implements VoiceAgent {
 
   constructor(private readonly opts: GeminiLiveOptions) {
     this.log = opts.log ?? (() => {});
-    this.connectFn = opts.connectFn ?? ((p) => new GoogleGenAI({ apiKey: opts.apiKey }).live.connect(p));
+    // The SDK (3.x) defaults the Gemini API to v1, where the Live endpoint answers 404; Live is v1beta.
+    this.connectFn = opts.connectFn ?? ((p) => new GoogleGenAI({ apiKey: opts.apiKey, httpOptions: { apiVersion: "v1beta" } }).live.connect(p));
   }
 
   get resumptionHandle(): string | null { return this.handle; }
@@ -171,6 +172,10 @@ export class GeminiLiveAgent implements VoiceAgent {
       };
       const timer = this.opts.clock.setTimeout(() => fail(new Error("setup timeout")), timeoutMs);
 
+      // Ready once both arrived: `setupComplete` and the session object. @google/genai 3.x resolves
+      // live.connect() only after setupComplete, older versions before it; either order works.
+      let setupSeen = false;
+      const maybeReady = () => { if (setupSeen && pending) onSetup(); };
       const onSetup = () => {
         if (settled) return;
         settled = true;
@@ -197,7 +202,7 @@ export class GeminiLiveAgent implements VoiceAgent {
         config: this.buildConfig(handle),
         callbacks: {
           onmessage: (m: LiveServerMessage) => {
-            if (m.setupComplete && !settled) { onSetup(); return; }
+            if (m.setupComplete && !settled) { setupSeen = true; maybeReady(); return; }
             if (gen !== this.activeGen) return;
             this.handleMessage(m);
           },
@@ -212,7 +217,7 @@ export class GeminiLiveAgent implements VoiceAgent {
           },
         },
       }).then(
-        (s) => { pending = s; if (settled) s.close(); },
+        (s) => { pending = s; if (settled) s.close(); else maybeReady(); },
         fail,
       );
     });
