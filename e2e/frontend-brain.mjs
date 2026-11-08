@@ -69,7 +69,7 @@ try {
   await page.mouse.click(960, 900);   // first gesture: unlock audio + mic
   check("mic streams to /ws/mic after the first click", !!(await waitFor(async () => (await health()).mic)));
 
-  await page.setInputFiles('input[type=file][accept="application/pdf"]', join(REPO, "fixtures", "decks", "sample-3-slides.pdf"));
+  await page.setInputFiles('input[type=file][accept*="application/pdf"]', join(REPO, "fixtures", "decks", "sample-3-slides.pdf"));
   check("PDF upload → brain has a 3-slide deck", !!(await waitFor(() => snap?.session?.context?.deck?.slides?.length === 3, 15000)), snap?.session?.context?.deck?.name);
   check("session.start → intro, JJ connected", !!(await waitFor(async () => { const h = await health(); return h.phase === "intro" && h.jj === "connected"; })));
   check("view jj → JJ screen (/)", !!(await waitFor(() => path() === "/")), path());

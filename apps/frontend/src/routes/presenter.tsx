@@ -7,6 +7,7 @@ import { readPptxTimings } from "@/lib/pptxTimings";
 import { PdfPage } from "@/components/presenter/PdfPage";
 import { Btn, Timer, fmt } from "@/components/presenter/Timer";
 import { NextButton } from "@/components/NextButton";
+import { DECK_ACCEPT, isPptx, pptxTimingsFor, pptxToPdf } from "@/brain/pptx"; // brain integration: .pptx decks
 
 export const Route = createFileRoute("/presenter")({
   head: () => ({
@@ -99,13 +100,30 @@ function Presenter() {
     setStatus("Loading PDF…");
     const d = await loadPdf(file);
     const saved = localStorage.getItem(storageKey(file.name, d.numPages));
-    setTimings(saved ? JSON.parse(saved) : Array(d.numPages).fill(Math.round((totalSec / d.numPages) * 10) / 10));
+    const base: number[] = saved ? JSON.parse(saved) : Array(d.numPages).fill(Math.round((totalSec / d.numPages) * 10) / 10);
+    // brain integration: a deck converted from .pptx keeps its slide durations
+    const fromPptx = !saved ? pptxTimingsFor.get(file.name) : undefined;
+    setTimings(fromPptx?.size ? base.map((v, i) => fromPptx.get(i) ?? v) : base);
     setPdfName(file.name);
     setDoc(d);
     setSlide(0);
     slideStart.current = performance.now();
-    setStatus(saved ? "Loaded saved timings" : "");
+    setStatus(saved ? "Loaded saved timings"
+      : fromPptx ? (fromPptx.size ? `Slide durations from the .pptx: ${fromPptx.size} of ${d.numPages} slides` : "The .pptx has no slide durations: equal times")
+      : "");
     if (!restoring) publish("deckFile", file); // brain integration
+  }
+
+  // brain integration: a .pptx deck is converted to PDF by PowerPoint on the brain's Mac
+  async function onDeck(file: File) {
+    if (!isPptx(file)) return onPdf(file);
+    setStatus("Converting the PowerPoint deck… (PowerPoint opens in the background)");
+    try {
+      const { pdf } = await pptxToPdf(file);
+      await onPdf(pdf);
+    } catch (err) {
+      setStatus(`Couldn't convert the .pptx: ${err instanceof Error ? err.message : String(err)}`);
+    }
   }
 
   async function onPptx(file: File) {
@@ -130,9 +148,10 @@ function Presenter() {
             <PdfPage doc={doc} index={slide} className="absolute inset-4" />
           ) : (
             <label className="absolute inset-0 flex cursor-pointer flex-col items-center justify-center gap-2 text-muted-foreground hover:text-foreground">
-              <span className="text-2xl">Upload your deck (PDF)</span>
-              <span className="text-sm">click to choose a file</span>
-              <input type="file" accept="application/pdf" className="hidden" onChange={(e) => e.target.files?.[0] && onPdf(e.target.files[0])} />
+              <span className="text-2xl">Upload your deck (PDF or PowerPoint)</span>
+              <span className="text-sm">click to choose a file · .pptx keeps your slide durations</span>
+              {status && <span className="text-sm text-foreground">{status}</span>}
+              <input type="file" accept={DECK_ACCEPT} className="hidden" onChange={(e) => e.target.files?.[0] && onDeck(e.target.files[0])} />
             </label>
           )}
         </div>
@@ -175,8 +194,8 @@ function Presenter() {
             <button onClick={resetDefaults} className="rounded-md border border-border bg-secondary px-2 py-1 text-xs hover:bg-accent">Reset</button>
             {doc && (
               <label className="cursor-pointer rounded-md border border-border bg-secondary px-2 py-1 text-xs hover:bg-accent">
-                New PDF
-                <input type="file" accept="application/pdf" className="hidden" onChange={(e) => e.target.files?.[0] && onPdf(e.target.files[0])} />
+                New deck
+                <input type="file" accept={DECK_ACCEPT} className="hidden" onChange={(e) => e.target.files?.[0] && onDeck(e.target.files[0])} />
               </label>
             )}
           </div>

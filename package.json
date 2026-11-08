@@ -13,6 +13,7 @@
     "test:frontend": "pnpm --filter tanstack_start_ts exec vitest run && pnpm --filter tanstack_start_ts exec vitest run -c vitest.brain.config.ts",
     "e2e:browser": "node e2e/frontend-brain.mjs",
     "e2e:recording": "node e2e/recording.mjs",
+    "e2e:pptx": "node e2e/pptx.mjs",
     "frontend:pull": "git subtree pull --prefix=apps/frontend frontend main --squash",
     "demo": "bash scripts/demo.sh"
   },

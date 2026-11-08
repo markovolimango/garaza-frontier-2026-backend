@@ -66,7 +66,7 @@ try {
 
   await page.getByRole("button", { name: "Record runs" }).click();
   check("consent card → recording allowed", !!(await waitFor(() => page.evaluate(() => sessionStorage.getItem("coach.recordConsent") === "yes"))));
-  await page.setInputFiles('input[type=file][accept="application/pdf"]', join(REPO, "fixtures", "decks", "sample-3-slides.pdf"));
+  await page.setInputFiles('input[type=file][accept*="application/pdf"]', join(REPO, "fixtures", "decks", "sample-3-slides.pdf"));
   check("Upload slides on JJ's screen → 3-slide deck", !!(await waitFor(() => op.state.snap?.session?.context?.deck?.slides?.length === 3, 20000)));
   await shot("1-intro");
 

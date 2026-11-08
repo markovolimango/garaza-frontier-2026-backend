@@ -20,6 +20,7 @@ import { loadLatest, SessionPersistence, sessionHttp } from "./persist.ts";
 import { buildProgress, compactProgress, progressHttp } from "./progress.ts";
 import { exportHttp } from "./export.ts";
 import { MediaStore, mediaHttp, momentsOf } from "./media.ts";
+import { pptxHttp } from "./pptx.ts";
 import { BEHAVIOR_WORDS } from "./observedCoach.ts";
 import { RunLog } from "./runlog.ts";
 import { installSwarm, type Swarm } from "./swarm/index.ts";
@@ -42,6 +43,7 @@ let sessionRoutes: ReturnType<typeof sessionHttp> | null = null;
 let exportRoutes: ReturnType<typeof exportHttp> | null = null;
 let mediaRoutes: ReturnType<typeof mediaHttp> | null = null;
 let media: MediaStore | null = null;
+let pptxRoutes: ReturnType<typeof pptxHttp> | null = null;
 let swarm: Swarm | null = null;
 
 // The session saved before the last stop (runs, reports, coach, deck), unless a fresh start was asked for.
@@ -82,6 +84,7 @@ const brain = createBrain({
   http: async (req, res) => (swarm ? await swarmRoutes(swarm, req, res) : false) || (digestRoutes ? digestRoutes(req, res) : false) || (progressRoutes ? progressRoutes(req, res) : false)
     || (exportRoutes ? exportRoutes(req, res) : false)
     || (mediaRoutes ? await mediaRoutes(req, res) : false)
+    || (pptxRoutes ? await pptxRoutes(req, res) : false)
     || (sessionRoutes ? await sessionRoutes(req, res) : false) || (judgesHttp ? judgesHttp(req, res) : false),
 });
 const clock = new RealClock();
@@ -92,6 +95,7 @@ progressRoutes = progressHttp(runLog, () => brain.session.get());
 exportRoutes = exportHttp(runLog, () => brain.session.get());
 media = new MediaStore({ dir: sessionDir, sessionId: () => brain.session.get().sessionId, hasRun: (id) => !!runLog?.get(id), log });
 mediaRoutes = mediaHttp(media);
+pptxRoutes = pptxHttp({ log });   // .pptx decks → PDF via PowerPoint on this Mac
 sessionRoutes = sessionHttp({ session: brain.session, runLog, persistence });
 runLog.onRunEnded((rec) => { brain.hub.send("stage", { type: "report.ready", payload: { kind: "run", runId: rec.runId } }); });
 brain.session.subscribe((s, cause) => {

@@ -39,6 +39,12 @@ izveštaji, lični ciljevi, slajdovi) i njene coach sesije iz memorije. `{"keepD
 **Tok:** "Talk to JJ first →" na početnom ekranu počinje sesiju i pre deck-a (JJ pita šta želiš da
 popraviš, uz mogućnost da preskočiš, pa traži slajdove: "Upload slides (PDF)" na JJ-ovom ekranu); run traži deck.
 Kad kažeš da si gotov ("kraj"), JJ pokaže finalni izveštaj sa brojevima prvi → poslednji run.
+**Export report** (`GET /api/session/export.html`) je stranica za štampu/PDF za šefa: samo izmereno
+ponašanje, bez ličnih ciljeva.
+
+**Deck:** PDF ili PowerPoint (`.pptx`). `.pptx` pretvara Microsoft PowerPoint na ovom Macu (otvori se u pozadini,
+~3 s; prvi put macOS pita da li terminal sme da upravlja PowerPoint-om) i zadržava trajanja slajdova iz `.pptx`
+(Transitions → After) kao tajminge prezentera. Bez PowerPoint-a: File → Export → PDF. Test: `pnpm e2e:pptx`.
 
 **Snimanje:** posle pristanka na ekranu ("Record runs") browser snima kameru i mikrofon tokom runa i šalje
 ih brainu (`data/sessions/<id>/media/`, samo na ovom računaru). JJ posle runa kaže npr. "prekrstio si ruke
