@@ -17,7 +17,7 @@
  */
 import { mkdirSync, writeFileSync } from "node:fs";
 import type { IncomingMessage, ServerResponse } from "node:http";
-import { join } from "node:path";
+import { dirname, join } from "node:path";
 import { RunNarrative as RunNarrativeSchema, SessionNarrative as SessionNarrativeSchema, type RunId, type RunNarrative, type SessionNarrative } from "@coach/protocol";
 import type { SwarmContext } from "./context.ts";
 import { llmJson } from "./llm.ts";
@@ -258,6 +258,26 @@ export function installReporter(ctx: SwarmContext, opts: ReporterOptions = {}): 
     const runs = endedRuns().map((r) => storedRun(r.runId) ?? fallbackRun(gatherRun({ board, rec: r, session: session(), records: runLog.list() }), ctx.clock.now()));
     return buildReportHtml({ s: session(), records: runLog.list(), session: n, runs, now: ctx.clock.now() });
   };
+  /** One PDF at a time, for the session it started in: a reset meanwhile drops it (nothing written, 409). */
+  const startPdf = (render: (html: string) => Promise<Buffer>): Promise<Buffer> => {
+    const myGen = gen;
+    const file = join(ctx.sessionFolder(), "report.pdf");
+    const fail = (why: string, msg: string) => Object.assign(new Error(msg), { why });
+    const job: Promise<Buffer> = (async () => {
+      const html = await pageHtml();
+      if (myGen !== gen) throw fail("session_changed", "session reset");
+      if (!html) throw fail("not_available", "no run has finished yet");
+      const t0 = Date.now();
+      const pdf = await render(html);
+      if (myGen !== gen) throw fail("session_changed", "session reset");
+      mkdirSync(dirname(file), { recursive: true });
+      writeFileSync(file, pdf);
+      log("info", "swarm.reporter.pdf", { bytes: pdf.length, ms: Date.now() - t0, file });
+      return pdf;
+    })().finally(() => { if (pdfJob === job) pdfJob = null; });
+    pdfJob = job;
+    return job;
+  };
   const fileName = () => (session().context.brief?.title ?? "practice").replace(/[^\w-]+/g, "-").replace(/^-+|-+$/g, "").slice(0, 40) || "practice";
 
   ctx.http(async (req: IncomingMessage, res: ServerResponse) => {
@@ -282,24 +302,15 @@ export function installReporter(ctx: SwarmContext, opts: ReporterOptions = {}): 
         return true;
       }
       try {
-        const job = pdfJob ?? (pdfJob = (async () => {
-          const html = await pageHtml();
-          if (!html) throw Object.assign(new Error("no run has finished yet"), { notAvailable: true });
-          const t0 = Date.now();
-          const pdf = await render(html);
-          const dir = ctx.sessionFolder();
-          mkdirSync(dir, { recursive: true });
-          writeFileSync(join(dir, "report.pdf"), pdf);
-          log("info", "swarm.reporter.pdf", { bytes: pdf.length, ms: Date.now() - t0, file: join(dir, "report.pdf") });
-          return pdf;
-        })().finally(() => { pdfJob = null; }));
-        const pdf = await job;
+        const pdf = await (pdfJob ?? startPdf(render));
         const headers: Record<string, string> = { "content-type": "application/pdf", "content-length": String(pdf.length), "cache-control": "no-store" };
         if (new URLSearchParams(query).get("download") === "1") headers["content-disposition"] = `attachment; filename="coach-report-${fileName()}.pdf"`;
         res.writeHead(200, headers);
         res.end(pdf);
       } catch (err) {
-        if ((err as { notAvailable?: boolean }).notAvailable) json(res, 404, { ok: false, reason: "not_available", hint: "no run has finished yet" });
+        const why = (err as { why?: string }).why;
+        if (why === "not_available") json(res, 404, { ok: false, reason: "not_available", hint: "no run has finished yet" });
+        else if (why === "session_changed") json(res, 409, { ok: false, reason: "session_changed", hint: "the session was reset while the PDF was made; ask again" });
         else { log("error", "swarm.reporter.pdf_failed", { err: String(err) }); json(res, 500, { ok: false, reason: "pdf_failed", hint: String(err).slice(0, 200) }); }
       }
       return true;

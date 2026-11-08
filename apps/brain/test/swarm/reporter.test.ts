@@ -259,6 +259,35 @@ describe("reporter: session narrative and PDF", () => {
     expect(html.headers["content-type"]).toMatch(/text\/html/);
   });
 
+  it("PDF: a reset while it renders drops it (nothing written) and doesn't end the new session's PDF job", async () => {
+    const renders: ((b: Buffer) => void)[] = [];
+    const t = rig({ llm: () => Promise.reject(new Error("no key")), renderPdf: () => new Promise((r) => { renders.push(r); }) });
+    t.run(); t.clock.advance(3_000); await flush();
+    const oldFolder = t.ctx.sessionFolder();
+    const first = t.get("/api/swarm/report/session.pdf");
+    await flush();
+    expect(renders).toHaveLength(1);
+    t.store.dispatch({ type: "reset" });                  // the next presenter
+    t.store.dispatch({ type: "session_start" });
+    t.run(); t.clock.advance(3_000); await flush();
+    const newFolder = t.ctx.sessionFolder();
+    expect(newFolder).not.toBe(oldFolder);
+    const second = t.get("/api/swarm/report/session.pdf");
+    await flush();
+    expect(renders).toHaveLength(2);
+    renders[0]!(Buffer.from("%PDF old session"));
+    expect((await first).code).toBe(409);
+    expect(existsSync(join(oldFolder, "report.pdf"))).toBe(false);
+    expect(existsSync(join(newFolder, "report.pdf"))).toBe(false);
+    const third = t.get("/api/swarm/report/session.pdf");  // joins the new session's job, still under way
+    await flush();
+    expect(renders).toHaveLength(2);
+    renders[1]!(Buffer.from("%PDF new session"));
+    expect(String((await second).body)).toBe("%PDF new session");
+    expect(String((await third).body)).toBe("%PDF new session");
+    expect(readFileSync(join(newFolder, "report.pdf"), "utf8")).toBe("%PDF new session");
+  });
+
   it("drops a report still being written when the session is reset", async () => {
     const { llm, calls } = deferredLlm();
     const t = rig({ llm });
