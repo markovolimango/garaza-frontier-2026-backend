@@ -302,7 +302,7 @@ all in **`src/brain/` (new files only, never touched by Lovable)**:
 | `captions.ts`, `JJCaptions.tsx` | `jj.transcript` → rolling caption on JJ's screen (JJ's words at speaking pace, older lines dim and fade); compact version over the slides/room while woken |
 | `BrainReport.tsx` | the report screen under the brain: fetches `GET /api/runs/:runId/report` (RunDigest) on `report.ready` |
 | `BrainProgress.tsx` | the report screen's Progress tab: run 1 → 2 → 3 from `GET /api/progress` (SessionProgress) |
-| `CoachAnalysis.tsx` | the swarm reporter's written report on the report screen (`GET /api/swarm/report/run/:runId`, `…/session`, "Download PDF") |
+| `CoachAnalysis.tsx` | the swarm reporter's written report on the report screen (`GET /api/swarm/report/run/:runId`, `…/session`, "Export report": the PDF plus the printable page `/api/session/export.html`) |
 | `AgentsPanel.tsx` | "JJ's team": the agents JJ leads, live from `swarm.activity` (key A collapses it) |
 | `PreRunCheck.tsx` | "Before you start" between runs: camera, microphone level, recording (`GET /api/sensors/check`) |
 | `recorder.ts` | with consent, records camera + mic during a run and streams it to `POST /api/media/:runId/chunk` |

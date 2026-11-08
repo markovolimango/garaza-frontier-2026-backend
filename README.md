@@ -44,7 +44,7 @@ tougher and ask me about pricing", "how many times did I say um?", "show me wher
 7. Izveštaj: "Coach's analysis" stiže 10–25 s posle runa; JJ u debriefu pominje šta su agenti videli.
 8. Pitaj JJ "how many times did I say um?" i "show me where I crossed my arms".
 9. Run 2 "With live feedback": "um um" → crvena ivica posle ~1–2 s.
-10. Progress kartica → "Download PDF".
+10. Progress kartica → "Export report" (PDF; "Printable page" je ista strana za štampu).
 
 Bez browsera i mikrofona, isti tok sa sintetičkim glasom (pravi Gemini, brain na posebnom portu):
 `BRAIN_URL=http://127.0.0.1:18871 node e2e/swarm-live.mjs pitch.wav answer.wav` (vidi zaglavlje skripte).

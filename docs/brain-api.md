@@ -16,7 +16,7 @@ port plus `CORS_ORIGINS`. Errors are JSON `{ok: false, reason, hint?}`; an unkno
 | GET | `/api/tools` | the coach tools' catalogue (names, args schemas) for the operator panel's forms | `brain.ts`, `jj/tools.ts` |
 | GET | `/api/session` | `{sessionId, phase, runs, savedAt}` of the current (saved) session | `persist.ts` |
 | POST | `/api/session/reset` | new session; `{full?: true, keepData?: false}`: a full reset erases the previous one from disk (runs, reports, uploads, recordings); `full: false` keeps the deck and erases nothing | `persist.ts` |
-| GET | `/api/session/export.html[?download=1]` | printable session report (measured behaviour only, no personal goals) | `export.ts` |
+| GET | `/api/session/export.html[?download=1]` | printable session report (measured behaviour only, no personal goals) | `swarm/reporter.ts` (document: `swarm/reportPdf.ts`) |
 | GET | `/api/runs` | the session's runs `[{runId, index, mode, level, ended}]` | `digest.ts` |
 | GET | `/api/runs/:runId/report` | one run's digest (RunDigest); 404 for an unknown run | `digest.ts` |
 | GET | `/api/progress` | progress across the finished runs (SessionProgress) | `progress.ts` |
