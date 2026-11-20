@@ -139,3 +139,8 @@ persistence.saveNow();
 const shutdown = () => { persistence.saveNow(); swarm?.save(); void brain.close().finally(() => process.exit(0)); };
 process.on("SIGINT", shutdown);
 process.on("SIGTERM", shutdown);
+// A stray throw or rejection in a timer/callback: log it and keep serving; the session is saved right away in case
+// something worse follows. (Without these, Node would exit and lose up to 500 ms of unsaved state.)
+const saveAfterError = () => { try { persistence.saveNow(); swarm?.save(); } catch (err) { log("error", "brain.save_after_error_failed", { err: String(err) }); } };
+process.on("uncaughtException", (err) => { log("error", "brain.uncaught_exception", { err: String(err), stack: err.stack }); saveAfterError(); });
+process.on("unhandledRejection", (reason) => { log("error", "brain.unhandled_rejection", { err: String(reason) }); saveAfterError(); });
