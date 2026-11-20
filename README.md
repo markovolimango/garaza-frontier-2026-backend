@@ -63,4 +63,5 @@ repo. Lovable ne dira `src/brain/`. Detalji: [docs/integration.md §14](docs/int
 - [docs/sensing.md](docs/sensing.md): coach, kamera, most coach → brain, tuning pragova
 - [docs/demo.md](docs/demo.md): demo jednom komandom, agent swarm, pitch mod
 - [docs/api.md](docs/api.md): API servisa `services/coach`
+- [docs/research.md](docs/research.md): predlozi za dalja poboljšanja
 - [TODO.md](TODO.md): otvoreni zadaci (glasovi sudija)
