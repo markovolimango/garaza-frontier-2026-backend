@@ -302,6 +302,7 @@ class Bridge:
         self._session_task: asyncio.Task | None = None
         self._session_dirty = False
         self._verify_pending = False
+        self._coach_ws = None                     # the open coach stream, to re-subscribe when our session changes
 
     # brain -> bridge
     def _on_brain(self, msg: dict) -> None:
@@ -426,6 +427,8 @@ class Bridge:
             self.coach_session = {"id": session["session_id"], "run_id": session_target(self.run_state, self.session_phase),
                                   "state": session.get("state", "created")}
             self._created.append(session["session_id"])
+            if self._coach_ws is not None:   # follow the new session now, not whichever session is newest
+                asyncio.ensure_future(self._resubscribe(self._coach_ws))
         else:
             self.coach_session["state"] = session.get("state", self.coach_session["state"])
         log.info("coach: session %s %s for brain %s", self.coach_session["id"][:12],
@@ -485,6 +488,28 @@ class Bridge:
         log.info("coach episode %-12s %.1f s (%s)%s", kind, episode.get("duration_s") or 0, episode.get("end_reason"),
                  " -> reward" if reward else "")
 
+    async def _close_open_episodes(self, why: str) -> None:
+        """End every behaviour whose start the brain got: the coach session that would end it is gone (coach restart,
+        another session followed), so without this the brain keeps an episode open until the run ends."""
+        if not self._open_episodes:
+            return
+        now = int(time.time() * 1000)
+        for kind in list(self._open_episodes):
+            del self._open_episodes[kind]
+            await self.sensor.send("behavior", {"kind": kind, "phase": "end", "clientTs": now, "conf": EPISODE_CONF})
+            log.info("coach episode %-12s closed (%s)", kind, why)
+
+    def _subscribe_target(self) -> str:
+        """Our own run session when the bridge manages sessions and it is still live, else the newest active one."""
+        own = self.coach_session
+        return own["id"] if self.sessions and own and own.get("state") != "ended" else "latest"
+
+    async def _resubscribe(self, ws) -> None:
+        try:
+            await self._subscribe(ws)
+        except ConnectionClosed:
+            pass   # the reconnect loop subscribes again
+
     async def follow_coach(self) -> None:
         url = ws_url(self.coach_url, "/v1/stream")
         delay = 0.5
@@ -498,25 +523,33 @@ class Bridge:
                         raise RuntimeError(f"coach stream auth failed: {hello}")
                     delay = 0.5
                     log.info("coach: connected to %s", url)
+                    await self._close_open_episodes("coach stream reconnected")
                     self._recheck_session()   # after a coach restart the bridge's session no longer exists
+                    self._coach_ws = ws
                     await self._subscribe(ws)
                     async for raw in ws:
                         msg = json.loads(raw)
                         t = msg.get("type")
-                        if t == "error" and (msg.get("error") or {}).get("code") == "no_active_session":
+                        if t == "error" and (msg.get("error") or {}).get("code") in ("no_active_session", "session_not_found"):
                             if self.session_id != "":   # log once per waiting period
                                 log.info("coach: waiting for a session (start one in the app / vision --coach)")
                                 self._recheck_session()   # the bridge's own session expired or was deleted
+                                await self._close_open_episodes("coach session gone")
                             self.session_id = ""
                             await asyncio.sleep(2)
                             await self._subscribe(ws)
                         elif t == "snapshot":
-                            self.session_id = msg["snapshot"]["session"]["session_id"]
+                            new_id = msg["snapshot"]["session"]["session_id"]
+                            if self.session_id and new_id != self.session_id:
+                                await self._close_open_episodes(f"now following session {new_id[:12]}")
+                            self.session_id = new_id
                             log.info("coach: following session %s", self.session_id)
                         elif t == "event":
                             event = msg["event"]
                             await self.handle_event(event)
                             if event.get("event_type") == "session.state" and event["payload"].get("state") == "ended":
+                                if self.coach_session and self.coach_session["id"] == self.session_id:
+                                    self.coach_session["state"] = "ended"   # don't re-subscribe to it by id
                                 await asyncio.sleep(1)
                                 await self._subscribe(ws)
             except SystemExit as exc:   # operator_token(): no token file yet (coach not started)
@@ -525,12 +558,12 @@ class Bridge:
                 log.error("coach: stream refused (%s); check the operator token", exc.response.status_code)
             except (OSError, ConnectionClosed, InvalidHandshake, asyncio.TimeoutError) as exc:
                 log.info("coach: unreachable at %s (%s), retrying", url, type(exc).__name__)
+            self._coach_ws = None
             await asyncio.sleep(delay)
             delay = min(5.0, delay * 2)
 
-    @staticmethod
-    async def _subscribe(ws) -> None:
-        await ws.send(json.dumps({"type": "subscribe", "session_id": "latest", "event_types": STREAM_TYPES,
+    async def _subscribe(self, ws) -> None:
+        await ws.send(json.dumps({"type": "subscribe", "session_id": self._subscribe_target(), "event_types": STREAM_TYPES,
                                   "after_cursor": None}))
 
     async def run(self) -> None:

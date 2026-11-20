@@ -187,7 +187,7 @@ Person-related names (`left_*`, `right_*`) are anatomical, the subject's own sid
 |---|---|
 | `position_m` | meters relative to the root joint (hip center); `root` = [0, 0, 0] |
 | `local_position_m` | relative to `parent` (Vision `parentJointName`); `root` has `parent: null` |
-| `image_point` | Vision's projection into the image, top-left normalized. It may lie outside 0..1 for joints outside the frame (values near 3 were observed), so clip before drawing. Mirror it the same way as 2D. |
+| `image_point` | Vision's projection into the image, top-left normalized. It may lie outside 0..1 for joints outside the frame, so clip before drawing. Omitted (null) when the projection is outside −10..10 or not finite, which happens for legs Vision extrapolates out of shot. Mirror it the same way as 2D. |
 | `root_camera_position_m` | root position relative to the camera (`cameraRelativePosition(.root)`); z grows with distance in front of the camera |
 | `camera_origin_matrix` | Vision `cameraOriginMatrix` (root/hip → camera), column-major 4×4 |
 | `body_height_m` | 1.8 m reference height unless `height_estimation: measured` (LiDAR depth), so metric scale is approximate |

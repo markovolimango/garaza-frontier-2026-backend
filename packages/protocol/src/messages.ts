@@ -102,7 +102,7 @@ export const DOWNLINK = {
 export const SENSOR_BEHAVIORS = ["arms_crossed", "sway", "fast_hands", "face_touch", "looking_down", "head_tilt", "hands_in_pockets"] as const;
 
 export const UPLINK = {
-  hello: z.object({ role: ClientRole, clientId: z.string().min(1), protocol: z.literal(PROTOCOL_VERSION) }),
+  hello: z.object({ role: ClientRole, clientId: z.string().min(1).max(128), protocol: z.literal(PROTOCOL_VERSION) }),
   pong: z.object({}),
   ack: z.union([
     z.object({ batchId: z.string().min(1), version: z.number().int(), ok: z.literal(true) }),
@@ -185,7 +185,8 @@ function parseWith<M>(table: Record<string, z.ZodType>, raw: unknown): ParseResu
   }
   const env = EnvelopeBase.safeParse(data);
   if (!env.success) return fail("invalid_message", `bad envelope: ${z.prettifyError(env.error)}`);
-  const schema = table[env.data.type];
+  // Own keys only: "toString", "__proto__" etc. must not resolve to Object.prototype members.
+  const schema = Object.hasOwn(table, env.data.type) ? table[env.data.type] : undefined;
   if (!schema) return fail("invalid_message", `unknown type "${env.data.type}"`);
   const payload = schema.safeParse(env.data.payload);
   if (!payload.success) return fail("invalid_message", `${env.data.type}: ${z.prettifyError(payload.error)}`);

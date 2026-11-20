@@ -10,7 +10,7 @@
 import { mkdirSync, readFileSync, readdirSync, writeFileSync, existsSync } from "node:fs";
 import type { IncomingMessage, ServerResponse } from "node:http";
 import { join, resolve } from "node:path";
-import { Readable } from "node:stream";
+import { PassThrough, Readable } from "node:stream";
 import { nanoid } from "nanoid";
 import { z } from "zod";
 import { DeckManifest, type ContextDocMeta, type Deck } from "@coach/protocol";
@@ -69,14 +69,31 @@ export class Uploads {
     if (phase) return phase;
     const len = Number(req.headers["content-length"] ?? 0);
     if (len > LIMITS.deckBytes) return fail(413, "invalid_args", "the deck is too large");
+    // Count the bytes actually received: a chunked upload has no content-length, and formData() buffers it all in
+    // memory. Past the limit, stop feeding the parser and drain the rest unbuffered so the client still gets the 413.
+    let received = 0;
+    let tooLarge = false;
+    const counted = new PassThrough();
+    req.on("data", (chunk: Buffer) => {
+      if (tooLarge) return;
+      received += chunk.length;
+      if (received > LIMITS.deckBytes) {
+        tooLarge = true;
+        req.unpipe(counted);
+        req.resume();
+        counted.destroy(new Error("the deck is too large"));
+      }
+    });
+    req.pipe(counted);
     let form: FormData;
     try {
       const request = new Request("http://brain/upload", {
         method: "POST", headers: req.headers as Record<string, string>,
-        body: Readable.toWeb(req) as ReadableStream, duplex: "half",
+        body: Readable.toWeb(counted) as ReadableStream, duplex: "half",
       } as RequestInit & { duplex: "half" });
       form = await request.formData();
     } catch (err) {
+      if (tooLarge) return fail(413, "invalid_args", "the deck is too large");
       return fail(400, "invalid_args", `expected multipart/form-data: ${String(err)}`);
     }
     const rawManifest = form.get("manifest");

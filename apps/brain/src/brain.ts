@@ -78,7 +78,9 @@ export function createBrain(o: BrainOptions): Brain {
 
   // Session and hub reference each other only through closures.
   let session!: SessionStore;
-  const hub = new WsHub({ clock, log, sessionId: () => session.get().sessionId });
+  const localOrigin = /^https?:\/\/(localhost|127\.0\.0\.1|\[::1\])(:\d+)?$/;
+  const allowOrigin = (origin: string | undefined) => !!origin && (localOrigin.test(origin) || (o.corsOrigins ?? []).includes(origin));
+  const hub = new WsHub({ clock, log, sessionId: () => session.get().sessionId, allowOrigin });
   session = new SessionStore({
     clock, log, venue, coach: o.coach ?? placeholderCoach,
     initialScene: o.initialScene ?? defaultScene(o.jj.JUDGE_VOICES),
@@ -133,8 +135,6 @@ export function createBrain(o: BrainOptions): Brain {
   // ---------------- http ----------------
   const json = (res: ServerResponse, code: number, body: unknown) => { res.writeHead(code, { "content-type": "application/json" }); res.end(JSON.stringify(body)); };
   const uploads = new Uploads({ session, sessionDir: o.sessionDir ?? "./data/sessions", log });
-  const localOrigin = /^https?:\/\/(localhost|127\.0\.0\.1|\[::1\])(:\d+)?$/;
-  const allowOrigin = (origin: string | undefined) => !!origin && (localOrigin.test(origin) || (o.corsOrigins ?? []).includes(origin));
   const brain: Brain = {
     server: createServer(), hub, session, sync, tools, jj, mic, uploads,
     listen: (port, host = "127.0.0.1") => new Promise((resolve) => brain.server.listen(port, host, () => resolve((brain.server.address() as AddressInfo).port))),

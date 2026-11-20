@@ -89,4 +89,15 @@ import CoachCapture
     let point = PoseJoints.topLeft(x: 0.25, y: 0.9)
     #expect(point.x == 0.25 && abs(point.y - 0.1) < 1e-12)
 }
+
+@Test func imagePointDropsProjectionsOutsideTheWireBound() {
+    let inFrame = PoseJoints.imagePoint(x: 0.4, y: 0.7)
+    #expect(inFrame != nil && abs(inFrame!.y - 0.3) < 1e-12)
+    // Values seen from Vision for legs out of shot (zidane.jpg): knee y -10.165 → 11.165, ankle y 28.367 → -27.367.
+    #expect(PoseJoints.imagePoint(x: -1.712, y: -10.165) == nil)
+    #expect(PoseJoints.imagePoint(x: 4.749, y: 28.367) == nil)
+    #expect(PoseJoints.imagePoint(x: .nan, y: 0.5) == nil)
+    #expect(PoseJoints.imagePoint(x: 0.5, y: .infinity) == nil)
+    #expect(PoseJoints.imagePoint(x: 10, y: -9) != nil)
+}
 #endif
