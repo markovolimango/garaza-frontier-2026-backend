@@ -185,7 +185,8 @@ function parseWith<M>(table: Record<string, z.ZodType>, raw: unknown): ParseResu
   }
   const env = EnvelopeBase.safeParse(data);
   if (!env.success) return fail("invalid_message", `bad envelope: ${z.prettifyError(env.error)}`);
-  const schema = table[env.data.type];
+  // Own keys only: "toString", "__proto__" etc. must not resolve to Object.prototype members.
+  const schema = Object.hasOwn(table, env.data.type) ? table[env.data.type] : undefined;
   if (!schema) return fail("invalid_message", `unknown type "${env.data.type}"`);
   const payload = schema.safeParse(env.data.payload);
   if (!payload.success) return fail("invalid_message", `${env.data.type}: ${z.prettifyError(payload.error)}`);

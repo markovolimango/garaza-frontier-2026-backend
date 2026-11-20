@@ -222,3 +222,16 @@ describe("binary endpoints", () => {
     expect(decodeAudioFrame(new Uint8Array(got[0]!))).toMatchObject({ source: 2, flags: 1, seq: 9 });
   });
 });
+
+describe("hub hardening", () => {
+  it("answers a prototype-member type with an error and keeps serving", async () => {
+    const t = await setup();
+    const r = await t.raw();
+    for (const type of ["toString", "__proto__", "constructor"]) r.send(type, {}, { id: type });
+    await until(() => r.got.length >= 3);
+    expect(r.got.map((m) => m.type)).toEqual(["error", "error", "error"]);
+    const { c, got } = t.client("stage");
+    c.connect();
+    await until(() => got.some((m) => m.type === "welcome"));
+  });
+});

@@ -138,7 +138,7 @@ export class WsHub implements Hub {
     let conn: Conn | null = null;
     const helloTimer = this.o.clock.setTimeout(() => { if (!conn) ws.close(CLOSE_CODES.helloTimeout, "no hello"); }, this.o.helloTimeoutMs ?? 5000);
 
-    ws.on("message", (data: RawData, isBinary: boolean) => {
+    const onMessage = (data: RawData, isBinary: boolean): void => {
       if (conn) conn.lastSeen = this.o.clock.now();
       if (isBinary) { this.sendError(ws, "invalid_message", "control frames are JSON text"); return; }
       const parsed = parseUplink(String(data));
@@ -166,6 +166,11 @@ export class WsHub implements Hub {
         try { (h as (m: UplinkMessage, r: ClientRole) => void)(msg, conn.role); }
         catch (err) { this.log("error", "hub.handler_failed", { type: msg.type, err: String(err) }); this.sendError(ws, "internal", "handler failed", msg.id); }
       }
+    };
+    ws.on("message", (data: RawData, isBinary: boolean) => {
+      // Last line of defence: one bad frame must never take the whole brain down.
+      try { onMessage(data, isBinary); }
+      catch (err) { this.log("error", "hub.message_failed", { err: String(err) }); this.sendError(ws, "internal", "message failed"); }
     });
 
     ws.on("close", () => {
