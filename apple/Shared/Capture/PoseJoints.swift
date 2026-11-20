@@ -25,5 +25,18 @@ public enum PoseJoints {
 
     /// Vision normalized points use a lower-left origin; the wire uses top-left.
     public static func topLeft(x: Double, y: Double) -> (x: Double, y: Double) { (x, 1.0 - y) }
+
+    /// Wire bound for `image_point` (services/coach `Point2D`: each coordinate in [-10, 10]).
+    public static let imagePointBound = 10.0
+
+    /// A 3D joint's `pointInImage` (lower-left origin) as a top-left wire point, or nil when it is unusable.
+    /// pointInImage is a perspective projection of Vision's 3D model: joints it extrapolates outside the frame
+    /// (legs below a desk or out of shot) can land near or behind the camera plane, giving huge or sign-flipped
+    /// values. One such value would make the coach reject the whole pose frame, so the point is omitted instead.
+    public static func imagePoint(x: Double, y: Double) -> (x: Double, y: Double)? {
+        let p = topLeft(x: x, y: y)
+        guard p.x.isFinite, p.y.isFinite, abs(p.x) <= imagePointBound, abs(p.y) <= imagePointBound else { return nil }
+        return p
+    }
 }
 #endif

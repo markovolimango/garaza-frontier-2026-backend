@@ -32,7 +32,7 @@ Each fact is labelled by how it was established:
 
   - The app should warm up the 2D request before a session; the iPhone will differ.
   - Root `parentJointName` is the root itself (mapped to `null`).
-  - `pointInImage` for joints outside a cropped photo reached y ≈ 3.04. The contract allows −10..10 and clients must clip.
+  - `pointInImage` is a perspective projection of Vision's 3D model and is unbounded: joints it extrapolates out of shot can land near or behind the camera plane (zidane.jpg: right knee y ≈ 11.2, right ankle y ≈ −27.4). The contract allows −10..10, so the Swift side omits `image_point` outside that range or when not finite (`PoseJoints.imagePoint`).
   - Axis signs observed with people facing the camera: **+x toward the subject's left, +y up, +z toward the camera**. Apple does not document these. Verify on device.
 - **[SDK]** Camera buffers are rotated with `AVCaptureDevice.RotationCoordinator` (`videoRotationAngleForHorizonLevelCapture`, iOS 17 / macOS 14), which follows the device's physical orientation, so portrait and landscape mounts both give upright frames. **[Not tested]** on an iPhone.
 - **[Not tested]** iPhone camera frame rate, Vision timings on A16, thermal behaviour. The default rate is 12 pose observations per second, configurable (`pose.target_rate_hz`, app stepper). No FPS is promised.

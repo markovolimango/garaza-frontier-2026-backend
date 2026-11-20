@@ -105,8 +105,8 @@ public final class PoseEstimator {
             let position = point.position.columns.3
             let local = point.localPosition.columns.3
             var imagePoint: CoachWire.Point2D?
-            if let projected = try? observation.pointInImage(vision) {
-                let p = PoseJoints.topLeft(x: Double(projected.x), y: Double(projected.y))
+            if let projected = try? observation.pointInImage(vision),
+               let p = PoseJoints.imagePoint(x: Double(projected.x), y: Double(projected.y)) {
                 imagePoint = CoachWire.Point2D(x: p.x, y: p.y)
             }
             joints.append(CoachWire.Joint3D(name: name, positionM: [Double(position.x), Double(position.y), Double(position.z)],
