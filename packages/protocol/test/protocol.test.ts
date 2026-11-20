@@ -45,6 +45,7 @@ describe("protocol schemas", () => {
     for (const type of ["toString", "hasOwnProperty", "valueOf", "constructor", "__proto__"]) {
       expect(parseUplink({ v: 1, type, id: "p", ts: 1, payload: {} })).toMatchObject({ ok: false, code: "invalid_message", refId: "p" });
     }
+    expect(parseUplink({ v: 1, type: "hello", id: "h", ts: 1, payload: { role: "stage", clientId: "x".repeat(129), protocol: 1 } })).toMatchObject({ ok: false, code: "invalid_message" });
     expect(parseUplink({ v: 2, type: "hello", id: "a", ts: 1, payload: {} })).toMatchObject({ ok: false, code: "protocol_mismatch" });
   });
 

@@ -36,7 +36,12 @@ export interface HubOptions {
   log?: Logger;
   helloTimeoutMs?: number;     // default 5000
   newId?: () => string;
+  /** Browser origins allowed to open a socket; requests without an Origin header (Node clients) always pass. */
+  allowOrigin?: (origin: string) => boolean;
 }
+
+/** Inbound frame limits per endpoint (ws's default is 100 MiB). */
+const MAX_PAYLOAD = { control: 1024 * 1024, mic: 64 * 1024, audio: 4 * 1024 } as const;
 
 interface Conn { ws: WebSocket; role: ClientRole; clientId: string; lastSeen: number }
 const ROLES: ClientRole[] = ["stage", "sensor", "operator"];
@@ -52,7 +57,11 @@ export class WsHub implements Hub {
   private mic: WebSocket | null = null;
   private audio: WebSocket | null = null;
   private pingTimer: unknown = null;
-  private readonly wss = { control: new WebSocketServer({ noServer: true }), mic: new WebSocketServer({ noServer: true }), audio: new WebSocketServer({ noServer: true }) };
+  private readonly wss = {
+    control: new WebSocketServer({ noServer: true, maxPayload: MAX_PAYLOAD.control }),
+    mic: new WebSocketServer({ noServer: true, maxPayload: MAX_PAYLOAD.mic }),
+    audio: new WebSocketServer({ noServer: true, maxPayload: MAX_PAYLOAD.audio }),
+  };
   private readonly log: Logger;
   private readonly newId: () => string;
 
@@ -71,6 +80,12 @@ export class WsHub implements Hub {
       const path = (req.url ?? "").split("?")[0];
       const target = path === WS_PATHS.control ? this.wss.control : path === WS_PATHS.mic ? this.wss.mic : path === WS_PATHS.audio ? this.wss.audio : null;
       if (!target) return;
+      const origin = req.headers.origin;
+      if (origin && this.o.allowOrigin && !this.o.allowOrigin(origin)) {
+        this.log("warn", "hub.origin_rejected", { origin, path });
+        socket.end("HTTP/1.1 403 Forbidden\r\nConnection: close\r\nContent-Length: 0\r\n\r\n");
+        return;
+      }
       target.handleUpgrade(req, socket, head, (ws) => target.emit("connection", ws, req));
     });
   }

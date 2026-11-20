@@ -102,7 +102,7 @@ export const DOWNLINK = {
 export const SENSOR_BEHAVIORS = ["arms_crossed", "sway", "fast_hands", "face_touch", "looking_down", "head_tilt", "hands_in_pockets"] as const;
 
 export const UPLINK = {
-  hello: z.object({ role: ClientRole, clientId: z.string().min(1), protocol: z.literal(PROTOCOL_VERSION) }),
+  hello: z.object({ role: ClientRole, clientId: z.string().min(1).max(128), protocol: z.literal(PROTOCOL_VERSION) }),
   pong: z.object({}),
   ack: z.union([
     z.object({ batchId: z.string().min(1), version: z.number().int(), ok: z.literal(true) }),

@@ -6,7 +6,9 @@ for the WebSocket catalogue, `reports.ts` and `domain.ts` for the JSON bodies). 
 [integration.md](integration.md).
 
 Base URL: `http://127.0.0.1:8787` (`BRAIN_HOST`, `BRAIN_PORT`). CORS allows localhost / 127.0.0.1 on any
-port plus `CORS_ORIGINS`. Errors are JSON `{ok: false, reason, hint?}`; an unknown `/api/*` path answers 501.
+port plus `CORS_ORIGINS`; the same list gates WebSocket upgrades from browsers (a foreign `Origin` gets 403, clients
+without an `Origin` header such as the coach bridge and vision pass). Inbound WS frames are capped: control 1 MiB, mic
+64 KiB, audio 4 KiB (larger → close 1009); `hello.clientId` ≤ 128 chars. Errors are JSON `{ok: false, reason, hint?}`; an unknown `/api/*` path answers 501.
 
 ## HTTP
 

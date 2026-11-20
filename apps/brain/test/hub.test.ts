@@ -5,7 +5,7 @@ import { WebSocket as WsClient } from "ws";
 import { decodeAudioFrame, type DownlinkEnvelope } from "@coach/protocol";
 import { ControlClient } from "@coach/web/net";
 import { VirtualClock } from "../src/clock.ts";
-import { WsHub } from "../src/hub.ts";
+import { WsHub, type HubOptions } from "../src/hub.ts";
 
 const until = async (pred: () => boolean, ms = 2000) => {
   const end = Date.now() + ms;
@@ -15,9 +15,9 @@ const until = async (pred: () => boolean, ms = 2000) => {
 let cleanup: (() => void)[] = [];
 afterEach(() => { for (const c of cleanup.reverse()) c(); cleanup = []; });
 
-async function setup() {
+async function setup(opts: Partial<HubOptions> = {}) {
   const clock = new VirtualClock(1_762_540_000_000);
-  const hub = new WsHub({ clock, sessionId: () => "sess_1" });
+  const hub = new WsHub({ clock, sessionId: () => "sess_1", ...opts });
   const server: Server = createServer();
   hub.attach(server);
   await new Promise<void>((r) => server.listen(0, "127.0.0.1", r));
@@ -233,5 +233,26 @@ describe("hub hardening", () => {
     const { c, got } = t.client("stage");
     c.connect();
     await until(() => got.some((m) => m.type === "welcome"));
+  });
+
+  it("rejects sockets from origins it doesn't allow; Node clients without an Origin pass", async () => {
+    const t = await setup({ allowOrigin: (o) => o === "http://localhost:5174" });
+    const open = (origin?: string) => new Promise<"open" | number>((resolve) => {
+      const ws = new WsClient(`ws://127.0.0.1:${t.port}/ws/control`, origin ? { origin } : {});
+      ws.on("open", () => { ws.close(); resolve("open"); });
+      ws.on("unexpected-response", (_req, res) => resolve(res.statusCode ?? 0));
+      ws.on("error", () => {});
+    });
+    expect(await open("https://evil.example")).toBe(403);
+    expect(await open("http://localhost:5174")).toBe("open");
+    expect(await open()).toBe("open");
+  });
+
+  it("closes a control socket that sends an oversized frame (1009)", async () => {
+    const t = await setup();
+    const r = await t.raw();
+    r.ws.send("x".repeat(2 * 1024 * 1024));
+    await until(() => r.closed() !== null);
+    expect(r.closed()).toBe(1009);
   });
 });
