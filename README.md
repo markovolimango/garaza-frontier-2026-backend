@@ -63,6 +63,10 @@ bash scripts/demo.sh --pitch --camera N    # otvori http://localhost:5174/pitch
 3. **Show dashboard** (ili taster D). Brojke su odmah tu, poštapalice stižu za par sekundi, a analiza
    10–25 s posle (dok se piše, piše "The reporter is writing…"). **New pitch** za sledeći.
 
+**Kamera** meri telo samo kad vidi ramena **i kukove**: za laptopom (kukovi ispod stola) ne vidi ništa, pa stani
+~2 m od kamere. Ekran pokazuje status kamere pre i tokom govora; ako te kamera nije videla, dashboard to kaže
+("camera saw you N% of the time") umesto da prijavi čist govor tela.
+
 Bez Gemini ključa nema transkripta (tempo i poštapalice "—"), ostalo radi. API: `/api/pitch/*`
 ([docs/brain-api.md](docs/brain-api.md)). Testovi: `pnpm e2e:pitch` (browser, lažna kamera) i
 `node e2e/pitch-live.mjs pitch.wav` (pravi Gemini, glas iz WAV-a; vidi zaglavlje skripte).

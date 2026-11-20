@@ -42,8 +42,12 @@ function Pitch({ brain }: { brain: BrainSource }) {
   useEffect(() => {
     if (view.kind === "ready" && run?.pitch && run.phase === "presentation") setView({ kind: "live", runId: run.runId });
   }, [run?.pitch, run?.phase, run?.runId, view.kind]);
-  // leaving the page gives JJ back its voice (the brain refuses while a pitch is recorded)
-  useEffect(() => () => { void fetch(`${brain.httpBase}/api/pitch/exit`, { method: "POST", keepalive: true }).catch(() => {}); }, [brain]);
+  // opening the page silences JJ and starts the session, so the camera check runs before the talk;
+  // leaving it gives JJ back its voice (the brain refuses while a pitch is recorded)
+  useEffect(() => {
+    void fetch(`${brain.httpBase}/api/pitch/enter`, { method: "POST" }).catch(() => {});
+    return () => { void fetch(`${brain.httpBase}/api/pitch/exit`, { method: "POST", keepalive: true }).catch(() => {}); };
+  }, [brain]);
 
   const start = async (record: boolean) => {
     brain.unlockAudio();   // the click turns the microphone on
@@ -94,7 +98,7 @@ function cameraText(c: SensorCheck | null): { ok: boolean; text: string } {
   if (!c) return { ok: false, text: "checking…" };
   if (!c.coach) return { ok: false, text: "off (no camera coach): speech only" };
   if (c.inFrame) return { ok: true, text: `sees you${c.fps ? ` · ${Math.round(c.fps)} fps` : ""}` };
-  return { ok: false, text: c.camera === "ok" ? "doesn't see you: step into the frame" : "no frames yet" };
+  return { ok: false, text: c.camera === "ok" || c.camera === "no_person" ? "doesn't see your body: step back until your hips are in the frame" : "no frames yet" };
 }
 
 function Ready({ brain, busy, onStart }: { brain: BrainSource; busy: boolean; onStart: (record: boolean) => void }) {
@@ -162,6 +166,7 @@ function useDashboard(brain: BrainSource, runId: string, everyMs: number, until?
 function Live({ brain, runId, startedAt, busy, onStop }: { brain: BrainSource; runId: string; startedAt: number | null; busy: boolean; onStop: () => void }) {
   const now = useNow(250);
   const d = useDashboard(brain, runId, 2000);
+  const cam = cameraText(useSensors(brain, 2000));
   const [level, setLevel] = useState(0);
   useEffect(() => { const t = setInterval(() => setLevel(brain.micLevel() ?? 0), 100); return () => clearInterval(t); }, [brain]);
   useEffect(() => {
@@ -185,6 +190,7 @@ function Live({ brain, runId, startedAt, busy, onStop }: { brain: BrainSource; r
         {d?.speech.measured ? `${d.speech.words} words · ${d.speech.fillers.count} filler word${d.speech.fillers.count === 1 ? "" : "s"}` : "Talk whenever you're ready."}
         {d?.body.measured ? ` · ${d.body.rows.reduce((n, r) => n + r.count, 0)} body moments` : ""}
       </p>
+      <p className={`rounded-full border px-4 py-1 text-sm ${cam.ok ? "border-border text-muted-foreground" : "border-amber-500/60 text-amber-300"}`}>Camera: {cam.text}</p>
       <button type="button" disabled={busy} onClick={onStop}
         className="rounded-full bg-primary px-10 py-5 text-2xl font-semibold text-primary-foreground shadow-lg transition hover:bg-primary/90 disabled:opacity-60">
         {busy ? "Stopping…" : "Show dashboard"}
@@ -207,6 +213,8 @@ function Dashboard({ brain, runId, onAgain }: { brain: BrainSource; runId: strin
   if (!d) return <p className="flex min-h-screen items-center justify-center text-xl text-muted-foreground animate-pulse">Building your dashboard…</p>;
   const s = d.speech;
   const bodyMoments = d.body.rows.reduce((n, r) => n + r.count, 0);
+  // connected but it hardly saw the body (e.g. seated at a laptop: no hips in the frame)
+  const unseen = !d.body.measured && d.body.seenPct !== null;
   const bodyPct = Math.min(100, Math.round(d.body.rows.reduce((n, r) => n + r.pct, 0)));
   return (
     <section className="mx-auto max-w-6xl space-y-6 px-6 py-8" data-testid="pitch-dashboard">
@@ -225,7 +233,7 @@ function Dashboard({ brain, runId, onAgain }: { brain: BrainSource; runId: strin
         <Tile label="Filler words" value={s.measured ? `${s.fillers.count}` : "—"}
           note={!s.measured ? "no transcript" : s.fillers.perMin !== null ? `${s.fillers.perMin} per minute` : "in the talk"} />
         <Tile label="Body language" value={d.body.measured ? `${bodyMoments}` : "—"} unit={d.body.measured ? (bodyMoments === 1 ? "moment" : "moments") : undefined}
-          note={d.body.measured ? `${bodyPct}% of the talk` : "camera off"} />
+          note={d.body.measured ? `${bodyPct}% of the talk` : unseen ? `camera saw you ${d.body.seenPct}% of the time` : "camera off"} />
       </div>
 
       <Timeline d={d} />
@@ -243,7 +251,8 @@ function Dashboard({ brain, runId, onAgain }: { brain: BrainSource; runId: strin
                 </li>))}</ul>}
           </Card>
           <Card title="Body language">
-            {!d.body.measured ? <p className="text-muted-foreground">The camera coach wasn't connected.</p>
+            {unseen ? <p className="text-amber-300">The camera saw your body only {d.body.seenPct}% of the talk, so nothing was measured. It needs your shoulders and hips in the frame: stand about 2 m from the laptop.</p>
+              : !d.body.measured ? <p className="text-muted-foreground">The camera coach wasn't connected.</p>
               : d.body.rows.length === 0 ? <p className="text-muted-foreground">Nothing to flag: open posture, steady, head up.</p>
               : <table className="w-full text-sm"><thead className="text-left text-muted-foreground"><tr><th className="pb-2 font-normal">Behaviour</th><th className="pb-2 text-right font-normal">Times</th><th className="pb-2 text-right font-normal">Time</th><th className="pb-2 text-right font-normal">Of talk</th></tr></thead>
                 <tbody>{d.body.rows.map((r) => (

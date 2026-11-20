@@ -58,6 +58,7 @@ const shot = (name) => page.screenshot({ path: join(OUT, `pitch-${name}.png`), f
 try {
   await page.goto(FE + "/pitch", { waitUntil: "load" });
   check("/pitch stays /pitch (the brain's setup view doesn't move it)", !!(await waitFor(() => page.getByRole("button", { name: "Start listening" }).isVisible())) && (await sleep(1500), path() === "/pitch"), path());
+  check("opening /pitch starts the session quietly (intro, JJ silent)", !!(await waitFor(async () => { const h = await get("/health"); return h.phase === "intro" && h.jj !== "connected"; })));
   for (let i = 0; i < 3; i++) { sensor.send("sensor.status", { camera: "ok", fps: 12, posePresent: true }); await sleep(300); }
   check("ready: the camera sees you", !!(await waitFor(async () => (await page.textContent("main"))?.includes("sees you"))));
   await shot("1-ready");
@@ -101,8 +102,14 @@ try {
   check("New pitch → ready again", !!(await waitFor(() => page.getByRole("button", { name: "Start listening" }).isVisible())));
   await page.getByRole("button", { name: "Start listening" }).click();
   check("a second pitch starts (run 2)", !!(await waitFor(async () => (await get("/api/pitch/dashboard")).runId === "run_2")));
+  // seated at a laptop: the camera reports frames, but never a body (no hips in the frame)
+  for (let i = 0; i < 5; i++) { sensor.send("sensor.status", { camera: "no_person", fps: 12, posePresent: false }); await sleep(300); }
+  check("live: the camera status says it doesn't see the body", !!(await waitFor(async () => (await page.textContent("main"))?.includes("doesn't see your body"), 6000)));
   await page.getByRole("button", { name: "Show dashboard" }).click();
   check("…and ends", !!(await waitFor(async () => (await get("/health")).phase === "debrief")));
+  check("dashboard: the camera saw you 0% → no body claims", !!(await waitFor(async () => (await page.textContent("[data-testid=pitch-dashboard]"))?.includes("camera saw you 0% of the time"), 10000))
+    && (await get("/api/pitch/dashboard")).body.measured === false);
+  await shot("4-unseen");
   check("no page errors", errors.length === 0, errors.join(" | ").slice(0, 300));
 } catch (err) {
   check("script", false, String(err?.stack ?? err).slice(0, 400));
