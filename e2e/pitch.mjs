@@ -94,6 +94,9 @@ try {
   check("tiles: duration, pace, fillers, body", ["Duration", "Pace", "Filler words", "Body language", "3moments"].every((t) => text?.replace(/\s+/g, "").includes(t.replace(/\s+/g, ""))));
   check("timeline lanes for both behaviours", (await page.locator("[title^='Crossed arms ·']").count()) === 2 && (await page.locator("[title*='sway' i]").count()) >= 1);
   check("the reporter's analysis arrives (a pitch, not a run over 0 slides)", !!(await waitFor(async () => (await page.textContent("[data-testid=pitch-dashboard]"))?.includes("A pitch:") || false, 40000)));
+  await page.mouse.move(800, 600);
+  await page.mouse.wheel(0, 800);
+  check("the dashboard scrolls (the app's body doesn't)", !!(await waitFor(() => page.evaluate(() => (document.querySelector("[data-testid=pitch-scroll]")?.scrollTop ?? 0) > 0), 3000)));
   check("still on /pitch after the run", path() === "/pitch", path());
   check("JJ still silent after the run (no debrief)", (await get("/health")).jj !== "connected");
   await shot("3-dashboard");

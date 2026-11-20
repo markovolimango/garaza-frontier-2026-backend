@@ -68,7 +68,8 @@ function Pitch({ brain }: { brain: BrainSource }) {
   };
 
   return (
-    <main className="min-h-screen bg-background text-foreground">
+    // the app's body doesn't scroll (full-screen screens): the dashboard scrolls inside its own box
+    <main className="h-screen overflow-y-auto bg-background text-foreground" data-testid="pitch-scroll">
       {snap.status !== "open" && <p className="fixed left-1/2 top-4 -translate-x-1/2 rounded-full border border-amber-500/60 bg-card px-3 py-1 font-mono text-xs text-amber-300">Brain offline — reconnecting</p>}
       {view.kind === "ready" && <Ready brain={brain} busy={busy} onStart={start} />}
       {view.kind === "live" && <Live brain={brain} runId={view.runId} startedAt={run?.runId === view.runId ? run.presentationStartedAt ?? null : null} busy={busy} onStop={stop} />}
