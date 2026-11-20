@@ -422,3 +422,33 @@ def test_stopping_an_already_ended_session_is_done(monkeypatch):
 
     b = asyncio.run(scenario())
     assert b.coach_session == {"id": "ses_new1", "run_id": "run_1", "state": "running"}
+
+
+def test_open_episodes_are_closed_when_their_coach_session_is_gone():
+    async def scenario():
+        b = make_bridge()
+        b._on_brain({"type": "run.state", "payload": {"run": LIVE, "sessionPhase": "running"}})
+        for kind in ("arms_crossed", "looking_down"):
+            await b.handle_event({"event_type": "behavior.episode", "payload": episode(kind, eid=kind)})
+        await b._close_open_episodes("coach restarted")
+        await b._close_open_episodes("again")   # nothing left to close
+        # a late end for a closed episode is not forwarded twice
+        await b.handle_event({"event_type": "behavior.episode", "payload": episode("arms_crossed", "end", eid="arms_crossed")})
+        return b
+
+    b = asyncio.run(scenario())
+    sent = [(p["kind"], p["phase"]) for k, p in b.sensor.sent if k == "behavior"]
+    assert sent == [("arms_crossed", "start"), ("looking_down", "start"), ("arms_crossed", "end"), ("looking_down", "end")]
+    assert b._open_episodes == {}
+
+
+def test_the_bridge_follows_its_own_coach_session():
+    b = make_bridge()
+    assert b._subscribe_target() == "latest"
+    b.coach_session = {"id": "own-session", "run_id": "r1", "state": "started"}
+    assert b._subscribe_target() == "own-session"
+    b.coach_session["state"] = "ended"
+    assert b._subscribe_target() == "latest"
+    b.coach_session["state"] = "started"
+    b.sessions = False   # the bridge doesn't manage sessions: follow whatever the app / vision started
+    assert b._subscribe_target() == "latest"
