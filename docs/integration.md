@@ -1,7 +1,7 @@
 # Integration guide
 
 How the components of the AI Presentation Coach fit together, and where each lane plugs
-in. The spec (`AI Presentation Coach — Component & Interface Spec.md`) is the source of
+in. The original spec (not in this repo) was the source of
 truth for behaviour; this guide is the source of truth for **wiring**: which interface a
 component implements, who calls it, and where it is connected.
 
