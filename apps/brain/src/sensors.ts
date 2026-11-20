@@ -51,7 +51,7 @@ export class SensorMonitor {
     if (!coach) hints.push("The camera coach isn't connected: start it (pnpm demo, or the coach bridge), or this run has no body measurements.");
     else if (camera === "unknown") hints.push("No pose frames from the camera yet: start the iPhone app or vision/run.sh --coach.");
     else if (camera === "error") hints.push(`The camera has a problem${fresh?.message ? `: ${fresh.message}` : ""}.`);
-    else if (!inFrame) hints.push("The camera doesn't see you: step into the frame, whole upper body visible.");
+    else if (!inFrame) hints.push("The camera doesn't see your body: step back (about 2 m from a laptop) so your shoulders and hips are in the frame.");
     if (!mic) hints.push("The microphone isn't streaming: click anywhere on the screen and allow the microphone.");
     return { coach, camera, inFrame, fps: fresh?.fps ?? null, mic, ready: hints.length === 0, hints };
   }

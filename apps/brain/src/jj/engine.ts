@@ -92,6 +92,8 @@ export class JJEngine {
   /** Swarm agents' notes waiting for JJ (agentNote): held during runs and while JJ talks. */
   private notes: PendingNote[] = [];
   private notesFlushing = false;
+  /** Pitch mode: setSilent. */
+  private silent = false;
 
   constructor(opts: JJEngineOptions) {
     this.o = opts;
@@ -159,11 +161,32 @@ export class JJEngine {
   /** For GET /health and state.snapshot. */
   status(): JJState { return { connected: this.agentConnected, listening: this.listening(), speaking: this.agentSpeaking }; }
 
+  /**
+   * Pitch mode (pitch.ts): JJ stays out until turned back on: disconnected, deaf, silent, no agent notes.
+   * Runs that end meanwhile are not debriefed later.
+   */
+  setSilent(on: boolean): void {
+    if (on === this.silent) return;
+    this.silent = on;
+    this.log("info", "jj.silent", { on });
+    if (on) {
+      this.clearWake();
+      this.stopJJAudio();
+      this.captions.end();
+      this.notes = [];
+      if (this.retryTimer) { this.o.clock.clearTimeout(this.retryTimer); this.retryTimer = null; }
+      void this.o.agent.close();
+    }
+    this.publishState();
+  }
+
+  get isSilent(): boolean { return this.silent; }
+
   // ---------------- mic uplink ----------------
 
   /** Called by MicRouter for every 16 kHz frame routed to the "jj" sink. */
   acceptMic(pcm16k: Int16Array): void {
-    if (!this.agentConnected || !this.listening()) return;
+    if (this.silent || !this.agentConnected || !this.listening()) return;
     this.o.agent.sendAudio(pcm16k);
     if (this.wake && rms(pcm16k) >= this.wakeCfg.speechRms) this.wake.lastUserVoice = this.o.clock.now();
   }
@@ -181,7 +204,7 @@ export class JJEngine {
    */
   agentNote(text: string, speak = false): void {
     const s = this.o.session.get();
-    if (s.phase === "setup") { this.log("debug", "jj.agent_note_dropped", { text: text.slice(0, 80) }); return; }
+    if (s.phase === "setup" || this.silent) { this.log("debug", "jj.agent_note_dropped", { text: text.slice(0, 80) }); return; }
     const inRun = s.phase === "running";
     this.notes.push({ text, speak: speak && !inRun });
     if (this.notes.length > MAX_PENDING_NOTES) this.notes.splice(0, this.notes.length - MAX_PENDING_NOTES);
@@ -258,6 +281,7 @@ export class JJEngine {
     // Debrief starts once the run is ended and in completedRuns (spec: running: ended → debrief).
     if (s.phase === "debrief" && run.phase === "ended" && s.completedRuns.includes(run.runId) && !this.reportedRuns.has(run.runId)) {
       this.reportedRuns.add(run.runId);
+      if (run.pitch) return;   // pitch mode: the stage's dashboard is the debrief
       const report = this.o.reports.compactRunReport(run.runId);
       this.withAgent(() => this.say(runEndedMessage(run.runId, report), true));
     }
@@ -323,7 +347,7 @@ export class JJEngine {
   /** JJ may talk outside runs, while woken, or to finish an utterance it began while allowed. */
   private speechAllowed(): boolean {
     const s = this.o.session.get();
-    if (s.phase === "setup") return false;
+    if (s.phase === "setup" || this.silent) return false;
     if (s.phase !== "running") return true;
     return s.wake.active && s.run?.paused === true;
   }
@@ -400,7 +424,7 @@ export class JJEngine {
   }
 
   private scheduleRetry(): void {
-    if (this.retryTimer || !this.started) return;
+    if (this.retryTimer || !this.started || this.silent) return;
     this.retryTimer = this.o.clock.setTimeout(() => {
       this.retryTimer = null;
       if (this.started && JJ_PHASES.has(this.o.session.get().phase)) void this.ensureConnected().catch(() => {});
@@ -409,6 +433,7 @@ export class JJEngine {
 
   /** Runs fn once JJ is connected; connect failures are already logged and retried. */
   private withAgent(fn: () => void): void {
+    if (this.silent) return;
     this.ensureConnected().then(fn, () => {});
   }
 
@@ -419,7 +444,7 @@ export class JJEngine {
 
   // ---------------- state ----------------
 
-  private listening(): boolean { return this.o.mic.sinks().includes("jj"); }
+  private listening(): boolean { return !this.silent && this.o.mic.sinks().includes("jj"); }
 
   private publishState(): void {
     const st = this.status();

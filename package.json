@@ -14,6 +14,7 @@
     "e2e:browser": "node e2e/frontend-brain.mjs",
     "e2e:recording": "node e2e/recording.mjs",
     "e2e:pptx": "node e2e/pptx.mjs",
+    "e2e:pitch": "node e2e/pitch.mjs",
     "frontend:pull": "git subtree pull --prefix=apps/frontend frontend main --squash",
     "demo": "bash scripts/demo.sh"
   },

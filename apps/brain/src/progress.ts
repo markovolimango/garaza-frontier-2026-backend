@@ -12,7 +12,7 @@ import type { IncomingMessage, ServerResponse } from "node:http";
 import type { BehaviorKind, ProgressRow, ProgressRun, SessionProgress, SessionState } from "@coach/protocol";
 import { buildDigest, RULE_LABELS, ruleOfKind } from "./digest.ts";
 import { BEHAVIOR_WORDS } from "./observedCoach.ts";
-import { episodeTime, perMinute, type RunLog, type RunRecord } from "./runlog.ts";
+import { cameraMeasured, episodeTime, perMinute, type RunLog, type RunRecord } from "./runlog.ts";
 
 const capitalize = (s: string) => s.charAt(0).toUpperCase() + s.slice(1);
 const kindLabel = (kind: BehaviorKind) => capitalize(BEHAVIOR_WORDS[kind] ?? kind.replace(/_/g, " "));
@@ -29,7 +29,7 @@ export function buildProgress(records: RunRecord[], s: Readonly<SessionState>): 
       observations: r.observations.filter((o) => o.category).length,
       warnings: d.feedback.warnings,
       score: r.coachAfter?.score ?? null,
-      coach: r.coachConnected,
+      coach: cameraMeasured(r),
     };
   });
 
@@ -50,7 +50,7 @@ export function buildProgress(records: RunRecord[], s: Readonly<SessionState>): 
     const counts = runs.map((r) => {
       const obs = r.observations.filter((o) => (rule.startsWith("kind:") ? o.kind === kind : o.rule === rule)).length;
       // Measured when the camera coach was connected, or when the swarm's listener reported this rule (fillers).
-      if (!r.coachConnected && obs === 0) return null;
+      if (!cameraMeasured(r) && obs === 0) return null;
       return Math.max(obs, kind ? episodeTime(r, kind, r.endedAt ?? 0).count : 0);
     });
     const perMin = counts.map((c, i) => (c === null || !runMs[i] ? null : perMinute(c, runMs[i]!)));

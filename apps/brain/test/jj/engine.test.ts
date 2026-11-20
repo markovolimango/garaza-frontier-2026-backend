@@ -432,3 +432,25 @@ describe("JJEngine: captions (jj.transcript)", () => {
     expect(lines(t)).toHaveLength(n);
   });
 });
+
+describe("JJEngine: pitch mode (silent)", () => {
+  it("setSilent closes JJ and keeps it out: no greeting, no mic, no notes; back on, JJ may connect again", async () => {
+    const t = await toIntro();
+    expect(t.agent.connects).toHaveLength(1);
+    const texts = t.agent.sentText.length;
+    t.engine.setSilent(true);
+    await flush();
+    expect(t.agent.closes).toBeGreaterThan(0);
+    expect(t.engine.isSilent).toBe(true);
+    expect(t.engine.status().listening).toBe(false);
+    t.engine.agentNote("[DIRECTOR] plan ready", true);
+    t.session.dispatch({ type: "start_run" });
+    t.session.setRunPhase("presentation");
+    t.session.dispatch({ type: "end_run" });
+    await flush();
+    expect(t.agent.connects).toHaveLength(1);              // no reconnect for the debrief
+    expect(t.agent.sentText.length).toBe(texts);           // nothing said or noted
+    t.engine.setSilent(false);
+    expect(t.engine.isSilent).toBe(false);
+  });
+});

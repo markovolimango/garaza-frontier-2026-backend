@@ -141,7 +141,8 @@ export class DirectorAgent implements DirectorStrategy {
   private onSession(s: Readonly<SessionState>, cause: SessionCause): void {
     if (!Array.isArray(cause) && cause.type === "reset") { this.reset(); return; }
     const run = s.run;
-    const presenting = s.phase === "running" && run?.phase === "presentation" ? run.runId : null;
+    // pitch mode: no judges, so nothing to plan or react to
+    const presenting = s.phase === "running" && run?.phase === "presentation" && !run.pitch ? run.runId : null;
     if (presenting && presenting !== this.presenting) {
       this.presenting = presenting;
       this.verdicts.delete(presenting);

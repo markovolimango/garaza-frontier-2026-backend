@@ -139,7 +139,9 @@ export const RunDigest = z.object({
   qa: z.array(z.object({ judgeId: JudgeId, judgeTitle: z.string(), question: z.string(), answerMs: z.number() })),
   strengths: z.array(z.string()),
   next: Recommendation.nullable(),
-  sources: z.object({ coach: z.boolean() }),
+  /** coach: the camera coach measured the run (connected, and it saw the presenter's body for a good part of
+   *  the talk); cameraSeenPct: share of the camera's status reports with a body in it (null = no reports). */
+  sources: z.object({ coach: z.boolean(), cameraSeenPct: z.number().nullable().optional() }),
 });
 export type RunDigest = z.infer<typeof RunDigest>;
 
@@ -230,3 +232,38 @@ export type SessionNarrative = z.infer<typeof SessionNarrative>;
 
 /** `GET /api/swarm/report/run/:runId` and `/api/swarm/report/session`. */
 export type NarrativeStatus = "pending" | "ready" | "none";
+
+/**
+ * PitchDashboard: one pitch-mode run (RunState.pitch) as the stage's dashboard. `GET /api/pitch/dashboard`.
+ * Times (`tMs`, `fromMs`, …) are ms from the start of the talk. The written analysis comes from the
+ * reporter (`GET /api/swarm/report/run/:runId`), the same as for any run.
+ */
+export const PitchDashboard = z.object({
+  runId: RunId, index: z.number().int(),
+  /** The talk is still going (the stage shows live counters). */
+  live: z.boolean(),
+  durationMs: z.number(),
+  speech: z.object({
+    /** false = no transcript (listener off or nothing heard): the numbers below are not measurements. */
+    measured: z.boolean(),
+    words: z.number().int(),
+    wpm: z.number().nullable(),
+    fillers: z.object({
+      count: z.number().int(), perMin: z.number().nullable(),
+      top: z.array(z.object({ word: z.string(), count: z.number().int() })),
+      at: z.array(z.object({ tMs: z.number(), words: z.array(z.string()) })),
+    }),
+    phrases: z.array(z.object({ tMs: z.number(), endMs: z.number(), text: z.string(), fillers: z.array(z.string()) })),
+  }),
+  body: z.object({
+    /** false = the camera coach wasn't connected, or it didn't see the presenter's body (see seenPct). */
+    measured: z.boolean(),
+    /** Share of the talk the camera saw the body (shoulders and hips), %; null = no camera reports. */
+    seenPct: z.number().nullable(),
+    rows: z.array(z.object({
+      kind: BehaviorKind, label: z.string(), count: z.number().int(), totalMs: z.number(), longestMs: z.number(), pct: z.number(),
+      episodes: z.array(z.object({ fromMs: z.number(), toMs: z.number() })),
+    })),
+  }),
+});
+export type PitchDashboard = z.infer<typeof PitchDashboard>;

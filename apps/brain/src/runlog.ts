@@ -36,6 +36,8 @@ export interface RunRecord {
   wakes: number;
   qa: QaTurnRecord[];
   coachConnected: boolean;                         // the sensor role (coach bridge) was connected during the run
+  /** The camera's status reports during the talk (`sensor.status`): how many, and how many had a body in them. */
+  camera?: { statuses: number; withPose: number };
   qaStartedAt: number | null;
   endedAt: number | null;
   endedBy: EndedBy | null;
@@ -44,7 +46,7 @@ export interface RunRecord {
 }
 
 export interface RunLogHub {
-  on<T extends "coach.observation" | "behavior">(type: T, handler: (msg: Uplink<T>, role: ClientRole) => void): void;
+  on<T extends "coach.observation" | "behavior" | "sensor.status">(type: T, handler: (msg: Uplink<T>, role: ClientRole) => void): void;
   onOutbound(fn: (msg: DownlinkMessage, roles: ClientRole[]) => void): void;
   connections(): Record<ClientRole, boolean>;
 }
@@ -69,6 +71,22 @@ export function runLengthMs(rec: Pick<RunRecord, "run" | "qaStartedAt" | "endedA
 /** The one "per minute" (fillers, behaviours): count / run minutes, one decimal; 0 for a run without time. */
 export function perMinute(count: number, runMs: number): number {
   return runMs > 0 ? Math.round((count / (runMs / 60_000)) * 10) / 10 : 0;
+}
+
+/** Share of the talk the camera saw the presenter's body, %; null = no camera reports (none sent, or an old record). */
+export function cameraSeenPct(rec: Pick<RunRecord, "camera">): number | null {
+  const c = rec.camera;
+  return c && c.statuses > 0 ? Math.round((c.withPose / c.statuses) * 100) : null;
+}
+
+/** Below this share the camera's silence means nothing: it didn't see the body (e.g. hips below the desk). */
+export const CAMERA_SEEN_MIN_PCT = 33;
+
+/** The camera coach measured the run: connected, and (when it reported) it saw the body for a good part of it. */
+export function cameraMeasured(rec: Partial<Pick<RunRecord, "coachConnected" | "camera">>): boolean {
+  if (!rec.coachConnected) return false;
+  const pct = cameraSeenPct(rec);
+  return pct === null || pct >= CAMERA_SEEN_MIN_PCT;
 }
 
 /** How often each behaviour showed in a run: episodes (every occurrence) or, for behaviours without
@@ -115,6 +133,14 @@ export class RunLog {
       this.changed();
     });
     o.hub.on("behavior", (m) => this.onBehavior(m.payload));
+    // Did the camera see the presenter? (Not saved on every report: the next change saves it.)
+    o.hub.on("sensor.status", (m) => {
+      const rec = this.live();
+      if (!rec || rec.run.paused || (rec.run.phase !== "presentation" && rec.run.phase !== "qa")) return;
+      rec.camera ??= { statuses: 0, withPose: 0 };
+      rec.camera.statuses++;
+      if (m.payload.posePresent) rec.camera.withPose++;
+    });
     o.hub.onOutbound((msg) => {
       if (msg.type !== "feedback.set" || msg.payload.kind === "none") return;
       const rec = this.live();

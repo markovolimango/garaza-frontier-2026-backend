@@ -19,6 +19,12 @@ Lanes: `lead` (protocol), `brain`, `sensing`, `agents`, `stage`, `report`.
 
 ---
 
+### 2026-11-08T17:00+01:00 · brain · Pitch mode: the stage demo (`/pitch`, `RunState.pitch`, `PitchDashboard`)
+- **Where:** protocol `domain.ts` (`RunState.pitch`), `reports.ts` (`PitchDashboard`); brain `session.ts` (`start_run {pitch}`), `jj/engine.ts` (`setSilent`), `director/agent.ts`, `pitch.ts` (new), `server.ts`, `swarm/{reportData,body}.ts`; frontend `brain/PitchMode.tsx` (new), `routes/pitch.tsx` (new), `brain/BrainBridge.tsx`; `scripts/demo.sh --pitch`; `e2e/pitch.mjs`, `e2e/pitch-live.mjs`
+- **What:** a pitch run starts from any non-running phase without a deck, skips the countdown (listening starts with the click), runs as a baseline without feedback, ignores `wake`, and finishes on `end_run` or `presentation_done` without Q&A. JJ is silent while pitch mode is on (no connection, no mic, no agent notes, never debriefs a pitch); the director neither plans nor reacts. `GET /api/pitch/dashboard` builds the dashboard from the listener's phrases and the run's episodes; the written analysis is the reporter's run narrative (which calls it a pitch and leaves slides out). The stage's `/pitch` route is left alone by BrainBridge (no view → route moves, no overlay).
+- **Why:** the hackathon pitch itself is the demo: talk, click, show the dashboard of how it went.
+- **Impact:** stage: a new route; the other screens are unchanged. Operator panel: none. Lovable: `src/routes/pitch.tsx` and `routeTree.gen.ts` are added in the subtree (keep them on `frontend:pull`).
+
 ### 2026-11-08T15:05+01:00 · brain · One session report document; JJ tools without no-op options
 - **Where:** `apps/brain/src/swarm/{reporter,reportPdf}.ts` (`export.ts` removed), `jj/tools.ts`, `director/agent.ts`, `prompts/jj.md`; frontend `brain/{BrainReport,CoachAnalysis}.tsx`
 - **What:** `GET /api/session/export.html[?download=1]` now serves the reporter's session document at once (the narrative when ready, else the deterministic fallback); it is the same document as `/api/swarm/report/session.pdf`, still without personal goals. The progress tab has one "Export report" control (PDF, plus "Printable page"). `set_feedback_policy` lost `body` (body vignettes come from the coach bridge, which never read it); `direct_judges` lost `questions` (`set_qa` is the one way to set the count).

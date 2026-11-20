@@ -15,7 +15,7 @@
  */
 import { FEEDBACK_ELIGIBLE, type BehaviorKind, type CoachState, type Recommendation, type RunState, type TargetProgress } from "@coach/protocol";
 import { placeholderCoach } from "./placeholders.ts";
-import { behaviorCounts, type RunRecord } from "./runlog.ts";
+import { behaviorCounts, cameraMeasured, type RunRecord } from "./runlog.ts";
 import type { CoachPolicy } from "./session.ts";
 
 export const BEHAVIOR_WORDS: Record<BehaviorKind, string> = {
@@ -28,7 +28,7 @@ const severity = (n: number) => Math.min(1, n / 5);
 
 /** Where the policy reads a finished run's observations (the RunLog, created after the policy). */
 export interface RunSource {
-  get(runId: string): (Pick<RunRecord, "observations"> & Partial<Pick<RunRecord, "episodes" | "coachConnected">>) | null;
+  get(runId: string): (Pick<RunRecord, "observations"> & Partial<Pick<RunRecord, "episodes" | "coachConnected" | "camera">>) | null;
 }
 
 export function kindCounts(log: RunSource, runId: string): Map<BehaviorKind, number> {
@@ -66,7 +66,8 @@ export function observedCoach(log: RunSource, opts: { cleanRuns: number; maxTrai
         return { ...next, targets, stage: "training", level: "strong" };
       }
       if (run.mode !== "training") return next;
-      if (log.get(run.runId)?.coachConnected === false) return next;   // not measured: streaks unchanged
+      const measured = log.get(run.runId);
+      if (measured && measured.coachConnected !== undefined && !cameraMeasured(measured)) return next;   // not measured: streaks unchanged
       const targets = next.targets.map((t): TargetProgress => {
         const n = counts.get(t.kind) ?? 0;
         const cleanStreak = n === 0 ? t.cleanStreak + 1 : 0;
