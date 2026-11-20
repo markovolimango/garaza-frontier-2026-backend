@@ -9,10 +9,12 @@
  */
 import type { PitchDashboard, RunNarrative } from "@coach/protocol";
 import { useEffect, useState, useSyncExternalStore } from "react";
+import { createPortal } from "react-dom";
 import { activeSource } from "../signals";
 import { BrainSource } from "./BrainSource";
 import { useNarrative, Writing, type Reply } from "./CoachAnalysis";
 import { fmtMs } from "./format";
+import { PITCH_QUESTIONS } from "./pitchQuestions";
 
 type View = { kind: "ready" } | { kind: "live"; runId: string } | { kind: "dashboard"; runId: string };
 
@@ -209,6 +211,15 @@ const BODY_COLOR = "#3987e5";     // categorical slot 1 (dark)
 function Dashboard({ brain, runId, onAgain }: { brain: BrainSource; runId: string; onAgain: () => void }) {
   const narrative = useNarrative<RunNarrative>(`${brain.httpBase}/api/swarm/report/run/${encodeURIComponent(runId)}`);
   const [since] = useState(() => Date.now());
+  const [questions, setQuestions] = useState(false);
+  useEffect(() => {   // Q shows the judges' questions, Esc hides them
+    const key = (e: KeyboardEvent) => {
+      if ((e.key === "q" || e.key === "Q") && !e.repeat) setQuestions((v) => !v);
+      if (e.key === "Escape") setQuestions(false);
+    };
+    window.addEventListener("keydown", key);
+    return () => window.removeEventListener("keydown", key);
+  }, []);
   // the listener's last phrase lands a few seconds after the stop
   const d = useDashboard(brain, runId, 2000, () => Date.now() - since > 20_000);
   if (!d) return <p className="flex min-h-screen items-center justify-center text-xl text-muted-foreground animate-pulse">Building your dashboard…</p>;
@@ -224,8 +235,12 @@ function Dashboard({ brain, runId, onAgain }: { brain: BrainSource; runId: strin
           <p className="font-mono text-sm uppercase tracking-[0.3em] text-muted-foreground">Pitch dashboard · run {d.index}</p>
           <h1 className="mt-2 text-4xl font-semibold tracking-tight">How the pitch went</h1>
         </div>
-        <button type="button" onClick={onAgain} className="rounded-full border border-border px-5 py-2 text-sm hover:bg-accent">New pitch</button>
+        <div className="flex gap-2">
+          <button type="button" onClick={() => setQuestions(true)} className="rounded-full bg-primary px-5 py-2 text-sm font-medium text-primary-foreground hover:bg-primary/90">Judges' questions</button>
+          <button type="button" onClick={onAgain} className="rounded-full border border-border px-5 py-2 text-sm hover:bg-accent">New pitch</button>
+        </div>
       </header>
+      {questions && <Questions onClose={() => setQuestions(false)} />}
 
       <div className="grid grid-cols-2 gap-4 md:grid-cols-4">
         <Tile label="Duration" value={fmtMs(d.durationMs)} note={d.live ? "still running" : "talk time"} />
@@ -272,6 +287,25 @@ function Dashboard({ brain, runId, onAgain }: { brain: BrainSource; runId: strin
         </details>
       )}
     </section>
+  );
+}
+
+/** The judges' questions, full screen and large (readable from the room); a click or Esc closes.
+ *  In a portal on <body>: the dashboard scrolls inside its own box, the questions cover the whole screen. */
+function Questions({ onClose }: { onClose: () => void }) {
+  return createPortal(
+    <div role="dialog" aria-label="Judges' questions" onClick={onClose} data-testid="pitch-questions"
+      className="fixed inset-0 z-[120] flex cursor-pointer items-center justify-center overflow-y-auto bg-background px-8 py-10">
+      <div className="w-full max-w-5xl">
+        <p className="font-mono text-sm uppercase tracking-[0.3em] text-muted-foreground">Our AI judges' questions</p>
+        <ol className="mt-8 space-y-8">{PITCH_QUESTIONS.map((q, i) => (
+          <li key={i} className="animate-in fade-in slide-in-from-bottom-2" style={{ animationDelay: `${i * 250}ms`, animationFillMode: "both" }}>
+            <p className="font-mono text-sm text-primary">{q.judge}</p>
+            <p className="mt-1 text-3xl font-medium leading-snug md:text-4xl">{q.text}</p>
+          </li>))}</ol>
+      </div>
+    </div>,
+    document.body,
   );
 }
 

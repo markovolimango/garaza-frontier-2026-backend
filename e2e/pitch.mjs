@@ -100,6 +100,12 @@ try {
   check("still on /pitch after the run", path() === "/pitch", path());
   check("JJ still silent after the run (no debrief)", (await get("/health")).jj !== "connected");
   await shot("3-dashboard");
+  await page.getByRole("button", { name: "Judges' questions" }).click();
+  check("Judges' questions → the baked questions, full screen", !!(await waitFor(async () => (await page.textContent("[data-testid=pitch-questions]"))?.includes("VC investor"), 3000)));
+  await sleep(1500);
+  await shot("3b-questions");
+  await page.keyboard.press("Escape");
+  check("Esc hides them", !!(await waitFor(async () => (await page.locator("[data-testid=pitch-questions]").count()) === 0, 3000)));
 
   await page.getByRole("button", { name: "New pitch" }).click();
   check("New pitch → ready again", !!(await waitFor(() => page.getByRole("button", { name: "Start listening" }).isVisible())));
