@@ -6,7 +6,7 @@
 import type { IncomingMessage, ServerResponse } from "node:http";
 import { CATEGORY_OF, type BehaviorKind, type Recommendation, type RunDigest, type RunDigestObservation } from "@coach/protocol";
 import { mmss } from "./format.ts";
-import { episodeTime, RULE_OF_KIND, type EpisodeRecord, type RunLog, type RunRecord } from "./runlog.ts";
+import { cameraMeasured, cameraSeenPct, episodeTime, RULE_OF_KIND, type EpisodeRecord, type RunLog, type RunRecord } from "./runlog.ts";
 
 /** Coach backend rules (services/coach) → what the presenter reads. */
 export const RULE_LABELS: Record<string, { label: string; strength: string }> = {
@@ -71,7 +71,8 @@ export function buildDigest(rec: RunRecord, next: Recommendation | null): RunDig
     byRule.set(rule, g);
   }
   const observations = [...byRule.values()].sort((a, b) => Number(b.isTarget) - Number(a.isTarget) || b.count - a.count);
-  const strengths = rec.coachConnected
+  // "not flagged once" is a strength only if the camera actually watched (it needs shoulders and hips in frame)
+  const strengths = cameraMeasured(rec)
     ? Object.entries(RULE_LABELS).filter(([rule, l]) => l.strength && !byRule.has(rule)).map(([, l]) => l.strength)
     : [];
 
@@ -86,7 +87,7 @@ export function buildDigest(rec: RunRecord, next: Recommendation | null): RunDig
     qa: rec.qa.map(({ judgeId, judgeTitle, question, answerMs }) => ({ judgeId, judgeTitle, question, answerMs })),
     strengths,
     next,
-    sources: { coach: rec.coachConnected },
+    sources: { coach: cameraMeasured(rec), cameraSeenPct: cameraSeenPct(rec) },
   };
 }
 

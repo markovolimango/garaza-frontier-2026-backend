@@ -9,7 +9,7 @@ import { buildDigest } from "../src/digest.ts";
 import { observedCoach } from "../src/observedCoach.ts";
 import { loadLatest, SessionPersistence } from "../src/persist.ts";
 import { buildProgress } from "../src/progress.ts";
-import { behaviorCounts, RunLog } from "../src/runlog.ts";
+import { behaviorCounts, cameraMeasured, cameraSeenPct, RunLog } from "../src/runlog.ts";
 import { SessionStore } from "../src/session.ts";
 import { judge } from "./helpers.ts";
 
@@ -38,6 +38,8 @@ function rig(o: { sensor?: boolean; dir?: string } = {}) {
   const persistence = o.dir ? new SessionPersistence({ dir: o.dir, session: store, runLog, clock }) : null;
   const behavior = (kind: BehaviorKind, phase: "start" | "end", clientTs = clock.now()) =>
     inbound.get("behavior")!({ payload: { kind, phase, clientTs, conf: 1 } }, "sensor");
+  const status = (posePresent: boolean) =>
+    inbound.get("sensor.status")!({ payload: { camera: posePresent ? "ok" : "no_person", fps: 12, posePresent } }, "sensor");
   const observe = (rule: string, kind: BehaviorKind | null) =>
     inbound.get("coach.observation")!({ payload: { rule, kind, category: "posture", text: rule, clientTs: 0 } }, "sensor");
   /** An episode of `ms` that started `ago` ms before now (as the coach back-dates its starts). */
@@ -49,7 +51,7 @@ function rig(o: { sensor?: boolean; dir?: string } = {}) {
   const finish = () => expect(store.dispatch({ type: "presentation_done" })).toEqual({ ok: true });
   store.setContext({ deck: DECK });
   store.dispatch({ type: "session_start" });
-  return { clock, store, runLog, persistence, behavior, observe, episode, start, finish };
+  return { clock, store, runLog, persistence, behavior, observe, episode, start, finish, status };
 }
 
 describe("behaviour episodes in the run log", () => {
@@ -205,5 +207,37 @@ describe("the end of a session: final progress and delete", () => {
     expect(await reset(t, {})).toMatchObject({ deleted: true });                        // erases sess3
     expect([existsSync(join(dir, "sess3")), existsSync(join(dir, "sess4", "session.json"))]).toEqual([false, true]);
     expect(loadLatest(dir)!.state.sessionId).toBe("sess4");
+  });
+});
+
+describe("did the camera see the presenter", () => {
+  it("counts the camera's reports during the talk; a camera that never saw the body measured nothing", () => {
+    const t = rig();
+    t.status(false);                                   // before the talk: not counted
+    t.start();
+    for (let i = 0; i < 9; i++) t.status(false);       // seated at a laptop: no hips, no body
+    t.status(true);
+    t.finish();
+    const rec = t.runLog.list().at(-1)!;
+    expect(rec.camera).toEqual({ statuses: 10, withPose: 1 });
+    expect(cameraSeenPct(rec)).toBe(10);
+    expect(cameraMeasured(rec)).toBe(false);
+    const d = buildDigest(rec, null);
+    expect(d.sources).toEqual({ coach: false, cameraSeenPct: 10 });
+    expect(d.strengths).toEqual([]);                   // no "kept your head up" from a camera that saw nothing
+  });
+
+  it("a camera that saw the body most of the time measured the run; no reports = as before (connected is enough)", () => {
+    const t = rig();
+    t.start();
+    for (let i = 0; i < 8; i++) t.status(true);
+    t.status(false); t.status(false);
+    t.finish();
+    const rec = t.runLog.list().at(-1)!;
+    expect(cameraSeenPct(rec)).toBe(80);
+    expect(cameraMeasured(rec)).toBe(true);
+    expect(buildDigest(rec, null).strengths.length).toBeGreaterThan(0);
+    expect(cameraMeasured({ coachConnected: true })).toBe(true);
+    expect(cameraMeasured({ coachConnected: false, camera: { statuses: 5, withPose: 5 } })).toBe(false);
   });
 });

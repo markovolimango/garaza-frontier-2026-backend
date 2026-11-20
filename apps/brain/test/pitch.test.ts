@@ -57,6 +57,16 @@ describe("pitch mode: the session", () => {
     expect(t.pitch.dashboard()).toBeNull();
   });
 
+  it("enter: JJ silent, a session in setup starts quietly (the bridge's standby camera check needs it)", () => {
+    const t = setup();
+    expect(t.pitch.enter()).toEqual({ ok: true });
+    expect(t.session.get().phase).toBe("intro");
+    expect(t.silent).toEqual([true]);                                     // its own session_start doesn't unmute
+    expect(t.pitch.enter()).toEqual({ ok: true });                        // again: nothing else changes
+    expect(t.session.get().phase).toBe("intro");
+    expect(t.pitch.start()).toMatchObject({ ok: true, runId: "run_1" });
+  });
+
   it("the coaching loop gives JJ its voice back: a reset, a session start, a normal run", () => {
     const t = setup();
     t.pitch.start();
@@ -103,6 +113,13 @@ describe("pitch mode: the dashboard", () => {
     expect(d.speech.fillers.at).toEqual([{ tMs: 2000, words: ["um"] }, { tMs: 40_000, words: ["uh", "um"] }]);
     expect(d.body.rows.map((r) => [r.kind, r.count, r.totalMs, r.pct])).toEqual([["arms_crossed", 2, 18_000, 15], ["sway", 1, 3000, 2.5]]);
     expect(d.body.rows[0]).toMatchObject({ label: "Crossed arms", longestMs: 12_000, episodes: [{ fromMs: 10_000, toMs: 22_000 }, { fromMs: 60_000, toMs: 66_000 }] });
+  });
+
+  it("body: a camera that hardly saw the presenter is not a measurement (seenPct says how much it saw)", () => {
+    const d = buildPitchDashboard(rec({ camera: { statuses: 20, withPose: 2 } }), [], T0 + 200_000);
+    expect(d.body).toMatchObject({ measured: false, seenPct: 10 });
+    expect(buildPitchDashboard(rec({ camera: { statuses: 20, withPose: 18 } }), [], T0 + 200_000).body).toMatchObject({ measured: true, seenPct: 90 });
+    expect(buildPitchDashboard(rec(), [], T0 + 200_000).body).toMatchObject({ measured: true, seenPct: null });
   });
 
   it("while the talk goes on it is live and counts up to now; no transcript = not measured", () => {

@@ -3,6 +3,8 @@
  * and no Q&A. The listener (transcript, fillers), the camera coach (episodes), the recorder and the
  * reporter work as in any run. One click ends the talk and the stage shows the dashboard.
  *
+ *   POST /api/pitch/enter      → { ok }          the pitch screen opened: JJ goes silent; a session in setup starts
+ *                                                (so the coach bridge runs its standby camera check before the talk)
  *   POST /api/pitch/start      → { ok, runId }   JJ goes silent; a pitch run starts listening at once
  *   POST /api/pitch/stop       → { ok, runId }   ends the talk (the reporter starts writing)
  *   POST /api/pitch/exit       → { ok }          leaves pitch mode: JJ may talk again (409 during a pitch)
@@ -13,7 +15,7 @@ import type { BehaviorKind, PitchDashboard, Result, SessionState } from "@coach/
 import type { Clock } from "./clock.ts";
 import { RULE_LABELS, ruleOfKind } from "./digest.ts";
 import { BEHAVIOR_WORDS } from "./observedCoach.ts";
-import type { RunLog, RunRecord } from "./runlog.ts";
+import { cameraMeasured, cameraSeenPct, type RunLog, type RunRecord } from "./runlog.ts";
 import type { SessionAction, SessionCause } from "./session.ts";
 import type { Phrase } from "./swarm/board.ts";
 
@@ -30,14 +32,26 @@ export interface PitchDeps {
 }
 
 export class PitchMode {
+  /** Pitch mode's own session actions don't give JJ its voice back. */
+  private own = false;
+
   constructor(private readonly o: PitchDeps) {
     // The coaching loop takes over again (a reset, a session start, a normal run): JJ gets its voice back,
     // also when the pitch page was closed without leaving pitch mode.
     o.session.subscribe((_s, cause) => {
-      if (Array.isArray(cause)) return;
+      if (Array.isArray(cause) || this.own) return;
       if (cause.type === "reset" || cause.type === "session_start" || cause.type === "run_it_back"
         || (cause.type === "start_run" && !("pitch" in cause && cause.pitch))) o.jj.setSilent(false);
     });
+  }
+
+  enter(): Result {
+    this.o.jj.setSilent(true);
+    if (this.o.session.get().phase === "setup") {
+      this.own = true;
+      try { this.o.session.dispatch({ type: "session_start" }); } finally { this.own = false; }
+    }
+    return { ok: true };
   }
 
   start(): Result & { runId?: string } {
@@ -119,7 +133,7 @@ export function buildPitchDashboard(rec: RunRecord, phrases: Phrase[], now: numb
       },
       phrases: talk.map((p) => ({ tMs: t(p.startAt), endMs: t(p.endAt), text: p.text, fillers: p.fillers })),
     },
-    body: { measured: rec.coachConnected, rows: [...rows.values()].sort((a, b) => b.totalMs - a.totalMs) },
+    body: { measured: cameraMeasured(rec), seenPct: cameraSeenPct(rec), rows: [...rows.values()].sort((a, b) => b.totalMs - a.totalMs) },
   };
 }
 
@@ -133,6 +147,7 @@ export function pitchHttp(pitch: PitchMode) {
   return (req: IncomingMessage, res: ServerResponse): boolean => {
     const path = (req.url ?? "").split("?")[0]!;
     if (!path.startsWith("/api/pitch/")) return false;
+    if (req.method === "POST" && path === "/api/pitch/enter") { json(res, 200, pitch.enter()); return true; }
     if (req.method === "POST" && path === "/api/pitch/start") { const r = pitch.start(); json(res, r.ok ? 200 : 409, r); return true; }
     if (req.method === "POST" && path === "/api/pitch/stop") { const r = pitch.stop(); json(res, r.ok ? 200 : 409, r); return true; }
     if (req.method === "POST" && path === "/api/pitch/exit") { const r = pitch.exit(); json(res, r.ok ? 200 : 409, r); return true; }

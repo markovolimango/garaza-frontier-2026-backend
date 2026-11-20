@@ -195,7 +195,9 @@ export function fallbackRun(i: RunInputs, now = Date.now()): RunNarrative {
   const summary = [
     i.pitch ? `A pitch: ${mmss(d.durations.presentationMs)} of talk.`
       : `A ${i.mode} run: ${mmss(d.durations.presentationMs)} presenting${d.durations.qaMs ? ` and ${mmss(d.durations.qaMs)} of Q&A` : ""}${d.slides.length ? ` over ${plural(d.slides.length, "slide")}` : ""}.`,
-    !d.sources.coach ? "The camera coach wasn't connected, so there are no body observations."
+    !d.sources.coach ? (typeof d.sources.cameraSeenPct === "number"
+      ? `The camera saw your body only ${d.sources.cameraSeenPct}% of the time (it needs your upper body with the hips in frame), so there are no body observations.`
+      : "The camera coach wasn't connected, so there are no body observations.")
       : camera.length ? `The camera coach noticed ${camera.slice(0, 3).map((b) => `${b.label.toLowerCase()} (${b.count}×)`).join(", ")}.` : "The camera coach flagged nothing.",
     f.measured ? `You used ${plural(f.count, "filler word")} (${f.perMin} a minute).` : "",
     qa.length ? `${plural(qa.length, "question")} from the judges; ${weak.length ? `${weak.length} answer${weak.length === 1 ? " was" : "s were"} short or missing` : "all answered"}.` : "",

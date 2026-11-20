@@ -41,6 +41,7 @@ const RunRecordSchema = z.object({
   wakes: z.number().int(),
   qa: z.array(z.object({ judgeId: JudgeId, judgeTitle: z.string(), question: z.string(), askedAt: z.number(), answerMs: z.number(), answer: z.string().optional() })),
   coachConnected: z.boolean(),
+  camera: z.object({ statuses: z.number().int(), withPose: z.number().int() }).optional(),
   qaStartedAt: z.number().nullable(),
   endedAt: z.number().nullable(),
   endedBy: z.enum(["qa_done", "end_run", "presentation_done", "aborted"]).nullable(),
